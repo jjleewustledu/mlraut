@@ -63,6 +63,7 @@ classdef Physio < handle
                 return
             end
             this.cifti_last_ = cifti_read(this.task_dtseries(this.subjects{1},this.tasks{1}));
+            g = this.cifti_last_;
         end
         function     set.cifti_last(this, s)
             assert(isstruct(s));
@@ -82,6 +83,7 @@ classdef Physio < handle
             end
             ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_cbm_HCP.mat'));
             this.mask_cbm_HCP_ = ld.mask_cbm;
+            g = this.mask_cbm_HCP_;
         end
         function g = get.mask_ctx_HCP(this)
             if ~isempty(this.mask_ctx_HCP_)
@@ -90,6 +92,7 @@ classdef Physio < handle
             end
             ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_ctx_HCP.mat'));
             this.mask_ctx_HCP_ = ld.mask_ctx;
+            g = this.mask_ctx_HCP_;
         end
         function g = get.mask_str_HCP(this)
             if ~isempty(this.mask_str_HCP_)
@@ -98,6 +101,7 @@ classdef Physio < handle
             end
             ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_str_HCP.mat'));
             this.mask_str_HCP_ = ld.mask_str;
+            g = this.mask_str_HCP_;
         end
         function g = get.mask_thal_HCP(this)
             if ~isempty(this.mask_thal_HCP_)
@@ -106,6 +110,7 @@ classdef Physio < handle
             end
             ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_thal_HCP.mat'));
             this.mask_thal_HCP_ = ld.mask_thal;
+            g = this.mask_thal_HCP_;
         end
         function g = get.networks_HCP(this)
             if ~isempty(this.networks_HCP_)
@@ -114,6 +119,7 @@ classdef Physio < handle
             end
             ld = load(fullfile(this.waves_dir, 'supporting_files', 'networks_HCP.mat'));
             this.networks_HCP_ = ld.assns2;
+            g = this.networks_HCP_;
         end
         function g = get.num_sub(this)
             g = numel(this.subjects);
@@ -123,7 +129,7 @@ classdef Physio < handle
         end
         function g = get.root_dir(~)
             if contains(hostname, 'precuneal')
-                g = '/Volumes/PrecunealSSD/HCP/AWS/hcp-openaccess/HCP_1200';
+                g = '/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200';
                 assert(isfolder(g));
                 return
             end
@@ -154,8 +160,8 @@ classdef Physio < handle
             end
             error('mlraut:NotImplementedError', 'Physio.get.subjects');
         end
-        function g = get.tasks(~)
-            g = {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'};
+        function g = get.tasks(this)
+            g = this.tasks_;
         end
         function g = get.waves_dir(~)
             g = fullfile(getenv('HOME'), 'MATLAB-Drive', 'arousal-waves-main', '');
@@ -182,7 +188,7 @@ classdef Physio < handle
 
         function fn = aparc_a2009s_label_gii(~, sub, hemi)
             %  e.g.:
-            %  cd('/Volumes/PrecunealSSD/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
+            %  cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
             %  g = gifti('100307.L.aparc.a2009s.32k_fs_LR.label.gii')
 
             if contains(hemi, 'L', IgnoreCase=true)
@@ -199,7 +205,7 @@ classdef Physio < handle
         end
         function fn = aparc_a2009s_dlabel_nii(~, sub)
             %  e.g.:
-            %  cd('/Volumes/PrecunealSSD/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
+            %  cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
             %  g = gifti('100307.aparc.a2009s.32k_fs_LR.dlabel.gii')
 
             pth = fullfile(getenv('SINGULARITY_HOME'), '..', 'HCP', 'AWS', 'hcp-openaccess', 'HCP_1200', ...
@@ -367,6 +373,10 @@ classdef Physio < handle
             assert(istext(task));
             fqfn = fullfile( ...
                 this.data_dir(subj, task), strcat(task, '_Atlas_MSMAll_hp2000_clean.dtseries.nii'));
+            if ~isfile(fqfn)
+                fqfn = fullfile( ...
+                    this.data_dir(subj, task), strcat(task, '_Atlas_MSMAll.dtseries.nii'));
+            end
 
             try
                 cifti = cifti_read(fqfn);
@@ -434,11 +444,15 @@ classdef Physio < handle
             %      lp_thresh (scalar): default := 0.05 from Ryan.
             %      do_save (logical): save mlraut.Pysio to mat ~ 10 GB.
             
+            this.tasks_ = {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'};
+            %this.tasks_ = {'tfMRI_MOTOR_LR','tfMRI_MOTOR_RL'};
+
             ip = inputParser;
             addParameter(ip, "outdir", pwd, @isfolder);
             addParameter(ip, "hp_thresh", this.hp_thresh, @isscalar);
             addParameter(ip, "lp_thresh", this.lp_thresh, @isscalar);
             addParameter(ip, "do_save", false, @islogical);
+            addParameter(ip, "tasks", this.tasks_, @iscell);
             parse(ip, varargin{:})
             ipr = ip.Results;
             
@@ -446,6 +460,7 @@ classdef Physio < handle
             this.hp_thresh = ipr.hp_thresh;
             this.lp_thresh = ipr.lp_thresh;
             this.do_save = ipr.do_save;
+            this.tasks_ = ipr.tasks;
 
             this.plvs = single(nan(this.num_nodes,this.num_sub,this.num_tasks));
             this.ctx_signals = single(nan(this.num_frames,8,this.num_sub,this.num_tasks));
@@ -477,27 +492,37 @@ classdef Physio < handle
             %      N (optional scalar): num. of requested samples of f, default is 4.
 
             ip = inputParser;
-            addRequired(ip, 'fmin', 0, @isscalar);
-            addRequired(ip, 'fmax', inf, @isscalar);
-            addRequired(ip, 'N', 4, @isscalar);
+            addOptional(ip, 'fmin', 0, @isscalar);
+            addOptional(ip, 'fmax', inf, @isscalar);
+            addParameter(ip, 'N', 4, @isscalar);
             parse(ip, varargin{:});
             ipr = ip.Results;
             if ipr.fmin < 2/1191
-                ipr.fmin = 2/1191;
+                ipr.fmin = 1/512;
             end
             if ipr.fmax > 0.5
                 ipr.fmax = 0.5;
             end
 
             % estimate df ~ log sweep of spectral range
-            Df = ipr.fmax - ipr.fmin;
-            N = ipr.N + 1;
-            set_f = flip([exp(log(ipr.fmax):log(Df)/N:log(ipr.fmin)) ipr.fmin]);
+            Dlogf = log2(ipr.fmin) - log2(ipr.fmax);
+            N = ipr.N - 2;
+            set_f = [flip(exp(log2(ipr.fmax):Dlogf/N:log2(ipr.fmin))) ipr.fmax];
 
             % sweep calls to Physio
 
+            disp(set_f')
+
             for idx = 1:length(set_f)-1
-                fold = sprintf('arousal-waves-%g-%g', set_f(idx), set_f(idx+1));
+                fold = sprintf('arousal-waves-%g-%g', ...
+                    round(set_f(idx),2,'significant'), round(set_f(idx+1),2,'significant'));
+                fold = strrep(fold, '.', 'p');
+                disp(fold)
+            end
+
+            for idx = 1:length(set_f)-1
+                fold = sprintf('arousal-waves-%g-%g', ...
+                    round(set_f(idx),2,'significant'), round(set_f(idx+1),2,'significant'));
                 fold = strrep(fold, '.', 'p');
                 if ~isfolder(fold)
                     mkdir(fold);
@@ -520,6 +545,7 @@ classdef Physio < handle
         mask_thal_HCP_
         mask_cbm_HCP_
         networks_HCP_
+        tasks_
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
