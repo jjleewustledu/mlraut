@@ -11,6 +11,9 @@ classdef Test_Physio < matlab.unittest.TestCase
     end
     
     methods (Test)
+        function test_ctor(this)
+            disp(this.testObj)
+        end
         function test_afun(this)
             obj = this.testObj;
             task = obj.tasks{1};
@@ -33,6 +36,30 @@ classdef Test_Physio < matlab.unittest.TestCase
             call(obj);
             mlbash(['wb_view ' this.rsfMRI_scene])
         end
+        function test_call_iFV_multi(this)
+            pwd1 = pushd(fullfile(getenv('HCP_HOME'), '995174'));
+            lp_thr = [0.1 0.2 0.4];
+            hp_thr = [0.01 0.005 0.0025];
+            %lp_thr = 0.5;
+            %hp_thr = 1/512;
+            parfor idx = 1:length(lp_thr)
+                fold = sprintf('arousal-waves-iFV-%g-%g', ...
+                    round(hp_thr(idx),2,'significant'), round(lp_thr(idx),2,'significant'));
+                fold = strrep(fold, '.', 'p');
+                if ~isfolder(fold)
+                    mkdir(fold);
+                    pwd0 = pushd(fold);
+                    fprintf('mlraut.Physio.call():  working in %s\n', pwd)
+                    obj = mlraut.Physio('hp_thresh', hp_thr(idx), 'lp_thresh', lp_thr(idx), ...
+                        'source_physio', 'iFV', ...
+                        'gs_subtract', true);
+                    call(obj)
+                    popd(pwd0);
+                end
+            end
+            mlbash(['wb_view ' this.rsfMRI_scene])
+            popd(pwd1)
+        end
         function test_mask_fs(this)
             sub = '100307';
             parc = 'L_S_parieto_occipital';
@@ -45,8 +72,8 @@ classdef Test_Physio < matlab.unittest.TestCase
         function setupPhysio(this)
             import mlraut.*
             this.testObj_ = Physio();
-            this.rsfMRI_scene = fullfile(getenv('SINGULARITY_HOME'), '..', ...
-                'HCP', 'HCP_WB_Tutorial_1.5_Pr_kN3mg', 'WB_1.5_SCENES.32k_fs_LR.scene');
+            assert(isfolder(getenv('HCP_HOME')))
+            this.rsfMRI_scene = fullfile(getenv('HCP_HOME'), '995174', '995174_angles_m2pi.scene');
         end
     end
     

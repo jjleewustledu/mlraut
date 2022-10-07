@@ -9,14 +9,15 @@ classdef Physio < handle
     properties
         do_save
         outdir
+        source_physio
+        gs_subtract % false -> normalize by global signal
 
         num_nodes = 91282; % HCP standard 2mm "grayordinates"
         tr = 0.72; % sampling interval (s)
         num_frames = 1191;
+        num_frames_to_trim = 5;
 
-        plvs % phase-locked BOLD, time-averaged
         ctx_signals % cortex
-        prec_signals % precuneus
         str_signals % striatum
         thal_signals % thalamus
         cbm_signals % cerebellum
@@ -27,7 +28,6 @@ classdef Physio < handle
         abs_h1 % amplitude of arousal
         abs_h2 % amplitude of phase-locked analytic signal
         angles_m2pi % phase mod 2pi
-        %angles_m4pi % phase mod 4pi
         bold
         h1
         h2
@@ -147,15 +147,15 @@ classdef Physio < handle
         end
         function g = get.subjects(~)
             if contains(hostname, 'precuneal')
-                g = {'100307'};
+                g = {'995174'};
                 return
             end
             if contains(hostname, 'pascal')
-                g = {'100307'};
+                g = {'995174'};
                 return
             end
             if contains(hostname, 'cluster')
-                g = {'100307'};
+                g = {'995174'};
                 return
             end
             error('mlraut:NotImplementedError', 'Physio.get.subjects');
@@ -186,7 +186,7 @@ classdef Physio < handle
 
         %%
 
-        function fn = aparc_a2009s_label_gii(~, sub, hemi)
+        function fn = aparc_a2009s_label_gii(this, sub, hemi)
             %  e.g.:
             %  cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
             %  g = gifti('100307.L.aparc.a2009s.32k_fs_LR.label.gii')
@@ -198,18 +198,16 @@ classdef Physio < handle
                 hemi = 'R';
             end
 
-            pth = fullfile(getenv('SINGULARITY_HOME'), '..', 'HCP', 'AWS', 'hcp-openaccess', 'HCP_1200', ...
-                sub, 'MNINonLinear', 'fsaverage_LR32k');
+            pth = fullfile(this.root_dir, sub, 'MNINonLinear', 'fsaverage_LR32k');
             fn = sprintf('%s.%s.aparc.a2009s.32k_fs_LR.label.gii', sub, hemi);
             fn = fullfile(pth, fn);
         end
-        function fn = aparc_a2009s_dlabel_nii(~, sub)
+        function fn = aparc_a2009s_dlabel_nii(this, sub)
             %  e.g.:
             %  cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
             %  g = gifti('100307.aparc.a2009s.32k_fs_LR.dlabel.gii')
 
-            pth = fullfile(getenv('SINGULARITY_HOME'), '..', 'HCP', 'AWS', 'hcp-openaccess', 'HCP_1200', ...
-                sub, 'MNINonLinear', 'fsaverage_LR32k');
+            pth = fullfile(this.root_dir, sub, 'MNINonLinear', 'fsaverage_LR32k');
             fn = sprintf('%s.aparc.a2009s.32k_fs_LR.dlabel.nii', sub);
             fn = fullfile(pth, fn);
         end
@@ -227,106 +225,86 @@ classdef Physio < handle
             this.str_signals(:,8,s,t) = mean(BOLD(:,this.mask_str_HCP),2,'omitnan');
             this.thal_signals(:,8,s,t) = mean(BOLD(:,this.mask_thal_HCP),2,'omitnan');
             this.cbm_signals(:,8,s,t) = mean(BOLD(:,this.mask_cbm_HCP),2,'omitnan');
-
-%             for pidx = 1:length(this.dmn_parcels)
-%                 this.prec_signals(:,pidx,s,t) = ...
-%                     mean(BOLD(:, this.mask_fs(this.subjects{s}, this.dmn_parcels{pidx})), 2, 'omitnan');
-%             end
         end
         function this = call(this)
 
             for s = 1:this.num_sub
                 tic
                         
-                disp(['Processing subject ' num2str(s) ' out of ' num2str(this.num_sub)]);
+                disp(['Processing subject ' this.subjects{s} ' : ' num2str(s) ' out of ' num2str(this.num_sub)]);
                 subj = num2str(this.subjects{s});            
                 
                 for t = 1:this.num_tasks
-            
-                    disp(['Processing task ' num2str(t) ' out of ' num2str(this.num_tasks)]);   
+                    task = this.tasks{t};            
+                    disp(['Processing task ' task ' : ' num2str(t) ' out of ' num2str(this.num_tasks)]);
 
                     % BOLD
-                    task = this.tasks{t};
-                    BOLD = this.task_dtseries(subj, task); 
-                    if isempty(BOLD)
+                    try
+                        BOLD = this.task_dtseries(subj, task); 
+                        assert(~isempty(BOLD))
+                    catch ME
+                        disp([subj ' ' task ' BOLD missing or defective:']);
+                        disp(ME)
                         continue
                     end
                      
                     % Physio
                     try
-                        physio = this.task_physio(subj, task);
+                        physio = this.task_physio(subj, task, BOLD);
                     catch ME
-                        disp([subj ' ' task 'physio missing:']);
+                        disp([subj ' ' task ' physio missing:']);
                         disp(ME)
                         continue
                     end
             
-                    % Get 6 sec windows
-                    if length(physio)/400<860
-                        continue
-                    end
-                    time_vec_bold = this.tr*(1:size(BOLD,1))';
-                    time_vec_phys = (0:length(physio)-1)'/400;
-                    physio_ds_ = zeros(size(time_vec_bold));
-                    
-                    physio(:,3) = zscore(physio(:,3));
-                    for i = 5:length(physio_ds_)-4
-                        
-                        % For RV
-                        [~,phys_start] = min(abs(time_vec_phys-(time_vec_bold(i)-3)));
-                        [~,phys_end] = min(abs(time_vec_phys-(time_vec_bold(i)+3)));
-                        physio_ds_(i) = std(physio(phys_start:phys_end,2));
-                       
-                        % For HRV
-%                         [pks,locs] = findpeaks(physio(phys_start:phys_end,3),'minpeakdistance',round(400/(180/60)));
-%                                      %,'minpeakwidth',400/(1/(200/60))); % max heart rate = 180 bpm; at 400 Hz, minimum of 100 samples apart
-%                         locs = locs(pks>prctile(physio(phys_start:phys_end,3),60));
-%                         Avg1(i) = mean(diff(locs),'omitnan')/400;
-                    end
-                    
-                    physio_ds_ = physio_ds_(5:end-5);
-                    BOLD = BOLD(5:end-5,:);        
-            
-                    if size(BOLD,1)~=1191, continue, end                    
+                    %if size(BOLD,1)~=1191, continue, end
             
                     % Center and rescale
-                    physio_ds_ = this.center_and_rescale(physio_ds_);
+                    physio = this.center_and_rescale(physio);
+                    BOLD = this.global_signal_regression(BOLD);
                     BOLD = this.center_and_rescale(BOLD);
 
                     % Filtering
-                    if isfinite(this.lp_thresh) && isfinite(this.hp_thresh)
+                    if ~isempty(this.lp_thresh) && ~isempty(this.hp_thresh)
                         fprintf('Filter physio_ds & BOLD by: [%g, %g]\n', this.hp_thresh, this.lp_thresh)
                         [b,a] = butter(2,[this.hp_thresh,this.lp_thresh]/(this.Fs/2));
-                        physio_ds_ = single(filtfilt(b,a,double(physio_ds_)));
+                        if ~isempty(physio)
+                            physio = single(filtfilt(b,a,double(physio)));
+                        end
                         BOLD = single(filtfilt(b,a,double(BOLD)));
                     end
-
-                    % Get mean network signals
-                    this.average_network_signals(BOLD, s, t);
             
                     % Phase-locking values
-                    h1_ = hilbert(physio_ds_);
-                    h2_ = hilbert(BOLD);                    
-                    this.physio_ds(:,s,t) = physio_ds_;
+                    if ~isempty(physio)
+                        h1_ = hilbert(physio);
+                        this.h1(:,s,t) = h1_;
+                        this.abs_h1(:,s,t) = abs(h1_);
+                        this.physio_ds(:,s,t) = physio;
+                    end
+                    h2_ = hilbert(BOLD);
                     this.bold(:,:,s,t) = BOLD;
-                    this.h1(:,s,t) = h1_;
                     this.h2(:,:,s,t) = h2_;
-                    this.abs_h1(:,s,t) = abs(h1_);
                     this.abs_h2(:,:,s,t) = abs(h2_);
-                    angles_ = bsxfun(@minus,unwrap(angle(h1_)),unwrap(angle(h2_))); % unwraps to -inf:inf
-                    this.angles_m2pi(:,:,s,t) = mod(angles_, 2*pi);
-                    %this.angles_m4pi(:,:,s,t) = mod(angles_, 4*pi);
-                    this.plvs_xt(:,:,s,t) = exp(1i*angles_);
-                    this.plvs(:,s,t) = mean(this.plvs_xt(:,:,s,t),'omitnan');
+                    if isempty(physio)
+                        angles_ = -unwrap(angle(h2_));
+                        this.angles_m2pi(:,:,s,t) = mod(angles_, 2*pi);
+                        this.plvs_xt(:,:,s,t) = real(h2_);
+                    else
+                        angles_ = bsxfun(@minus,unwrap(angle(h2_)),unwrap(angle(h1_))); % unwraps to -inf:inf
+                        this.angles_m2pi(:,:,s,t) = mod(angles_, 2*pi);
+                        this.plvs_xt(:,:,s,t) = real(h2_./h1_);
+                    end
+                    plvs_ = mean(this.plvs_xt(:,:,s,t),'omitnan');
 
                     this.write_cifti(this.bold(:,:,s,t), sprintf('bold_%i_%i', s, t));
-                    this.write_cifti(this.h2(:,:,s,t), sprintf('h2_%i_%i', s, t));
                     this.write_cifti(this.abs_h2(:,:,s,t), sprintf('abs_h2_%i_%i', s, t));
                     this.write_cifti(this.angles_m2pi(:,:,s,t), sprintf('angles_m2pi_%i_%i', s, t));
-                    %this.write_cifti(this.angles_m4pi(:,:,s,t), sprintf('angles_m4pi_%i_%i', s, t));
                     this.write_cifti(this.plvs_xt(:,:,s,t), sprintf('plvs_xt_%i_%i', s, t));
-                    this.write_cifti(this.plvs(:,s,t), sprintf('plvs_%i_%i', s, t));
-                            
+                    this.write_cifti(plvs_, sprintf('plvs_%i_%i', s, t));                            
+
+                    % Get mean network signals
+                    this.average_network_signals(this.plvs_xt(:,:,s,t), s, t);
+
                     toc                    
                 end
             end
@@ -336,6 +314,9 @@ classdef Physio < handle
             end
         end
         function dat = center_and_rescale(~, dat)
+            if isempty(dat)
+                return
+            end
             dat = dat - mean(dat, 'all', 'omitnan');
             dat = dat / max(abs(dat), [], 'all');
         end
@@ -343,7 +324,18 @@ classdef Physio < handle
             assert(istext(subj));
             assert(istext(task));
             dd = fullfile(this.root_dir, subj, 'MNINonLinear', 'Results', task);
-        end        
+        end
+        function dat = global_signal_regression(this, dat)
+            assert(~isempty(dat))
+            assert(size(dat, 1) == this.num_frames)
+            assert(size(dat, 2) == this.num_nodes)
+
+            if this.gs_subtract
+                dat = dat - mean(dat, 2);
+            else
+                dat = dat ./ mean(dat, 2);
+            end
+        end
         function m = mask_fs(this, sub, parc)
             %  sub (text):  e.g., 100307
             %  parc (char):  e.g., 'L_S_parieto_occipital'
@@ -361,6 +353,11 @@ classdef Physio < handle
                 otherwise 
                     error('mlraut:ValueError', 'Physio.mask_fs.hemi->%s', hemi);
             end
+        end
+        function BOLD = parcel_bold(this, sub, task, parc)
+            BOLD = this.task_dtseries(sub, task);
+            mask = this.mask_fs(sub, parc);
+            BOLD = mean(BOLD(:, mask), 2, 'omitnan');
         end
         function BOLD = task_dtseries(this, subj, task)
             %  Args:
@@ -382,26 +379,74 @@ classdef Physio < handle
                 cifti = cifti_read(fqfn);
                 this.cifti_last_ = cifti;
                 BOLD = cifti.cdata';
+                    
+                nt = this.num_frames_to_trim;
+                BOLD = BOLD(nt:end-nt,:);
             catch ME
                 disp([subj ' ' task ' missing:']);
                 disp(ME)
                 BOLD = [];
                 return
-            end            
+            end
         end
-        function physio = task_physio(this, subj, task)
+        function physio = task_physio(this, subj, task, BOLD)
+            nt = this.num_frames_to_trim;
+            switch char(this.source_physio)
+                case 'RV'
+                    physio = this.physio_rv(subj, task, BOLD);
+                case 'HRV'
+                    physio = this.physio_hrv(subj, task, BOLD);
+                    physio = physio(nt:end-nt);
+                case 'iFV'
+                    physio = this.physio_iFV(subj, task);
+                    physio = physio(nt:end-nt);
+                otherwise
+                    physio = [];
+            end
+        end
+        function physio = physio_hrv(this, subj, task, BOLD)
+        end
+        function physio = physio_iFV(this, subj, task)
+            iFV = mlraut.IFourthVentricle(this, subj, task);
+            physio = call(iFV);
+        end
+        function physio = physio_rv(this, subj, task, BOLD)
             %  Args:
             %      subj (text)
             %      task (text)
+            %      BOLD (numeric)
             %  Returns:
             %      physio (numeric): from <task>_Physio_log.txt
 
             assert(istext(subj));
             assert(istext(task));
+            assert(isnumeric(BOLD));
             fqfn = fullfile( ...
                 this.data_dir(subj, task), strcat(task, '_Physio_log.txt'));
 
-            physio = importdata(fqfn);
+            data_ = importdata(fqfn);
+
+            % Get 6 sec windows
+            assert(length(data_)/400 >= 860, 'task_physio().data_')
+
+            time_vec_bold = this.tr*(1:size(BOLD,1))';
+            time_vec_phys = (0:length(data_)-1)'/400;
+            physio = zeros(size(time_vec_bold));
+            
+            data_(:,3) = zscore(data_(:,3));
+            for i = 5:length(physio)-4
+                
+                % For RV
+                [~,phys_start] = min(abs(time_vec_phys-(time_vec_bold(i)-3)));
+                [~,phys_end] = min(abs(time_vec_phys-(time_vec_bold(i)+3)));
+                physio(i) = std(data_(phys_start:phys_end,2));
+               
+                % For HRV
+                %[pks,locs] = findpeaks(physio(phys_start:phys_end,3),'minpeakdistance',round(400/(180/60)));
+                %             %,'minpeakwidth',400/(1/(200/60))); % max heart rate = 180 bpm; at 400 Hz, minimum of 100 samples apart
+                %locs = locs(pks>prctile(physio(phys_start:phys_end,3),60));
+                %Avg1(i) = mean(diff(locs),'omitnan')/400;
+            end
         end
         function write_cifti(this, c1_data, fn)
             sz = size(c1_data);
@@ -440,19 +485,25 @@ classdef Physio < handle
             %% PHYSIO 
             %  Args:
             %      outdir (folder): for physiological data intermediates, default is pwd.
-            %      hp_thresh (scalar): default := 0.01 from Ryan.
-            %      lp_thresh (scalar): default := 0.05 from Ryan.
+            %      hp_thresh (isnumeric): default := 0.01 from Ryan.
+            %      lp_thresh (isnumeric): default := 0.05 from Ryan.
             %      do_save (logical): save mlraut.Pysio to mat ~ 10 GB.
+            %      tasks (cell of text): '', 'iFV', 'RV', 'HRV'
+            %      source_physio (logical)
+            %      gs_subtract (logical)
             
+            %this.tasks_ = {'rfMRI_REST1_7T_AP','rfMRI_REST1_7T_PA' 'rfMRI_REST2_7T_AP','rfMRI_REST2_7T_PA'};
             this.tasks_ = {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'};
             %this.tasks_ = {'tfMRI_MOTOR_LR','tfMRI_MOTOR_RL'};
 
             ip = inputParser;
             addParameter(ip, "outdir", pwd, @isfolder);
-            addParameter(ip, "hp_thresh", this.hp_thresh, @isscalar);
-            addParameter(ip, "lp_thresh", this.lp_thresh, @isscalar);
-            addParameter(ip, "do_save", false, @islogical);
+            addParameter(ip, "hp_thresh", this.hp_thresh, @isnumeric);
+            addParameter(ip, "lp_thresh", this.lp_thresh, @isnumeric);
+            addParameter(ip, "do_save", true, @islogical);
             addParameter(ip, "tasks", this.tasks_, @iscell);
+            addParameter(ip, "source_physio", 'iFV', @istext)
+            addParameter(ip, "gs_subtract", true, @islogical)
             parse(ip, varargin{:})
             ipr = ip.Results;
             
@@ -461,8 +512,9 @@ classdef Physio < handle
             this.lp_thresh = ipr.lp_thresh;
             this.do_save = ipr.do_save;
             this.tasks_ = ipr.tasks;
+            this.source_physio = ipr.source_physio;
+            this.gs_subtract = ipr.gs_subtract;
 
-            this.plvs = single(nan(this.num_nodes,this.num_sub,this.num_tasks));
             this.ctx_signals = single(nan(this.num_frames,8,this.num_sub,this.num_tasks));
 %            this.prec_signals = single(nan(this.num_frames,6,this.num_sub,this.num_tasks));
             this.str_signals = single(nan(this.num_frames,8,this.num_sub,this.num_tasks));
@@ -477,7 +529,6 @@ classdef Physio < handle
             this.abs_h2 = single(nan(this.num_frames, this.num_nodes, this.num_sub, this.num_tasks));
             this.plvs_xt = single(nan(this.num_frames, this.num_nodes, this.num_sub, this.num_tasks));
             this.angles_m2pi = single(nan(this.num_frames, this.num_nodes, this.num_sub, this.num_tasks));
-            %this.angles_m4pi = single(nan(this.num_frames, this.num_nodes, this.num_sub, this.num_tasks));
 
             addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '')));
             addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
@@ -485,16 +536,22 @@ classdef Physio < handle
     end
 
     methods (Static)
-        function sweep_spectral_range(varargin)
+        function this = sweep_spectral_range(varargin)
             %  Params:
-            %      fmin (required scalar): > 0, units of 1/tr.
-            %      fmax (required scalar): < inf, units of 1/tr.
-            %      N (optional scalar): num. of requested samples of f, default is 4.
+            %      tag (text): folders are named "arousal-waves-<tag>-0p01-0p05"
+            %      physio (text): '', 'iFV', 'RV'
+            %      gs_subtract (logical)
+            %      fmin (scalar): > 0, units of 1/tr.
+            %      fmax (scalar): < inf, units of 1/tr.
+            %      N (optional scalar): num. of requested samples of f, default is 9.
 
             ip = inputParser;
-            addOptional(ip, 'fmin', 0, @isscalar);
-            addOptional(ip, 'fmax', inf, @isscalar);
-            addParameter(ip, 'N', 4, @isscalar);
+            addParameter(ip, "tag", "iFV", @istext);
+            addParameter(ip, "physio", "iFV", @istext);
+            addParameter(ip, "gs_subtract", true, @islogical)
+            addParameter(ip, "fmin", 0, @isscalar);
+            addParameter(ip, "fmax", inf, @isscalar);
+            addParameter(ip, "N", 9, @isscalar);
             parse(ip, varargin{:});
             ipr = ip.Results;
             if ipr.fmin < 2/1191
@@ -506,29 +563,43 @@ classdef Physio < handle
 
             % estimate df ~ log sweep of spectral range
             Dlogf = log2(ipr.fmin) - log2(ipr.fmax);
-            N = ipr.N - 2;
-            set_f = [flip(exp(log2(ipr.fmax):Dlogf/N:log2(ipr.fmin))) ipr.fmax];
-
-            % sweep calls to Physio
+            N = ipr.N - 1;
+            set_f = [flip(2.^(log2(ipr.fmax):Dlogf/N:log2(ipr.fmin)))];
 
             disp(set_f')
-
-            for idx = 1:length(set_f)-1
-                fold = sprintf('arousal-waves-%g-%g', ...
-                    round(set_f(idx),2,'significant'), round(set_f(idx+1),2,'significant'));
-                fold = strrep(fold, '.', 'p');
-                disp(fold)
+            prefix = 'arousal-waves';
+            if ~ipr.gs_subtract
+                prefix = strcat(prefix, '-gsq'); % global signal quotient
+            end
+            if "" ~= ipr.tag
+                prefix = strcat(prefix, '-', ipr.tag);
             end
 
+            % wide-band or no filtering
+            fold = strcat(prefix, '-0.002-0.5');
+            if ~isfolder(fold)
+                mkdir(fold);
+                pwd0 = pushd(fold);
+                fprintf('mlraut.Physio.sweep_spectral_range:  working in %s\n', pwd)
+                this = mlraut.Physio('hp_thresh', 1/512, 'lp_thresh', 0.5, ...
+                    'source_physio', ipr.physio, ...
+                    'gs_subtract', ipr.gs_subtract);
+                call(this)
+                popd(pwd0);
+            end
+
+            % sweep filter bands in calls to Physio
             for idx = 1:length(set_f)-1
-                fold = sprintf('arousal-waves-%g-%g', ...
-                    round(set_f(idx),2,'significant'), round(set_f(idx+1),2,'significant'));
+                fold = sprintf('%s-%g-%g', ...
+                    prefix, round(set_f(idx),2,'significant'), round(set_f(idx+1),2,'significant'));
                 fold = strrep(fold, '.', 'p');
                 if ~isfolder(fold)
                     mkdir(fold);
                     pwd0 = pushd(fold);
                     fprintf('mlraut.Physio.sweep_spectral_range:  working in %s\n', pwd)
-                    this = mlraut.Physio('hp_thresh', set_f(idx), 'lp_thresh', set_f(idx+1));
+                    this = mlraut.Physio('hp_thresh', set_f(idx), 'lp_thresh', set_f(idx+1), ...
+                        'source_physio', ipr.physio, ...
+                        'gs_subtract', ipr.gs_subtract);
                     call(this)
                     popd(pwd0);
                 end
