@@ -11,12 +11,16 @@ classdef IFourthVentricle < handle
         ifv_mask
         is_7T
         subject
+        wmparc
     end
 
     methods
 
         %% GET/SET
 
+        function g = get.aparc_a2009s(this)
+            g = this.wmparc;
+        end
         function g = get.fMRI(this)
             if ~isempty(this.fMRI_)
                 g = this.fMRI_;
@@ -27,19 +31,6 @@ classdef IFourthVentricle < handle
                 sprintf('%s_hp2000_clean.nii.gz', this.task_));
             this.fMRI_ = mlfourd.ImagingContext2(fqfn);
             g = this.fMRI_;
-        end
-        function g = get.aparc_a2009s(this)
-            if ~isempty(this.aparc_a2009s_)
-                g = this.aparc_a2009s_;
-            end
-
-            if this.is_7T
-                fqfn = fullfile(this.physio_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.1.60.nii.gz');
-            else
-                fqfn = fullfile(this.physio_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.2.nii.gz');
-            end
-            this.aparc_a2009s_ = mlfourd.ImagingContext2(fqfn);
-            g = this.aparc_a2009s_;
         end
         function g = get.ifv_mask(this)
             ic = this.aparc_a2009s.numeq(15); % [0 1]; 15 is 4th ventricle
@@ -57,6 +48,19 @@ classdef IFourthVentricle < handle
         end
         function g = get.subject(this)
             g = this.subject_;
+        end
+        function g = get.wmparc(this)
+            if ~isempty(this.aparc_a2009s_)
+                g = this.aparc_a2009s_;
+            end
+
+            if this.is_7T
+                fqfn = fullfile(this.physio_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.1.60.nii.gz');
+            else
+                fqfn = fullfile(this.physio_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.2.nii.gz');
+            end
+            this.aparc_a2009s_ = mlfourd.ImagingContext2(fqfn);
+            g = this.aparc_a2009s_;
         end
 
         %%
