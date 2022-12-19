@@ -1,6 +1,7 @@
 classdef IFourthVentricle < handle
-    %% line1
-    %  line2
+    %% Supports Gonzalez-Castillo, J., Fernandez, I. S., Handwerker, D. A. & Bandettini, P. A. 
+    %  Ultra-slow fMRI fluctuations in the fourth ventricle as a marker of drowsiness. 
+    %  NeuroImage 259, 119424 (2022).
     %  
     %  Created 05-Oct-2022 14:21:11 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 9.13.0.2049777 (R2022b) for MACI64.  Copyright 2022 John J. Lee.
@@ -27,7 +28,7 @@ classdef IFourthVentricle < handle
                 return
             end
 
-            fqfn = fullfile(this.physio_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
+            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
                 sprintf('%s_hp2000_clean.nii.gz', this.task_));
             this.fMRI_ = mlfourd.ImagingContext2(fqfn);
             g = this.fMRI_;
@@ -55,9 +56,9 @@ classdef IFourthVentricle < handle
             end
 
             if this.is_7T
-                fqfn = fullfile(this.physio_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.1.60.nii.gz');
+                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.1.60.nii.gz');
             else
-                fqfn = fullfile(this.physio_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.2.nii.gz');
+                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.2.nii.gz');
             end
             this.aparc_a2009s_ = mlfourd.ImagingContext2(fqfn);
             g = this.aparc_a2009s_;
@@ -70,18 +71,19 @@ classdef IFourthVentricle < handle
             bold = ascol(ic.nifti.img);
         end
 
-        function this = IFourthVentricle(physio, subject, task)
+        function this = IFourthVentricle(ihcp, subject, task)
             %% IFOURTHVENTRICLE 
             %  Args:
-            %      physio mlraut.Physio : client possessing filesystem information.
-            %      task mustBeTextScalar : e.g., rfMRI_REST1_LR
+            %      ihcp mlraut.HCP : client possessing HCP information, esp. filesystem information.
+            %      subject {mustBeTextScalar} : e.g., 995174.
+            %      task mustBeTextScalar : e.g., rfMRI_REST1_LR.
             
             arguments
-                physio mlraut.Physio
+                ihcp mlraut.HCP {mustBeNonempty}
                 subject {mustBeTextScalar}
                 task {mustBeTextScalar}
             end
-            this.physio_ = physio;
+            this.ihcp_ = ihcp;
             this.subject_ = subject;
             this.task_ = task;
         end
@@ -92,7 +94,7 @@ classdef IFourthVentricle < handle
     properties (Access = private)
         aparc_a2009s_
         fMRI_
-        physio_
+        ihcp_
         subject_
         task_
     end

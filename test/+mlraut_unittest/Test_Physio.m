@@ -38,12 +38,12 @@ classdef Test_Physio < matlab.unittest.TestCase
         end
         function test_call_iFV_multi(this)
             pwd1 = pushd(fullfile(getenv('HCP_HOME'), '995174'));
-            lp_thr = [0.1 0.2 0.4];
-            hp_thr = [0.01 0.005 0.0025];
+            lp_thr = [0.1 0.2 ];
+            hp_thr = [0.01 0.005 ];
             %lp_thr = 0.5;
             %hp_thr = 1/512;
             parfor idx = 1:length(lp_thr)
-                fold = sprintf('arousal-waves-iFV-%g-%g', ...
+                fold = sprintf('arousal-waves-%g-%g', ...
                     round(hp_thr(idx),2,'significant'), round(lp_thr(idx),2,'significant'));
                 fold = strrep(fold, '.', 'p');
                 if ~isfolder(fold)
@@ -51,7 +51,7 @@ classdef Test_Physio < matlab.unittest.TestCase
                     pwd0 = pushd(fold);
                     fprintf('mlraut.Physio.call():  working in %s\n', pwd)
                     obj = mlraut.Physio('hp_thresh', hp_thr(idx), 'lp_thresh', lp_thr(idx), ...
-                        'source_physio', 'iFV', ...
+                        'source_physio', '', ...
                         'gs_subtract', true);
                     call(obj)
                     popd(pwd0);
@@ -65,6 +65,32 @@ classdef Test_Physio < matlab.unittest.TestCase
             parc = 'L_S_parieto_occipital';
             m = this.testObj.mask_fs(sub, parc);
             this.testObj.write_cifti(single(m), sprintf('msk_%s', this.testObj.dmn_parcels{1}));
+        end
+        function test_PhysioTool(this)
+            root_dir_ = this.testObj.root_dir;
+            sub_ = this.testObj.subjects{1};
+            task_ = this.testObj.tasks{2};
+            bold = fullfile(root_dir_, sub_, 'MNINonLinear', 'Results', task_, ...
+                sprintf('%s_hp2000_clean.nii.gz', task_));
+            wmparc = fullfile(root_dir_, sub_, 'MNINonLinear', 'ROIs', ...
+                'wmparc.2.nii.gz');
+            fd = fullfile(root_dir_, sub_, 'MNINonLinear', 'Results', task_, ...
+                'Movement_RelativeRMS.txt');
+            physio = fullfile(root_dir_, sub_, 'MNINonLinear', 'Results', task_, ...
+                sprintf('%s_Physio_log.txt', task_));
+            this.assertTrue(isfile(bold));
+            this.assertTrue(isfile(wmparc));
+
+            tool = mlfourd.PhysioTool(bold, wmparc, ...
+                frame_displacement=fd, physio=physio);
+            disp(tool)
+            
+            figure; plot(1:1200, tool.resp_belt); title('resp_belt');
+            figure; plot(1:1200, tool.rv); title('rv');
+            figure; plot(1:1200, tool.pulse_oximeter); title('pulse_oximeter');
+            figure; plot(1:1200, tool.peak_amplitude); title('peak_amplitude');
+            figure; plot(1:1200, tool.heart_rate); title('heart_rate');
+            figure; plot(1:1200, tool.hrv); title('hrv');
         end
     end
     
