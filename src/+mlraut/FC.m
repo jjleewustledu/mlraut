@@ -45,7 +45,7 @@ classdef FC
             figure; 
             pcshow(tal1);
             hold on
-            pcshow(pcgrid.Location, '*m', 'MarkerSize', 50);
+            pcshow(pcgrid.Location, 'm', 'MarkerSize', 50);
             hold off
 
             popd(pwd0);

@@ -14,6 +14,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_save
         hp_thresh % lower bound, Ryan ~ 0.01, units of 1/tr
         lp_thresh % higher bound, Ryan ~ 0.05, units of 1/tr
+        normalization
         source_physio
 
         analytic_signals
@@ -28,6 +29,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         num_tasks
         physFs % Physio sampling rate, Hz
         subjects
+        tags % for filenames
         tasks    
     end
 
@@ -49,6 +51,19 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
         function g = get.subjects(this)
             g = this.subjects_;
+        end
+        function g = get.tags(this)
+            if isempty(this.normalization) && strcmp(this.source_physio, 'iFV')
+                g = '';
+                return
+            end
+            g = '_proc';
+            if ~isempty(this.normalization)
+                g = sprintf('%s-%s', g, this.normalization);
+            end
+            if ~strcmp(this.source_physio, 'iFV')
+                g = strcat(g, '-', this.source_physio);
+            end
         end
         function g = get.tasks(this)
             g = this.tasks_;
@@ -154,15 +169,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
                     % Analytic signal
                     bold_ = this.center_and_rescale(this.band_pass(bold - gs));
-                    physio_ = this.center_and_rescale(this.band_pass(physio));
+                    physio_ = this.center_and_rescale(this.band_pass(physio)); % removes gs as needed
                     as = conj(hilbert(physio_)).*hilbert(bold_); % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
+                    as = this.normalize(as);
             
                     % Store reduced analytic signal, real(), imag(), abs(), angle()
-                    save(fullfile(this.out_dir, sprintf('%s_as_%i_%i', stackstr(2), s, t)), 'as');
-                    this.write_cifti(real(as), sprintf('real_as_%i_%i', s, t));
-                    this.write_cifti(imag(as), sprintf('imag_as_%i_%i', s, t));
-                    this.write_cifti(abs(as), sprintf('abs_as_%i_%i', s, t));
-                    this.write_cifti(angle(as), sprintf('angle_as_%i_%i', s, t));
+                    save(fullfile(this.out_dir, sprintf('%s_as%s_%i_%i', stackstr(2), this.tags, s, t)), 'as');
+                    this.write_cifti(real(as), sprintf('real_as%s_%i_%i', this.tags, s, t));
+                    this.write_cifti(imag(as), sprintf('imag_as%s_%i_%i', this.tags, s, t));
+                    this.write_cifti(abs(as), sprintf('abs_as%s_%i_%i', this.tags, s, t));
+                    this.write_cifti(angle(as), sprintf('angle_as%s_%i_%i', this.tags, s, t));
 
                     % Store reduced analytic signals for all s, t
                     this.analytic_signals(:,:,s,t) = as;
@@ -172,29 +188,29 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     this.average_network_signals(as, s, t)
                     if this.do_plot_emd
                         this.plot_networks(measure=@this.unwrap, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_emd_unwrap_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('emd_unwrap', s, t);
                         this.plot_networks(measure=@abs, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_emd_abs_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('emd_abs', s, t);
                         this.plot_networks(measure=@real, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_emd_real_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('emd_real', s, t);
                         this.plot_networks(measure=@imag, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_emd_imag_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('emd_imag', s, t);
                     end
                     if this.do_plot_networks
                         this.plot_networks(measure=@this.unwrap, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_networks_unwrap_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('networks_unwrap', s, t);
                         this.plot_networks(measure=@angle, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_networks_angle_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('networks_angle', s, t);
                         this.plot_networks(measure=@abs, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_networks_abs_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('networks_abs', s, t);
                         this.plot_networks(measure=@real, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_networks_real_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('networks_real', s, t);
                         this.plot_networks(measure=@imag, isub=s, itask=t)
-                        saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_networks_imag_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('networks_imag', s, t);
                     end
                     if this.do_plot_radar
                         this.plot_radar(isub=s, itask=t)
-                        saveFigures(closeFigure=false, prefix=sprintf('%s_radar_%i_%i_', stackstr(2), s, t));
+                        this.saveFigures('radar', s, t);
                     end
 
                     toc
@@ -223,6 +239,14 @@ classdef AnalyticSignal < handle & mlraut.HCP
             assert(size(sig, 2) == this.num_nodes)
 
             gs = median(sig, 2);
+        end
+        function as = normalize(this, as)
+            switch this.normalization
+                case 'normgs'
+                    as = as ./ abs(this.global_signal(as));
+                otherwise
+                    return
+            end
         end
         function data = physio_log(this, sub, task)
             fqfn = fullfile( ...
@@ -392,6 +416,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function save(this)
             save(fullfile(this.out_dir, strcat(stackstr(3), '.mat')), 'this');
         end
+        function saveFigures(this, label, s, t)
+            saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_%s%s_%i_%i_', stackstr(3), label, this.tags, s, t));
+        end
         function physio = task_physio(this, subj, task, bold)
             nt = this.num_frames_to_trim + 1;
             switch char(this.source_physio)
@@ -403,6 +430,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     physio = this.physio_iFV(subj, task);
                     physio = physio(nt:end-nt);
                     physio = physio - this.global_signal(bold);
+                case {'nophys', 'none'}
+                    physio = ones(size(bold,1), 1);
+                    physio = physio(nt:end-nt);
                 otherwise
                     physio = [];
             end
@@ -417,13 +447,14 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_emd logical = false
             %      opts.do_plot_networks logical = false
             %      opts.do_plot_radar logical = false
-            %      do_save (logical): save fully populated this to mlraut_AnalyticSignal.mat
-            %      hp_thresh (isnumeric): default := 0.00648, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
-            %      lp_thresh (isnumeric): default := 0.0576, Dworetsky; support ~ 1/2, compared to Ryan's 0.05.
-            %      out_dir (folder): default is pwd.
+            %      opts.do_save (logical): save fully populated this to mlraut_AnalyticSignal.mat
+            %      opts.hp_thresh (isnumeric): default := 0.00648, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
+            %      opts.lp_thresh (isnumeric): default := 0.0576, Dworetsky; support ~ 1/2, compared to Ryan's 0.05.
+            %      opts.normalization {mustBeTextScalar} = 'normgs'
+            %      opts.out_dir (folder): default is pwd.
             %      opts.source_physio {mustBeTextScalar} = 'iFV'
-            %      subjects (cell of text): default {'995174'}
-            %      tasks (cell of text): default {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'}
+            %      opts.subjects (cell of text): default {'995174'}
+            %      opts.tasks (cell of text): default {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'}
             
             arguments
                 opts.do_plot_emd logical = false
@@ -432,6 +463,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_save logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = 0.009*0.72
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.08*0.72
+                opts.normalization {mustBeTextScalar} = ''
                 opts.out_dir {mustBeFolder} = pwd
                 opts.source_physio {mustBeTextScalar} = 'iFV'
                 opts.subjects cell = {}
@@ -447,6 +479,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.tasks = {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'};
             end
 
+            this.normalization = opts.normalization;
             this.do_plot_emd = opts.do_plot_emd;
             this.do_plot_networks = opts.do_plot_networks;
             this.do_plot_radar = opts.do_plot_radar;

@@ -288,9 +288,9 @@ classdef HCP < handle
             c_ = this.cifti_last;
             c_.cdata = c1_data;
             if contains(fn, '.dtseries')
-                c_.diminfo{2} = cifti_diminfo_make_series(sz(2));
+                c_.diminfo{2} = cifti_diminfo_make_series(sz(2), 0, 1, 'SECOND');
             else
-                c_.diminfo{2} = cifti_diminfo_make_scalars(sz(2));
+                c_.diminfo{2} = cifti_diminfo_make_scalars(1);
             end
             cifti_write(c_, fn);
         end
