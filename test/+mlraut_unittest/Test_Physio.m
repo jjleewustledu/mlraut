@@ -34,7 +34,7 @@ classdef Test_Physio < matlab.unittest.TestCase
         function test_call(this)
             obj = this.testObj;
             call(obj);
-            mlbash(['wb_view ' this.rsfMRI_scene])
+            mlbash(strcat('wb_view ', this.rsfMRI_scene))
         end
         function test_call_iFV_multi(this)
             pwd1 = pushd(fullfile(getenv('HCP_HOME'), '995174'));
@@ -57,7 +57,7 @@ classdef Test_Physio < matlab.unittest.TestCase
                     popd(pwd0);
                 end
             end
-            mlbash(['wb_view ' this.rsfMRI_scene])
+            mlbash(strcat('wb_view ', this.rsfMRI_scene))
             popd(pwd1)
         end
         function test_mask_fs(this)

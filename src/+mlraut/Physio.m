@@ -188,16 +188,16 @@ classdef Physio < handle & HCP
             end
         end
         function physio = task_physio(this, subj, task, BOLD)
-            nt = this.num_frames_to_trim;
             switch char(this.source_physio)
                 case 'RV'
                     physio = this.physio_rv(subj, task, BOLD);
+                    physio = this.trim_frames(physio);
                 case 'HRV'
                     physio = this.physio_hrv(subj, task, BOLD);
-                    physio = physio(nt:end-nt);
+                    physio = this.trim_frames(physio);
                 case 'iFV'
                     physio = this.physio_iFV(subj, task);
-                    physio = physio(nt:end-nt);
+                    physio = this.trim_frames(physio);
                 otherwise
                     physio = [];
             end

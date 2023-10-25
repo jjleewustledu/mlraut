@@ -1,25 +1,19 @@
-classdef IFourthVentricle < handle
-    %% Supports Gonzalez-Castillo, J., Fernandez, I. S., Handwerker, D. A. & Bandettini, P. A. 
-    %  Ultra-slow fMRI fluctuations in the fourth ventricle as a marker of drowsiness. 
-    %  NeuroImage 259, 119424 (2022).
+classdef PhysioRoi < handle
+    %% Extends the concepts underlying mlraut.IFourthVentricle to arbitrary ROIs,
+    %  especially pathophysiological ROIs such as samples from within tumors.
     %  
-    %  Created 05-Oct-2022 14:21:11 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
-    %  Developed on Matlab 9.13.0.2049777 (R2022b) for MACI64.  Copyright 2022 John J. Lee.
+    %  Created 10-Aug-2023 18:11:35 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
+    %  Developed on Matlab 9.14.0.2306882 (R2023a) Update 4 for MACI64.  Copyright 2023 John J. Lee.
     
     properties (Dependent)
-        aparc_a2009s
         fMRI
-        ifv_mask
         is_7T
+        roi_mask
         SBRef
         subject
-        wmparc
     end
 
     methods %% GET/SET
-        function g = get.aparc_a2009s(this)
-            g = this.wmparc;
-        end
         function g = get.fMRI(this)
             if ~isempty(this.fMRI_)
                 g = this.fMRI_;
@@ -33,18 +27,28 @@ classdef IFourthVentricle < handle
                     sprintf('%s.nii.gz', this.task_));
             end
             this.fMRI_ = mlfourd.ImagingContext2(fqfn);
+            if this.flipLR_
+                this.fMRI_ = flip(this.fMRI_, 1);
+            end
             g = this.fMRI_;
         end
-        function g = get.ifv_mask(this)
-            ic = this.aparc_a2009s.numeq(15); % [0 1]; 15 is 4th ventricle
-            ifc = ic.nifti;
-            ifc.img(:,:,23:end) = 0;
-            if this.is_7T
-                ifc.fileprefix = 'ifv.1.60';
-            else
-                ifc.fileprefix = 'ifv.2';
+        function g = get.roi_mask(this)
+            if ~isempty(this.roi_mask_)
+                g = this.roi_mask_;
             end
-            g = mlfourd.ImagingContext2(ifc);
+
+            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', [this.roi_fileprefix_, '.nii.gz']);
+            if ~isfile(fqfn)
+                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear',  [this.roi_fileprefix_, '.nii.gz']);
+            end
+            this.roi_mask_ = mlfourd.ImagingContext2(fqfn);
+            mask2 = this.SBRef.blurred(7).thresh(100).binarized();
+            if this.flipLR_
+                this.roi_mask_ = flip(this.roi_mask_, 1);
+                mask2 = flip(mask2, 1);
+            end
+            this.roi_mask_ = this.roi_mask_ .* mask2;
+            g = this.roi_mask_;
         end
         function g = get.is_7T(this)
             g = contains(this.task_, '7T');
@@ -73,55 +77,47 @@ classdef IFourthVentricle < handle
         function g = get.subject(this)
             g = this.subject_;
         end
-        function g = get.wmparc(this)
-            if ~isempty(this.aparc_a2009s_)
-                g = this.aparc_a2009s_;
-            end
-
-            if this.is_7T
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.1.60.nii.gz');
-            else
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.2.nii.gz');
-                if ~isfile(fqfn)
-                    fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'wmparc.nii.gz');
-                end
-            end
-            this.aparc_a2009s_ = mlfourd.ImagingContext2(fqfn);
-            g = this.aparc_a2009s_;
-        end
     end
-
+    
     methods
         function bold = call(this)
-            ic = this.fMRI.volumeAveraged(this.ifv_mask);
+            ic = this.fMRI.volumeAveraged(this.roi_mask);
             bold = ascol(ic.nifti.img);
         end
         function view_qc(this)
-            this.ifv_mask.view_qc(this.SBRef)
+            this.roi_mask.view_qc(flip(this.SBRef, 1))
         end
 
-        function this = IFourthVentricle(ihcp, subject, task)
-            %% IFOURTHVENTRICLE 
+        function this = PhysioRoi(ihcp, subject, task, fileprefix, opts)
+            %% PHYSIOROI 
             %  Args:
             %      ihcp mlraut.HCP : client possessing HCP information, esp. filesystem information.
             %      subject {mustBeTextScalar} : e.g., 995174.
-            %      task mustBeTextScalar : e.g., rfMRI_REST1_LR.
+            %      task {mustBeTextScalar} : e.g., rfMRI_REST1_LR.
+            %      fileprefix }mustBeTextScalar} : e.g., WT_on_T1w.
+            %      opts.flipLR logical = false : flipping may be needed to match task_dtseries
             
             arguments
                 ihcp mlraut.HCP {mustBeNonempty}
                 subject {mustBeTextScalar}
                 task {mustBeTextScalar}
+                fileprefix {mustBeTextScalar}
+                opts.flipLR logical = false
             end
             this.ihcp_ = ihcp;
             this.subject_ = subject;
             this.task_ = task;
+            this.roi_fileprefix_ = fileprefix;
+            this.flipLR_ = opts.flipLR;
         end
     end
 
     %% PRIVATE
 
     properties (Access = private)
-        aparc_a2009s_
+        flipLR_
+        roi_fileprefix_
+        roi_mask_
         fMRI_
         ihcp_
         SBRef_
