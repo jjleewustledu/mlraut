@@ -19,10 +19,20 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         function test_call(this)
             cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
             this.testObj_ = mlraut.AnalyticSignal(subjects={'995174'}, do_save=true, ...
-                max_frames=1192, plot_range=1:572, ...
-                tasks={'rfMRI_REST1_RL'});
+                max_frames=1192, plot_range=1:572, tag="_proc-20231027"); % tasks={'rfMRI_REST1_RL'}
             call(this.testObj_)
             disp(this.testObj_)
+            %mysystem('wb_view')
+
+            % Elapsed time is 327.790908 seconds.
+        end
+        function test_call_no_physio(this)
+            cd('/home/usr/jjlee/Singularity/AnalyticSignalZFS');
+            %cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            this.testObj_ = mlraut.AnalyticSignal(subjects={'995174'}, do_save=true, ...
+                max_frames=1192, plot_range=1:572, tag="_proc-no-physio", source_physio="none");
+            call(this.testObj_)
+            %disp(this.testObj_)
             %mysystem('wb_view')
 
             % Elapsed time is 327.790908 seconds.
@@ -91,6 +101,8 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             asgbm.call();
         end
         function test_call_I3CR0023(this)   
+            %% left insula, no midline shift
+
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
             cd(root_dir);
             mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0023 .')
@@ -108,6 +120,8 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             % Elapsed time is ___ seconds.
         end
         function test_call_I3CR0479(this)   
+            %% right frontal, midline shift
+           
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
             cd(root_dir);
             mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0479 .')
@@ -121,6 +135,25 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             call(this.testObj_);
             disp(this.testObj_)
             mysystem('wb_view')
+
+            % Elapsed time is ___ seconds.
+        end
+        function test_call_I3CR0479_no_physio(this)   
+            %% right frontal, midline shift
+           
+            root_dir = '~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
+            cd(root_dir);
+            %mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0479 .')
+            out_dir = '~/Singularity/AnalyticSignalGBM/analytic_signal/matlabout/test-CE';
+            ensuredir(out_dir);
+            this.testObj_ = mlraut.AnalyticSignalGBM( ...
+                subjects={'sub-I3CR0479'}, ...
+                root_dir=root_dir, out_dir=out_dir, do_save=true, ...
+                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'}, ...
+                tag="_proc-no-physio", source_physio="none");
+            call(this.testObj_);
+            %disp(this.testObj_)
+            %mysystem('wb_view')
 
             % Elapsed time is ___ seconds.
         end

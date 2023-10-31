@@ -39,6 +39,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         json
         lp_thresh % higher bound, Ryan ~ 0.05 Hz -> units of 1/frame_duration
         min_physN % min physio samples to accept
+        no_physio
         num_sub
         num_tasks
         physFs % Physio sampling rate, Hz
@@ -90,6 +91,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function g = get.min_physN(~)
             g = 860;
         end
+        function g = get.no_physio(this)
+            g = ~stricmp(this.source_physio, "none") && ~stricmp(this.source_physio, "nophy");
+        end
         function g = get.num_sub(this)
             g = numel(this.subjects);
         end
@@ -121,7 +125,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 g = '';
                 return
             end
-            g = '_proc';
+            g = this.tag_;
+            if ~contains(g, "_proc")
+                g = "_proc" + g;
+            end
             if ~isempty(this.normalization)
                 g = sprintf('%s-%s', g, this.normalization);
             end
@@ -200,6 +207,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %  Returns:
             %      dat1 same num. type as dat
 
+            if all(dat == 1)
+                dat1 = dat;
+                return
+            end
             if isempty(this.lp_thresh) && isempty(this.hp_thresh)
                 dat1 = dat;
                 return
@@ -297,11 +308,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 %figure; histogram(abs(as)); title("abs(as)")
         
                 % Store reduced analytic signal, real(), imag(), abs(), angle()
-                save(fullfile(this.out_dir, sprintf('%s_bold-gs%s_%i_%i', stackstr(2), this.tags, s, t)), 'bold_');
-                save(fullfile(this.out_dir, sprintf('%s_as%s_%i_%i', stackstr(2), this.tags, s, t)), 'as');
-                this.write_ciftis(bold_, sprintf('bold-gs%s_%i_%i', this.tags, s, t));
-                this.write_ciftis(abs(as), sprintf('abs_as%s_%i_%i', this.tags, s, t));
-                this.write_ciftis(angle(as), sprintf('angle_as%s_%i_%i', this.tags, s, t));
+                if this.do_save
+                    save(fullfile(this.out_dir, sprintf('%s_bold-gs%s_%i_%i', stackstr(2), this.tags, s, t)), 'bold_');
+                    save(fullfile(this.out_dir, sprintf('%s_as%s_%i_%i', stackstr(2), this.tags, s, t)), 'as');
+                    this.write_ciftis(bold_, sprintf('bold-gs%s_%i_%i', this.tags, s, t));
+                    this.write_ciftis(abs(as), sprintf('abs_as%s_%i_%i', this.tags, s, t));
+                    this.write_ciftis(angle(as), sprintf('angle_as%s_%i_%i', this.tags, s, t));
+                end
 
                 % Store reduced analytic signals for all s, t
                 this.bold_signals(:,:,s,t) = bold_;
@@ -374,6 +387,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
         function psi = center(~,psi)
             assert(~isempty(psi))
+            if all(psi == 1)
+                return
+            end
             psi = psi - median(psi, 'all', 'omitnan');
         end
         function psi = center_and_rescale(this, psi)
@@ -526,7 +542,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             title(sprintf('Global Signal, Arousal Signal, sub-%s, %s ', this.subjects{s_}, this.tasks{t_}), FontSize=24, Interpreter="none")
             hold off
 
-            this.saveFigures(char(opts.measure), opts.isub, opts.itask);
+            if this.do_save
+                this.saveFigures(char(opts.measure), opts.isub, opts.itask);
+            end
         end
         function plot_regions(this, funh, opts)
             arguments
@@ -708,6 +726,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
         function psi = rescale(~, psi)
             assert(~isempty(psi))
+            if all(psi == 1)
+                return
+            end
             if ~isreal(psi)
                 d = mad(abs(psi), 1, 'all');
             else
@@ -716,7 +737,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi./d;
         end
         function save(this)
-            save(fullfile(this.out_dir, strcat(stackstr(3), '.mat')), 'this');
+            save(fullfile(this.out_dir, strcat(stackstr(3), this.tags, '.mat')), 'this');
         end
         function saveFigures(this, label, s, t)
             saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_%s%s_%i_%i_', stackstr(3), label, this.tags, s, t));
@@ -758,7 +779,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     physio = physio - this.global_signal(bold);
                 case {'nophys', 'none'}
                     physio = ones(size(bold,1), 1);
-                    physio = physio(nt:end-nt+1);
                 otherwise
                     physio = [];
             end
@@ -792,7 +812,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     pROI.view_qc();
                 case {'nophys', 'none'}
                     physio = ones(size(bold,1), 1);
-                    physio = this.trim_frames(physio);
                 otherwise
                     physio = [];
             end
@@ -822,6 +841,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_networks logical = true
             %      opts.do_plot_radar logical = true
             %      opts.do_save logical = true: save fully populated this to mlraut_AnalyticSignal.mat
+            %      opts.tag {mustBeTextScalar} = ""
             %      opts.force_band logical = tru e: force bandpass to [0.01 0.1] Hz
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
@@ -849,6 +869,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_networks logical = true
                 opts.do_plot_radar logical = false
                 opts.do_save logical = false
+                opts.tag {mustBeTextScalar} = ""
                 opts.force_band logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = nan
                 opts.lp_thresh {mustBeScalarOrEmpty} = nan
@@ -892,6 +913,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_networks = opts.do_plot_networks;
             this.do_plot_radar = opts.do_plot_radar;
             this.do_save = opts.do_save;
+            this.tag_ = opts.tag;
             this.tr = opts.tr;
             assert(~isnan(this.tr))
             if ~isnan(opts.hp_thresh)
@@ -909,7 +931,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.subjects_ = opts.subjects;
             this.tasks_ = opts.tasks;
 
-            addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '')));
+            addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
             addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
         end
     end
@@ -960,6 +982,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         lp_thresh_
         scale_to_hcp_
         subjects_
+        tag_
         tasks_
     end
 
