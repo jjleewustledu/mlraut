@@ -1,4 +1,4 @@
-classdef Physio < handle & HCP
+classdef Physio < handle 
     %% Implements Raut, et al.  Global waves synchronize the brain's functional systems with fluctuating arousal.
     %  https://www.science.org/doi/10.1126/sciadv.abf2709
     %  Extends physio_phase_mapping.m

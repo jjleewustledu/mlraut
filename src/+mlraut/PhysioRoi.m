@@ -95,7 +95,7 @@ classdef PhysioRoi < handle
             %      subject {mustBeTextScalar} : e.g., 995174.
             %      task {mustBeTextScalar} : e.g., rfMRI_REST1_LR.
             %      fileprefix }mustBeTextScalar} : e.g., WT_on_T1w.
-            %      opts.flipLR logical = false : flipping may be needed to match task_dtseries
+            %      opts.flipLR logical = false : flipping may be needed to match task_dtseries, task_niigz
             
             arguments
                 ihcp mlraut.HCP {mustBeNonempty}
