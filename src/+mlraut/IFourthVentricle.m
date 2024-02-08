@@ -11,7 +11,7 @@ classdef IFourthVentricle < handle
         fMRI
         ifv_mask
         is_7T
-        SBRef
+        SBRef  % time-average of BOLD for use as reference image
         subject
         wmparc
     end

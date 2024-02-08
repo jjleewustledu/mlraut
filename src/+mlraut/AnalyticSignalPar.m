@@ -8,24 +8,27 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
     methods (Static)
         function parcall(cores, opts)
             arguments
-                cores {mustBeScalarOrEmpty} = 32
-                opts.N_sub {mustBeScalarOrEmpty} = 35
+                cores {mustBeScalarOrEmpty} = 96
+                opts.N_sub {mustBeScalarOrEmpty} = 725
             end
 
-            root_dir = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
-            out_dir = '/home/usr/jjlee/Singularity/AnalyticSignal';
+            %root_dir = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
+            root_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/HcpAging/HCPAgingRec/fmriresults01';
+            out_dir = '/vgpool02/data2/jjlee/AnalyticSignalHcpAging';
             ensuredir(out_dir);
-            tasks = {'rfMRI_REST1_RL','rfMRI_REST2_RL'};
+            %tasks = {'rfMRI_REST1_RL','rfMRI_REST2_RL'};
 
             g = glob(fullfile(root_dir, '*'));
             g = flip(g); % examine more recent ones
             g = cellfun(@(x) basename(x), g, UniformOutput=false);
+            g = g(~contains(g, 'manifests'));
             g = g(1:opts.N_sub);
             leng = length(g);
-            parfor (idxg = 1:leng, cores)
+            for idxg = 1:leng
+            %parfor (idxg = 1:leng, cores)
                 try
                     this = mlraut.AnalyticSignalPar(subjects=g(idxg), ...
-                        root_dir=root_dir, out_dir=out_dir, tasks=tasks);
+                        root_dir=root_dir, out_dir=out_dir);
                     call(this);
                 catch ME
                     handwarning(ME)

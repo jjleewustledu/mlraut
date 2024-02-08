@@ -40,8 +40,8 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
             this.current_subject = this.subjects{1};
             j = this.json;
             assert(~isempty(j), stackstr())            
-            this.num_frames_ori = j.num_frames_ori;
-            this.num_frames_to_trim = j.num_frames_to_trim;
+            this.num_frames_ori = j.num_frames_ori;  % KLUDGE
+            this.num_frames_to_trim = j.num_frames_to_trim;  % KLUDGE
             this.tr = j.tr;
             %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
             this.max_frames = 158;

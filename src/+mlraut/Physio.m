@@ -32,10 +32,7 @@ classdef Physio < handle & HCP
         tasks    
     end
 
-    methods
-
-        %% GET
-        
+    methods %% GET
         function g = get.dmn_parcels(~)
             g = {'L_S_parieto_occipital', 'L_G_precuneus', 'L_S_subparietal', ...
                  'R_S_parieto_occipital', 'R_G_precuneus', 'R_S_subparietal'};
@@ -64,9 +61,9 @@ classdef Physio < handle & HCP
         function g = get.tasks(this)
             g = this.tasks_;
         end
+    end
 
-        %%
-
+    methods
         function this = average_network_signals(this, BOLD, s, t)
             assert(isscalar(s));
             assert(isscalar(t));

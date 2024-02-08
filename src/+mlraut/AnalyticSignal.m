@@ -15,7 +15,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_networks
         do_plot_radar
         do_save
-        force_band % force bandpass to [0.01 0.1] Hz
+
+        force_band  % force bandpass to [0.01 0.1] Hz
         normalization
         plot_range
         source_physio
@@ -35,24 +36,21 @@ classdef AnalyticSignal < handle & mlraut.HCP
     end
 
     properties (Dependent)
-        hp_thresh % lower bound, Ryan ~ 0.01 Hz -> units of 1/frame_duration
+        hp_thresh  % lower bound, Ryan ~ 0.01 Hz -> units of 1/frame_duration
         json
-        lp_thresh % higher bound, Ryan ~ 0.05 Hz -> units of 1/frame_duration
-        min_physN % min physio samples to accept
+        lp_thresh  % higher bound, Ryan ~ 0.05 Hz -> units of 1/frame_duration
+        min_physN  % min physio samples to accept
         no_physio
         num_sub
         num_tasks
-        physFs % Physio sampling rate, Hz
-        scale_to_hcp % adjust norm by time of scanning
+        physFs  % Physio sampling rate, Hz
+        scale_to_hcp  % adjust norm by time of scanning
         subjects
-        tags % for filenames
+        tags  % for filenames
         tasks
     end
 
-    methods
-
-        %% GET, SET
-        
+    methods %% GET, SET
         function g = get.hp_thresh(this)
             if this.force_band
                 g = 0.01*this.tr;
@@ -873,7 +871,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.lp_thresh {mustBeScalarOrEmpty} = nan
                 opts.max_frames {mustBeScalarOrEmpty} = nan
                 opts.normalization {mustBeTextScalar} = 'norm_xyzt'
-                opts.num_frames_ori = 1200
+                opts.num_frames_ori = nan
                 opts.num_frames_to_trim double = 4
                 opts.out_dir {mustBeFolder} = pwd
                 opts.plot_range {mustBeInteger} = 1:572

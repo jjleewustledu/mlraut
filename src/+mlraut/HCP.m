@@ -20,13 +20,15 @@ classdef HCP < handle
     end
 
     properties
-        current_subject = '';
-        current_task = '';
-        max_frames % max(num_frames) to enforce, used by omit_late_frames()
-        num_frames_ori = nan;
-        num_frames_to_trim = nan; % Ryan used 4
-        num_nodes = 91282; % HCP standard 2mm "grayordinates"
-        tr = nan; % sampling interval (s), 0.72 for HCP, 2.71 for RT GBM
+        %  set defaults since HCP may not have a ctor
+        current_subject = ''
+        current_task = ''
+        
+        max_frames = NaN  % max(num_frames) to enforce, used by omit_late_frames()
+        num_frames_ori = NaN  % set by HCP.task_dtseries()
+        num_frames_to_trim = NaN  % used by HCP.task_dtseries->HCP.trim_frames; AnalyticSignal.physio_*(); Ryan used 4
+        num_nodes = 91282  % HCP standard 2mm "grayordinates"
+        tr = NaN  % sampling interval (s), 0.72 for HCP, 2.71 for RT GBM
     end
 
     properties (Dependent)
@@ -41,7 +43,7 @@ classdef HCP < handle
         num_frames
         num_nets
         out_dir
-        root_dir % HCP data directory
+        root_dir  % HCP data directory
         waves_dir
         workbench_dir
     end
