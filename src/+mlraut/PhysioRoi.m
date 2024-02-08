@@ -6,7 +6,6 @@ classdef PhysioRoi < handle
     %  Developed on Matlab 9.14.0.2306882 (R2023a) Update 4 for MACI64.  Copyright 2023 John J. Lee.
     
     properties (Dependent)
-        fMRI
         is_7T
         roi_mask
         SBRef
@@ -14,24 +13,6 @@ classdef PhysioRoi < handle
     end
 
     methods %% GET/SET
-        function g = get.fMRI(this)
-            if ~isempty(this.fMRI_)
-                g = this.fMRI_;
-                return
-            end
-
-            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                sprintf('%s_hp2000_clean.nii.gz', this.task_));
-            if ~isfile(fqfn)
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                    sprintf('%s.nii.gz', this.task_));
-            end
-            this.fMRI_ = mlfourd.ImagingContext2(fqfn);
-            if this.flipLR_
-                this.fMRI_ = flip(this.fMRI_, 1);
-            end
-            g = this.fMRI_;
-        end
         function g = get.roi_mask(this)
             if ~isempty(this.roi_mask_)
                 g = this.roi_mask_;
@@ -81,8 +62,27 @@ classdef PhysioRoi < handle
     
     methods
         function bold = call(this)
-            ic = this.fMRI.volumeAveraged(this.roi_mask);
+            fMRI = this.task_niigz();
+            ic = fMRI.volumeAveraged(this.roi_mask);
             bold = ascol(ic.nifti.img);
+        end
+        function nii = task_niigz(this)
+            if ~isempty(this.task_niigz_)
+                nii = this.task_niigz_;
+                return
+            end
+
+            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
+                sprintf('%s_hp2000_clean.nii.gz', this.task_));
+            if ~isfile(fqfn)
+                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
+                    sprintf('%s.nii.gz', this.task_));
+            end
+            this.task_niigz_ = mlfourd.ImagingContext2(fqfn);
+            if this.flipLR_
+                this.task_niigz_ = flip(this.task_niigz_, 1);
+            end
+            nii = this.task_niigz_;
         end
         function view_qc(this)
             this.roi_mask.view_qc(flip(this.SBRef, 1))
@@ -118,7 +118,7 @@ classdef PhysioRoi < handle
         flipLR_
         roi_fileprefix_
         roi_mask_
-        fMRI_
+        task_niigz_
         ihcp_
         SBRef_
         subject_

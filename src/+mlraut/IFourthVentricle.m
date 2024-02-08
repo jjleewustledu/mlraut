@@ -8,7 +8,6 @@ classdef IFourthVentricle < handle
     
     properties (Dependent)
         aparc_a2009s
-        fMRI
         ifv_mask
         is_7T
         SBRef  % time-average of BOLD for use as reference image
@@ -19,21 +18,6 @@ classdef IFourthVentricle < handle
     methods %% GET/SET
         function g = get.aparc_a2009s(this)
             g = this.wmparc;
-        end
-        function g = get.fMRI(this)
-            if ~isempty(this.fMRI_)
-                g = this.fMRI_;
-                return
-            end
-
-            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                sprintf('%s_hp2000_clean.nii.gz', this.task_));
-            if ~isfile(fqfn)
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                    sprintf('%s.nii.gz', this.task_));
-            end
-            this.fMRI_ = mlfourd.ImagingContext2(fqfn);
-            g = this.fMRI_;
         end
         function g = get.ifv_mask(this)
             ic = this.aparc_a2009s.numeq(15); % [0 1]; 15 is 4th ventricle
@@ -93,8 +77,28 @@ classdef IFourthVentricle < handle
 
     methods
         function bold = call(this)
-            ic = this.fMRI.volumeAveraged(this.ifv_mask);
+            fMRI = this.task_niigz();
+            ic = fMRI.volumeAveraged(this.ifv_mask);
             bold = ascol(ic.nifti.img);
+        end
+        function nii = task_niigz(this)
+            if ~isempty(this.task_niigz_)
+                nii = this.task_niigz_;
+                return
+            end
+
+            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
+                sprintf('%s_hp2000_clean.nii.gz', this.task_));  % HCP Young Adult
+            if ~isfile(fqfn)
+                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
+                    sprintf('%s.nii.gz', this.task_));  % Ciftify
+            end
+            if ~isfile(fqfn)
+                fqfn = fullfile(this.ihcp_.extended_dir, this.subject, 'MNINonLinear', 'Results', 'fMRI_CONCAT_ALL', ...
+                    'fMRI_CONCAT_ALL_hp0_clean.nii.gz');  % HCP Aging
+            end
+            this.task_niigz_ = mlfourd.ImagingContext2(fqfn);
+            nii = this.task_niigz_;
         end
         function view_qc(this)
             this.ifv_mask.view_qc(this.SBRef)
@@ -122,7 +126,7 @@ classdef IFourthVentricle < handle
 
     properties (Access = private)
         aparc_a2009s_
-        fMRI_
+        task_niigz_
         ihcp_
         SBRef_
         subject_
