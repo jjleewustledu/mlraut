@@ -274,7 +274,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     bold = this.task_dtseries(); 
                     assert(~isempty(bold))
                     bold = this.omit_late_frames(bold);
-                    %assert(size(bold,1) == this.max_frames, stackstr())
                 catch ME
                     disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                     handwarning(ME)
@@ -364,7 +363,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     bold = this.task_dtseries(); 
                     assert(~isempty(bold))
                     bold = this.omit_late_frames(bold);
-                    %assert(size(bold,1) == this.max_frames, stackstr())
                     this.plot_timeseries_qc(bold, ylabel="BOLD");
                 catch ME
                     disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
@@ -847,7 +845,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05.
             %                                             nan =: 1/2
-            %      opts.max_frames {mustBeScalarOrEmpty} = 158
+            %      opts.max_frames {mustBeScalarOrEmpty} = 158  % for GBM rsfMRI
             %      opts.normalization {mustBeTextScalar} = 'norm_xyzt': also: 'norm_t' | 'norm_xyz' | ''
             %      opts.num_frames_ori double = 1200: for HCP, 160 for RT GBM
             %      opts.num_frames_to_trim double = 4: Ryan used just 4 at start; 1 for RT GBM
@@ -873,7 +871,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.force_band logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = nan
                 opts.lp_thresh {mustBeScalarOrEmpty} = nan
-                opts.max_frames {mustBeScalarOrEmpty} = 572
+                opts.max_frames {mustBeScalarOrEmpty} = nan
                 opts.normalization {mustBeTextScalar} = 'norm_xyzt'
                 opts.num_frames_ori = 1200
                 opts.num_frames_to_trim double = 4

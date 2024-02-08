@@ -126,10 +126,8 @@ classdef HCP < handle
             g = length(this.RSN_NAMES);
         end
         function g = get.num_frames(this)
-            g = this.num_frames_ori - 2*this.num_frames_to_trim;
-            if isfinite(this.max_frames)
-                g = min(g, this.max_frames);
-            end
+            trimmed = this.num_frames_ori - 2*this.num_frames_to_trim;
+            g = min(trimmed, this.max_frames);
         end
         function g = get.out_dir(this)
             if isempty(this.out_dir_)
@@ -274,10 +272,8 @@ classdef HCP < handle
             %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
             %  of the scanning session.
 
-            %assert(this.max_frames <= size(b, 1), stackstr())
-            if isfinite(this.max_frames) && this.max_frames < size(b, 1)
-                b = b(1:this.max_frames, :);
-            end
+            bound = min(this.max_frames, size(b, 1));
+            b = b(1:bound, :);
         end
         function bold = task_dtseries(this, sub, task)
             %  Args:
