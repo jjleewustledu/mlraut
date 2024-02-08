@@ -71,7 +71,7 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
                     bold = this.task_dtseries(); 
                     assert(~isempty(bold))
                     bold = this.omit_late_frames(bold);
-                    assert(size(bold,1) == this.max_frames, stackstr())
+                    %assert(size(bold,1) == this.max_frames, stackstr())
                 catch ME
                     disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                     handwarning(ME)

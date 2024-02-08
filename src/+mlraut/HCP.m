@@ -127,7 +127,9 @@ classdef HCP < handle
         end
         function g = get.num_frames(this)
             g = this.num_frames_ori - 2*this.num_frames_to_trim;
-            g = min(g, this.max_frames);
+            if isfinite(this.max_frames)
+                g = min(g, this.max_frames);
+            end
         end
         function g = get.out_dir(this)
             if isempty(this.out_dir_)
@@ -272,8 +274,8 @@ classdef HCP < handle
             %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
             %  of the scanning session.
 
-            assert(this.max_frames <= size(b, 1), stackstr())
-            if this.max_frames < size(b, 1)
+            %assert(this.max_frames <= size(b, 1), stackstr())
+            if isfinite(this.max_frames) && this.max_frames < size(b, 1)
                 b = b(1:this.max_frames, :);
             end
         end

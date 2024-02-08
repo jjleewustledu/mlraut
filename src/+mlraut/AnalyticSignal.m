@@ -154,9 +154,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             g = this.tasks_;
         end
-
-        %%
-
+    end
+    
+    methods
         function a = angle(~, as)
             a = unwrap(angle(as)); % [-pi pi] -> [-inf inf]
             a = mod(a, 2*pi); % [-inf inf] -> [0 2*pi]
@@ -274,7 +274,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     bold = this.task_dtseries(); 
                     assert(~isempty(bold))
                     bold = this.omit_late_frames(bold);
-                    assert(size(bold,1) == this.max_frames, stackstr())
+                    %assert(size(bold,1) == this.max_frames, stackstr())
                 catch ME
                     disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                     handwarning(ME)
@@ -364,7 +364,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     bold = this.task_dtseries(); 
                     assert(~isempty(bold))
                     bold = this.omit_late_frames(bold);
-                    assert(size(bold,1) == this.max_frames, stackstr())
+                    %assert(size(bold,1) == this.max_frames, stackstr())
                     this.plot_timeseries_qc(bold, ylabel="BOLD");
                 catch ME
                     disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);

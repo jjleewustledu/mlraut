@@ -47,6 +47,9 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             % Elapsed time is ___ seconds.
         end
+        function test_call_do_qc_hcpaging(this)
+            
+        end
         function test_call_do_qc_I3CR0023(this)
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
             cd(root_dir);

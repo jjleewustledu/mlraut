@@ -62,7 +62,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                     [bold, isleft] = this.task_dtseries_gbm(); 
                     assert(~isempty(bold))
                     bold = this.omit_late_frames(bold);
-                    assert(size(bold,1) == this.max_frames, stackstr())
+                    %assert(size(bold,1) == this.max_frames, stackstr())
                 catch ME
                     disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                     handwarning(ME)
@@ -113,7 +113,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                     [bold,isleft] = this.task_dtseries_gbm(); 
                     assert(~isempty(bold))
                     bold = this.omit_late_frames(bold);
-                    assert(size(bold,1) == this.max_frames, stackstr())
+                    %assert(size(bold,1) == this.max_frames, stackstr())
                     this.plot_timeseries_qc(bold, ylabel="BOLD");
                 catch ME
                     disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
