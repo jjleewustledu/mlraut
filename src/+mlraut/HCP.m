@@ -32,8 +32,9 @@ classdef HCP < handle
     end
 
     properties (Dependent)
-        cifti_last % configures cifti historically
-        Fs % BOLD sampling rate (Hz)
+        cifti_last  % configures cifti historically
+        extended_dir  % HCP Aging extended data directory
+        Fs  % BOLD sampling rate (Hz)
         mask_cbm_HCP
         mask_ctx_HCP
         mask_str_HCP
@@ -60,6 +61,13 @@ classdef HCP < handle
         function     set.cifti_last(this, s)
             assert(isstruct(s));
             this.cifti_last_ = s;
+        end
+        function g = get.extended_dir(this)
+            g = this.get_extended_dir__();
+        end
+        function     set.extended_dir(this, s)
+            assert(isfolder(s), stackstr())
+            this.extended_dir_ = s;
         end
         function g = get.Fs(this)
             g = 1/this.tr;
@@ -143,27 +151,7 @@ classdef HCP < handle
             this.out_dir_ = s;
         end
         function g = get.root_dir(this)
-            if ~isempty(this.root_dir_)
-                g = this.root_dir_;
-                return
-            end
-
-            if contains(hostname, 'precuneal')
-                g = '/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            if contains(hostname, 'vglab2')
-                g = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            if contains(hostname, 'cluster')
-                g = '/ceph/hcpdb/packages/unzip/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            error('mlraut:NotImplementedError', 'HCP.get.subjects');
+            g = this.get_root_dir__();
         end
         function     set.root_dir(this, s)
             assert(isfolder(s), stackstr())
@@ -353,6 +341,7 @@ classdef HCP < handle
 
     properties (Access = protected)
         cifti_last_
+        extended_dir_
         mask_ctx_HCP_
         mask_str_HCP_
         mask_thal_HCP_
@@ -361,6 +350,58 @@ classdef HCP < handle
         networks_HCP_
         out_dir_
         root_dir_
+    end
+
+    methods (Access = protected)
+
+        %% for overriding getters
+
+        function g = get_extended_dir__(this)
+            if ~isempty(this.extended_dir_)
+                g = this.extended_dir_;
+                return
+            end
+
+            if contains(computer, 'MAC')
+                g = '/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200';
+                assert(isfolder(g));
+                return
+            end
+            if contains(hostname, 'vglab2')
+                g = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
+                assert(isfolder(g));
+                return
+            end
+            if contains(hostname, 'cluster')
+                g = '/ceph/hcpdb/packages/unzip/HCP_1200';
+                assert(isfolder(g));
+                return
+            end
+            error('mlraut:NotImplementedError', 'HCP.get.subjects');
+        end
+        function g = get_root_dir__(this)
+            if ~isempty(this.root_dir_)
+                g = this.root_dir_;
+                return
+            end
+
+            if contains(computer, 'MAC')
+                g = '/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200';
+                assert(isfolder(g));
+                return
+            end
+            if contains(hostname, 'vglab2')
+                g = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
+                assert(isfolder(g));
+                return
+            end
+            if contains(hostname, 'cluster')
+                g = '/ceph/hcpdb/packages/unzip/HCP_1200';
+                assert(isfolder(g));
+                return
+            end
+            error('mlraut:NotImplementedError', 'HCP.get.subjects');
+        end
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
