@@ -1,4 +1,4 @@
-classdef PhysioRoi < handle
+classdef PhysioRoi < handle & mlraut.PhysioData
     %% Extends the concepts underlying mlraut.IFourthVentricle to arbitrary ROIs,
     %  especially pathophysiological ROIs such as samples from within tumors.
     %  
@@ -8,7 +8,6 @@ classdef PhysioRoi < handle
     properties (Dependent)
         is_7T
         roi_mask
-        SBRef
         subject
     end
 
@@ -23,7 +22,8 @@ classdef PhysioRoi < handle
                 fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear',  [this.roi_fileprefix_, '.nii.gz']);
             end
             this.roi_mask_ = mlfourd.ImagingContext2(fqfn);
-            mask2 = this.SBRef.blurred(7).thresh(100).binarized();
+            SBRef = this.ihcp_.task_signal_reference();
+            mask2 = SBRef.blurred(7).thresh(100).binarized();
             if this.flipLR_
                 this.roi_mask_ = flip(this.roi_mask_, 1);
                 mask2 = flip(mask2, 1);
@@ -33,27 +33,6 @@ classdef PhysioRoi < handle
         end
         function g = get.is_7T(this)
             g = contains(this.task_, '7T');
-        end
-        function g = get.SBRef(this)
-            if ~isempty(this.SBRef_)
-                g = copy(this.SBRef_);
-                return
-            end
-
-            globbed = glob(fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                'SBRef*.nii.gz'));
-            if isempty(globbed)
-                globbed = glob(fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                    'ses*_task*.nii.gz'));
-            end
-            assert(~isempty(globbed), stackstr())
-            g = mlfourd.ImagingContext2(globbed{1});
-            if 4 == ndims(g)
-                g = g.timeAveraged();
-                g.fileprefix = 'SBRef_dc';
-                g.save();
-            end
-            this.SBRef_ = copy(g);
         end
         function g = get.subject(this)
             g = this.subject_;
@@ -66,26 +45,14 @@ classdef PhysioRoi < handle
             ic = fMRI.volumeAveraged(this.roi_mask);
             bold = ascol(ic.nifti.img);
         end
-        function nii = task_niigz(this)
-            if ~isempty(this.task_niigz_)
-                nii = this.task_niigz_;
-                return
-            end
-
-            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                sprintf('%s_hp2000_clean.nii.gz', this.task_));
-            if ~isfile(fqfn)
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                    sprintf('%s.nii.gz', this.task_));
-            end
-            this.task_niigz_ = mlfourd.ImagingContext2(fqfn);
+        function ic = task_niigz(this)
+            ic = this.ihcp_.task_niigz();
             if this.flipLR_
-                this.task_niigz_ = flip(this.task_niigz_, 1);
+                ic = flip(ic, 1);
             end
-            nii = this.task_niigz_;
         end
         function view_qc(this)
-            this.roi_mask.view_qc(flip(this.SBRef, 1))
+            this.roi_mask.view_qc(flip(this.ihcp_.task_signal_reference, 1))
         end
 
         function this = PhysioRoi(ihcp, subject, task, fileprefix, opts)
@@ -104,7 +71,7 @@ classdef PhysioRoi < handle
                 fileprefix {mustBeTextScalar}
                 opts.flipLR logical = false
             end
-            this.ihcp_ = ihcp;
+            this = this@mlraut.PhysioData(ihcp);
             this.subject_ = subject;
             this.task_ = task;
             this.roi_fileprefix_ = fileprefix;
@@ -118,9 +85,6 @@ classdef PhysioRoi < handle
         flipLR_
         roi_fileprefix_
         roi_mask_
-        task_niigz_
-        ihcp_
-        SBRef_
         subject_
         task_
     end

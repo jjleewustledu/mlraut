@@ -47,6 +47,8 @@ classdef HCP < handle
         root_dir  % HCP data directory
         waves_dir
         workbench_dir
+
+        task_niigz_fqfn
     end
 
     methods %% GET, SET
@@ -177,9 +179,18 @@ classdef HCP < handle
             end
             error('mlraut:NotImplementedError', 'HCP.get.workbench_dir');
         end
+
+        function g = get.task_niigz_fqfn(this)
+            g = this.cohort_data_.task_niigz_fqfn;
+        end
     end
 
     methods
+        function this = HCP(varargin)
+            this.bold_data_ = mlraut.BOLDData(this);
+            this.cohort_data_ = mlraut.CohortData.create(this);
+        end
+
         function fn = aparc_a2009s_label_gii(this, sub, hemi)
             %  e.g.:
             %  cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
@@ -265,39 +276,28 @@ classdef HCP < handle
             bound = min(this.max_frames, size(b, 1));
             b = b(1:bound, :);
         end
-        function bold = task_dtseries(this, sub, task)
+        function mat = task_dtseries(this, sub, task)
             %  Args:
             %      subj (text)
             %      task (text)
             %  Returns:
-            %      BOLD (numeric):  time x grayordinate
+            %      mat (numeric):  time x grayordinate from BOLDData
 
             arguments
                 this mlraut.HCP
                 sub {mustBeTextScalar} = this.current_subject
                 task {mustBeTextScalar} = this.current_task
             end
+            this.current_subject = sub;
+            this.current_task = task;
 
-            assert(istext(sub));
-            assert(istext(task));
-            fqfn = fullfile( ...
-                this.data_dir(sub, task), strcat(task, '_Atlas_MSMAll_hp2000_clean.dtseries.nii'));
-            if ~isfile(fqfn)
-                fqfn = fullfile( ...
-                    this.data_dir(sub, task), strcat(task, '_Atlas_MSMAll.dtseries.nii'));
-            end
-
-            try
-                cifti = cifti_read(fqfn);
-                this.cifti_last_ = cifti;
-                bold = cifti.cdata';
-                bold = this.trim_frames(bold);
-            catch ME
-                disp([sub ' ' task ' missing:']);
-                disp(ME)
-                bold = [];
-                return
-            end
+            mat = this.bold_data_.task_dtseries();
+        end
+        function ic = task_niigz(this)
+            ic = this.bold_data_.task_niigz();
+        end
+        function ic = task_signal_reference(this)
+            ic = this.bold_data_.task_signal_reference();
         end
         function tseries = trim_frames(this, tseries)
             nt = this.num_frames_to_trim + 1;
@@ -340,6 +340,9 @@ classdef HCP < handle
     %% PROTECTED
 
     properties (Access = protected)
+        bold_data_
+        cohort_data_
+
         cifti_last_
         extended_dir_
         mask_ctx_HCP_

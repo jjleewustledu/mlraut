@@ -1,4 +1,4 @@
-classdef IFourthVentricle < handle
+classdef IFourthVentricle < handle & mlraut.PhysioData
     %% Supports Gonzalez-Castillo, J., Fernandez, I. S., Handwerker, D. A. & Bandettini, P. A. 
     %  Ultra-slow fMRI fluctuations in the fourth ventricle as a marker of drowsiness. 
     %  NeuroImage 259, 119424 (2022).
@@ -10,7 +10,6 @@ classdef IFourthVentricle < handle
         aparc_a2009s
         ifv_mask
         is_7T
-        SBRef  % time-average of BOLD for use as reference image
         subject
         wmparc
     end
@@ -32,27 +31,6 @@ classdef IFourthVentricle < handle
         end
         function g = get.is_7T(this)
             g = contains(this.task_, '7T');
-        end
-        function g = get.SBRef(this)
-            if ~isempty(this.SBRef_)
-                g = copy(this.SBRef_);
-                return
-            end
-
-            globbed = glob(fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                'SBRef*.nii.gz'));
-            if isempty(globbed)
-                globbed = glob(fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                    'ses*_task*.nii.gz'));
-            end
-            assert(~isempty(globbed), stackstr())
-            g = mlfourd.ImagingContext2(globbed{1});
-            if 4 == ndims(g)
-                g = g.timeAveraged();
-                g.fileprefix = 'SBRef_dc';
-                g.save();
-            end
-            this.SBRef_ = copy(g);
         end
         function g = get.subject(this)
             g = this.subject_;
@@ -81,27 +59,11 @@ classdef IFourthVentricle < handle
             ic = fMRI.volumeAveraged(this.ifv_mask);
             bold = ascol(ic.nifti.img);
         end
-        function nii = task_niigz(this)
-            if ~isempty(this.task_niigz_)
-                nii = this.task_niigz_;
-                return
-            end
-
-            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                sprintf('%s_hp2000_clean.nii.gz', this.task_));  % HCP Young Adult
-            if ~isfile(fqfn)
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'Results', this.task_, ...
-                    sprintf('%s.nii.gz', this.task_));  % Ciftify
-            end
-            if ~isfile(fqfn)
-                fqfn = fullfile(this.ihcp_.extended_dir, this.subject, 'MNINonLinear', 'Results', 'fMRI_CONCAT_ALL', ...
-                    'fMRI_CONCAT_ALL_hp0_clean.nii.gz');  % HCP Aging
-            end
-            this.task_niigz_ = mlfourd.ImagingContext2(fqfn);
-            nii = this.task_niigz_;
+        function ic = task_niigz(this)
+            ic = this.ihcp_.task_niigz();
         end
         function view_qc(this)
-            this.ifv_mask.view_qc(this.SBRef)
+            this.ifv_mask.view_qc(this.ihcp_.task_signal_reference)
         end
 
         function this = IFourthVentricle(ihcp, subject, task)
@@ -116,7 +78,7 @@ classdef IFourthVentricle < handle
                 subject {mustBeTextScalar}
                 task {mustBeTextScalar}
             end
-            this.ihcp_ = ihcp;
+            this = this@mlraut.PhysioData(ihcp);
             this.subject_ = subject;
             this.task_ = task;
         end
@@ -127,8 +89,6 @@ classdef IFourthVentricle < handle
     properties (Access = private)
         aparc_a2009s_
         task_niigz_
-        ihcp_
-        SBRef_
         subject_
         task_
     end
