@@ -386,16 +386,18 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = this.build_rescaled(psi);
         end
         function as = build_final_normalization(this, as)
+            %% provides final normalization by max(abs()) for more interpretable visualization
+
             switch convertStringsToChars(this.final_normalization)
                 case 'normt'
                     % allowing fluctuations in xyz
-                    as = as ./ abs(median(as, 1));
+                    as = as ./ max(abs(as), 1);
                 case 'normxyz'
                     % allowing fluctuations in t
-                    as = as ./ abs(median(as, 2));
+                    as = as ./ max(abs(as), 2);
                 case 'normxyzt'
                     % allowing fluctuations in xyz & t
-                    as = as/abs(median(as, "all"));
+                    as = as / max(abs(as), [], "all");
                 otherwise
                     return
             end
@@ -468,7 +470,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
 
-            d = mad(abs(psi), 1, 'all');
+            d = mad(abs(psi), 1, 'all');  % median abs. dev.
             psi = psi./d;
         end
         function obj = identity(~, obj)
