@@ -7,6 +7,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
     %  Created 29-Nov-2022 13:47:07 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 9.13.0.2105380 (R2022b) Update 2 for MACI64.  Copyright 2022 John J. Lee.
     
+
     properties
         do_only_resting
         do_only_task
@@ -15,142 +16,132 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_networks
         do_plot_radar
         do_save
+        do_save_ciftis
 
         force_band  % force bandpass to [0.01 0.1] Hz
-        normalization
-        plot_range
+        final_normalization
+        roi
         source_physio
-
-        analytic_signals
-        bold_signals
-        global_signals
-        HCP_signals
-        physio_signals
-        roi_fileprefix
-    end
-
-    properties (Constant)
-        ANAT_LIST = {'cbm', 'ctx', 'str', 'thal'}
-        ANAT_LIST_B = {'cbmb', 'ctxb', 'strb', 'thalb'}
-        TEMPLATE_DSCALAR = fullfile(getenv('HOME'), 'MATLAB-Drive', 'mlraut', 'data', 'template.dscalar.nii')
     end
 
     properties (Dependent)
+        global_signal
+        global_signal_regression  % logical
         hp_thresh  % lower bound, Ryan ~ 0.01 Hz -> units of 1/frame_duration
         json
         lp_thresh  % higher bound, Ryan ~ 0.05 Hz -> units of 1/frame_duration
-        min_physN  % min physio samples to accept
         no_physio
+        num_nets
         num_sub
         num_tasks
-        physFs  % Physio sampling rate, Hz
         scale_to_hcp  % adjust norm by time of scanning
-        subjects
         tags  % for filenames
-        tasks
+
+        analytic_signal
+        bold_signal
+        HCP_signals
+        physio_signal
     end
 
     methods %% GET, SET
+        function g = get.global_signal(this)
+            g = this.global_signal_;
+        end
+        function g = get.global_signal_regression(this)
+            g = this.global_signal_regression_;
+        end
         function g = get.hp_thresh(this)
+            N = this.num_frames - 2*this.num_frames_to_trim;
+            Nyquist = 2/N; % Nyquist limited
             if this.force_band
-                g = 0.01*this.tr;
+                g = max(0.01*this.tr, Nyquist);
                 return
             end
             if ~isempty(this.hp_thresh_)
-                g = this.hp_thresh_;
+                g = max(this.hp_thresh_, Nyquist);
                 return
             end
-            N = this.num_frames - 2*this.num_frames_to_trim;
-            g = 2/N; % Nyquist limited
+            g = Nyquist; 
         end
         function g = get.json(this)
-            if ~isempty(this.json_)
-                g = this.json_;
-                return
-            end
-            this.json_ = this.jsonread();
-            g = this.json_;
+            g = this.cohort_data_.json;
         end
         function     set.json(this, s)
-            assert(isstruct(s), stackstr())
-            this.json_ = s;
+            this.cohort_data_.json = s;
         end
         function g = get.lp_thresh(this)
+            Nyquist = 1/2; % Nyquist limited
             if this.force_band
-                g = 0.1*this.tr;
+                g = min(0.1*this.tr, Nyquist);
                 return
             end
             if ~isempty(this.lp_thresh_)
-                g = this.lp_thresh_;
+                g = min(this.lp_thresh_, Nyquist);
                 return
             end
-            g = 1/2; % Nyquist limited
-        end
-        function g = get.min_physN(~)
-            g = 860;
-        end
+            g = Nyquist;
+        end        
         function g = get.no_physio(this)
             g = ~stricmp(this.source_physio, "none") && ~stricmp(this.source_physio, "nophy");
+        end
+        function g = get.num_nets(this)
+            g = length(mlraut.NetworkData.NETWORKS_YEO_NAMES);
         end
         function g = get.num_sub(this)
             g = numel(this.subjects);
         end
         function g = get.num_tasks(this)
             g = numel(this.tasks);
-        end
-        function g = get.physFs(~)
-            g = 400;
-        end
+        end        
         function g = get.scale_to_hcp(this)
             if ~isempty(this.scale_to_hcp_)
                 g = this.scale_to_hcp_;
                 return
             end
-            this.scale_to_hcp_ = (1200*0.72)/(this.num_frames_ori*this.tr);
+
+            this.scale_to_hcp_ = min(1192, this.max_frames)*0.72/(this.num_frames*this.tr);
             g = this.scale_to_hcp_;
         end
-        function g = get.subjects(this)
-            g = this.subjects_;
-        end
-        function     set.subjects(this, s)
-            assert(iscell(s))
-            assert(~isempty(s))
-            this.subjects_ = s;
-        end
         function g = get.tags(this)
-            if isempty(this.normalization) && strcmp(this.source_physio, 'iFV') && ...
+            if isempty(this.final_normalization) && strcmp(this.source_physio, "iFV") && ...
                     ~isempty(this.hp_thresh) && ~isempty(this.lp_thresh)
-                g = '';
+                % provide legacy compatibility
+                g = "";
                 return
             end
-            g = this.tag_;
-            if ~contains(g, "_proc")
-                g = "_proc" + g;
+
+            g = "proc";
+            if ~isempty(this.lp_thresh)
+                g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
             end
-            if ~isempty(this.normalization)
-                g = sprintf('%s-%s', g, this.normalization);
+            if ~isempty(this.hp_thresh) 
+                g = g + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
             end
-            if ~strcmp(this.source_physio, 'iFV')
-                g = strcat(g, '-', this.source_physio);
+            if ~isemptytext(this.final_normalization)
+                g = g + "-" + this.final_normalization;
             end
-            if isempty(this.hp_thresh) && isempty(this.lp_thresh)
-                g = strcat(g, '-openband');
+            if ~isemptytext(this.source_physio)
+                g = g + "-" + this.source_physio;
             end
-        end        
-        function g = get.tasks(this)
-            if ~isempty(this.tasks_)
-                g = this.tasks_;
-                return
+            if isfinite(this.max_frames)
+                g = g + "-maxframes" + num2str(this.max_frames);
             end
-            tasks_dir = fullfile(this.root_dir, this.subjects{1}, 'MNINonLinear', 'Results');
-            assert(isfolder(tasks_dir))
-            this.tasks_ = cellfun(@basename, glob(fullfile(tasks_dir, '*')), UniformOutput=false);
-            if this.do_only_resting
-                this.tasks_ = this.tasks_(~contains(this.tasks_, 'tfMRI'));
-            elseif this.do_only_task
-                this.tasks_ = this.tasks_(contains(this.tasks_, 'tfMRI'));
+            if ~isempty(this.tags_) 
+                g = g + "-" + this.tags_;
             end
-            g = this.tasks_;
+        end
+
+        function g = get.analytic_signal(this)
+            g = this.analytic_signal_;
+        end
+        function g = get.bold_signal(this)
+            g = this.bold_signal_;
+        end
+        function g = get.HCP_signals(this)
+            g = this.HCP_signals_;
+        end
+        function g = get.physio_signal(this)
+            g = this.physio_signal_;
         end
     end
     
@@ -159,53 +150,211 @@ classdef AnalyticSignal < handle & mlraut.HCP
             a = unwrap(angle(as)); % [-pi pi] -> [-inf inf]
             a = mod(a, 2*pi); % [-inf inf] -> [0 2*pi]
         end
-        function this = average_network_signals(this, psi, s, t)
-            assert(isscalar(s));
-            assert(isscalar(t));
-            if isreal(psi)
-                hlist = this.ANAT_LIST_B;
-            else
-                hlist = this.ANAT_LIST;
+        function psis = average_network_signals(this, psi)
+            cbm = mlraut.CerebellarData(this, psi);
+            this.HCP_signals_.cbm = cbm.build_Yeo_signals();
+            ctx = mlraut.CorticalData(this, psi);
+            this.HCP_signals_.ctx = ctx.build_Yeo_signals();
+            str = mlraut.StriatalData(this, psi);
+            this.HCP_signals_.str = str.build_Yeo_signals();
+            thal = mlraut.ThalamicData(this, psi);
+            this.HCP_signals_.thal = thal.build_Yeo_signals();
+
+            psis = this.HCP_signals;
+        end
+        function this = call(this, opts)
+            %% CALL all subjects
+
+            arguments
+                this mlraut.AnalyticSignal
+                opts.do_qc logical = false
             end
 
-            Nrsn = sum(~contains(this.RSN_NAMES, 'task'));
-            for n = 1:Nrsn % Yeo's RSNs
-                for hidx = 1:length(hlist)
-                    msk = this.networks_HCP == n & this.masks_HCP.(this.ANAT_LIST{hidx});
-                    target = this.HCP_signals.(hlist{hidx});
-                    target(:,n,s,t) = median(psi(:,msk), 2, 'omitnan');
-                    this.HCP_signals.(hlist{hidx}) = target;
+            % exclude subjects
+            this.subjects = this.subjects(~contains(this.subjects, '_7T'));
+            %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
+
+            out_dir_ = this.out_dir;
+            for s = 1:this.num_sub
+                this.current_subject = this.subjects{s};
+                if ~contains(out_dir_, this.current_subject)
+                    proposed_dir = fullfile(out_dir_, this.current_subject);
+                    this.out_dir = proposed_dir;
+                    ensuredir(proposed_dir);
+                end
+                if opts.do_qc
+                    this.call_subject_qc(s);
+                else
+                    this.call_subject(s);
                 end
             end
-
-            task_pos = 1 <= this.networks_HCP & this.networks_HCP <= 5;
-            task_neg = 6 <= this.networks_HCP & this.networks_HCP <= 7;
-
-            % task+
-            for hidx = 1:length(hlist)
-                idx = contains(this.RSN_NAMES, 'task+');
-                msk = task_pos & this.masks_HCP.(this.ANAT_LIST{hidx});
-                target = this.HCP_signals.(hlist{hidx});
-                target(:,idx,s,t) = median(psi(:,msk), 2, 'omitnan');
-                this.HCP_signals.(hlist{hidx}) = target;
+        end
+        function this = call_subject(this, s)
+            arguments
+                this mlraut.AnalyticSignal
+                s double
             end
 
-            % task-
-            for hidx = 1:length(hlist)
-                idx = contains(this.RSN_NAMES, 'task-');
-                msk = task_neg & this.masks_HCP.(this.ANAT_LIST{hidx});
-                target = this.HCP_signals.(hlist{hidx});
-                target(:,idx,s,t) = median(psi(:,msk), 2, 'omitnan');
-                this.HCP_signals.(hlist{hidx}) = target;
+            this.malloc();
+
+            for t = 1:this.num_tasks     
+
+                this.current_task = this.tasks{t};
+
+                % BOLD
+                try
+                    bold_ = this.task_dtseries(); 
+                    bold_ = this.build_global_signal_regressed(bold_);
+                    bold_ = hilbert(bold_);
+                catch ME
+                    disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
+                    handwarning(ME)
+                    continue
+                end
+                 
+                % Physio
+                try
+                    physio_ = this.task_physio();
+                    physio_ = this.build_global_signal_regressed(physio_);
+                    physio_ = hilbert(physio_);
+                catch ME
+                    disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
+                    handwarning(ME)
+                    continue
+                end
+
+                % Store BOLD, Physio, and Analytic signals
+                this.bold_signal_ = this.build_band_passed(this.build_centered_and_rescaled(bold_));
+                this.bold_signal_ = this.build_final_normalization(this.bold_signal_);
+                if ~all(physio_ == 0)                    
+                    this.physio_signal_ = this.build_band_passed(this.build_centered_and_rescaled(physio_));
+                    this.physio_signal_ = this.build_final_normalization(this.physio_signal_);
+                    % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
+                    this.analytic_signal_ = this.build_band_passed( ...
+                        this.build_centered_and_rescaled(conj(physio_)) .* ...
+                        this.build_centered_and_rescaled(bold_));
+                    this.analytic_signal_ = this.build_final_normalization(this.analytic_signal_);
+                else
+                    this.physio_signal_ = physio_;
+                    this.analytic_signal_ = this.bold_signal_;
+                end
+
+                % Averages for networks
+                this.average_network_signals(this.analytic_signal_);
+                
+                % Store reduced analytic signal, real(), imag(), abs(), angle()
+                if this.do_save           
+                    % Store reduced analytic signals for all s, t
+                    % grid of data from s, t may be assessed with stats
+                    save(this, s, t);
+                    
+                    if this.do_save_ciftis
+                        this.write_ciftis( ...
+                            abs(this.analytic_signal_), ...
+                            sprintf('abs_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                        this.write_ciftis( ...
+                            angle(this.analytic_signal_), ...
+                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+
+                        % analytic_signal_ - bold_signal_
+                        diff_ = this.analytic_signal_ - this.bold_signal_;
+                        this.write_ciftis( ...
+                            abs(diff_), ...
+                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                        this.write_ciftis( ...
+                            angle(diff_), ...
+                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                    end
+                end
+
+                % do plot
+                if this.do_plot_global_physio
+                    this.plot_global_physio(measure=@this.unwrap);
+                    this.plot_global_physio(measure=@angle);
+                    this.plot_global_physio(measure=@abs);
+                    this.plot_global_physio(measure=@real);
+                end
+                if this.do_plot_networks
+                    this.plot_regions(@this.plot_networks, measure=@this.unwrap);
+                    this.plot_regions(@this.plot_networks, measure=@angle);
+                    this.plot_regions(@this.plot_networks, measure=@abs);
+                    this.plot_regions(@this.plot_networks, measure=@real);
+                end
+                if this.do_plot_radar
+                    this.plot_regions(@this.plot_radar, measure=@this.identity);
+                end
+                if this.do_plot_emd
+                    this.plot_regions(@this.plot_emd, measure=@this.unwrap);
+                    this.plot_regions(@this.plot_emd, measure=@angle);
+                    this.plot_regions(@this.plot_emd, measure=@abs);
+                end
             end
         end
-        function dat1 = band_pass(this, dat)
+        function this = call_subject_qc(this, s, t)
+            arguments
+                this mlraut.AnalyticSignal
+                s double = 1
+                t double = 1
+            end
+
+            this.malloc();            
+            this.current_task = this.tasks{t};
+            tic
+
+            % BOLD
+            bold_ = this.task_dtseries(); 
+            bold_ = this.build_global_signal_regressed(bold_);
+            this.write_ciftis(bold_, "bold-subgs-"+this.global_signal_regression_);
+             
+            % Physio
+            physio_ = this.task_physio();
+            physio_ = this.build_global_signal_regressed(physio_);
+            this.write_nii(physio_, this.source_physio+"-subgs-"+this.global_signal_regression_);
+
+            % BOLD for Analytic signal
+            psi = this.build_centered(bold_);
+            this.write_ciftis(psi, "centered-bold-subgs-"+this.global_signal_regression_);
+            psi = this.build_rescaled(psi);
+            this.write_ciftis(psi, "rescaled-centered-bold-subgs-"+this.global_signal_regression_);
+            psi = this.build_band_passed(psi);
+            this.write_ciftis(psi, "lp"+this.lp_thresh+"-hp"+this.hp_thresh+"-rescaled-centered-bold-subgs-"+this.global_signal_regression_);
+            psi = hilbert(psi);
+            this.write_ciftis(abs(psi), "abs-psi");
+            this.write_ciftis(angle(psi), "angle-psi");
+
+            % Physio for Analytic signal
+            phi = this.build_centered(physio_);
+            this.write_nii(phi, "centered-"+this.source_physio+"-subgs-"+this.global_signal_regression_);
+            phi = this.build_rescaled(phi);
+            this.write_nii(phi, "rescaled-centered-"+this.source_physio+"-subgs-"+this.global_signal_regression_);
+            phi = this.build_band_passed(phi);
+            this.write_nii(phi, "lp"+this.lp_thresh+"-hp"+this.hp_thresh+"-rescaled-centered-"+this.source_physio+"-subgs-"+this.global_signal_regression_);
+            phi = hilbert(phi);
+            this.write_nii(abs(phi), "abs-phi");
+            this.write_nii(angle(phi), "angle-phi");
+
+            % Analytic signal aufbau
+            as = conj(phi) .* psi;
+            this.write_ciftis(abs(as), "abs-as");
+            this.write_ciftis(angle(as), "angle-as");
+            as = this.build_final_normalization(as); 
+            if ~isempyttext(this.final_normalization)
+                this.write_ciftis(abs(as), "abs-"+this.final_normalization+"-as");
+                this.write_ciftis(angle(as), "angle-"+this.final_normalization+"-as");
+            end
+
+            this.save(s, t);
+
+            toc
+        end        
+        
+        function dat1 = build_band_passed(this, dat)
             %% Implements butter:  web(fullfile(docroot, 'signal/ref/butter.html?browser=F1help#bucsfmj')) .
             %  See also web(fullfile(docroot, 'signal/ug/practical-introduction-to-digital-filtering.html')) .
             %  Returns:
             %      dat1 same num. type as dat
 
-            if all(dat == 1)
+            if all(dat == 0)
                 dat1 = dat;
                 return
             end
@@ -223,608 +372,284 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 dat1 = double(dat1);
             end
         end
-        function this = call(this, opts)
-            %% CALL all subjects
-
-            arguments
-                this mlraut.AnalyticSignal
-                opts.do_qc logical = false
-            end
-
-            this.malloc();
-
-            % exclude subjects
-            this.subjects = this.subjects(~contains(this.subjects, '_7T'));
-            %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
-
-            out_dir_ = this.out_dir;
-            for s = 1:this.num_sub
-                this.current_subject = this.subjects{s};
-                if ~contains(out_dir_, this.current_subject)
-                    proposed_dir = fullfile(out_dir_, this.current_subject);
-                    ensuredir(proposed_dir);
-                    this.out_dir = proposed_dir;
-                end
-                if opts.do_qc
-                    this.call_subject_qc(s);
-                else
-                    this.call_subject(s);
-                end
-            end
-
-            if this.do_save % grid of data from s, t may be assessed with stats
-                save(this);
-            end
-        end
-        function this = call_subject(this, s)
-            arguments
-                this mlraut.AnalyticSignal
-                s double
-            end
-
-            for t = 1:this.num_tasks
-                this.current_task = this.tasks{t};
-
-                tic           
-
-                % BOLD
-                try
-                    bold = this.task_dtseries(); 
-                    assert(~isempty(bold))
-                    bold = this.omit_late_frames(bold);
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-
-                % Global signal
-                gs = this.global_signal(bold);
-                 
-                % Physio
-                try
-                    physio = this.task_physio(bold);
-                    assert(~isempty(physio))
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-
-                % Analytic signal
-                bold_ = this.center_and_rescale(this.band_pass(bold - gs));
-                physio_ = this.center_and_rescale(this.band_pass(physio)); % removes gs as needed
-                %figure; histogram(bold_); title("bold_", interpreter="none")
-                %figure; histogram(physio_); title("physio_", interpreter="none")
-                bold_ = hilbert(bold_);
-                physio_ = hilbert(physio_);
-                %figure; histogram(abs(bold_)); title("abs(bold_ in C)", interpreter="none")
-                %figure; histogram(abs(physio_)); title("abs(physio_ in C)", interpreter="none")
-                as = conj(physio_).*bold_; % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                as = this.normalize_all(as);
-                %figure; histogram(abs(as)); title("abs(as)")
-        
-                % Store reduced analytic signal, real(), imag(), abs(), angle()
-                if this.do_save
-                    save(fullfile(this.out_dir, sprintf('%s_bold-gs%s_%i_%i', stackstr(2), this.tags, s, t)), 'bold_');
-                    save(fullfile(this.out_dir, sprintf('%s_as%s_%i_%i', stackstr(2), this.tags, s, t)), 'as');
-                    this.write_ciftis(bold_, sprintf('bold-gs%s_%i_%i', this.tags, s, t));
-                    this.write_ciftis(abs(as), sprintf('abs_as%s_%i_%i', this.tags, s, t));
-                    this.write_ciftis(angle(as), sprintf('angle_as%s_%i_%i', this.tags, s, t));
-                end
-
-                % Store reduced analytic signals for all s, t
-                this.bold_signals(:,:,s,t) = bold_;
-                this.analytic_signals(:,:,s,t) = as;
-                this.global_signals(:,s,t) = hilbert(this.center_and_rescale(this.band_pass(gs)));
-                this.physio_signals(:,s,t) = hilbert(this.center_and_rescale(this.band_pass(physio)));
-
-                this.average_network_signals(bold_, s, t)
-                this.average_network_signals(as, s, t)
-                if this.do_plot_global_physio
-                    this.plot_global_physio(measure=@this.unwrap, isub=s, itask=t);
-                    this.plot_global_physio(measure=@angle, isub=s, itask=t);
-                    this.plot_global_physio(measure=@abs, isub=s, itask=t);
-                    this.plot_global_physio(measure=@real, isub=s, itask=t);
-                end
-                if this.do_plot_networks
-                    this.plot_regions(@this.plot_networks, measure=@this.unwrap, isub=s, itask=t);
-                    this.plot_regions(@this.plot_networks, measure=@angle, isub=s, itask=t);
-                    this.plot_regions(@this.plot_networks, measure=@abs, isub=s, itask=t);
-                    this.plot_regions(@this.plot_networks, measure=@real, isub=s, itask=t);
-                end
-                if this.do_plot_radar
-                    this.plot_regions(@this.plot_radar, measure=@this.identity, isub=s, itask=t);
-                end
-                if this.do_plot_emd
-                    this.plot_regions(@this.plot_emd, measure=@this.unwrap, isub=s, itask=t);
-                    this.plot_regions(@this.plot_emd, measure=@angle, isub=s, itask=t);
-                    this.plot_regions(@this.plot_emd, measure=@abs, isub=s, itask=t);
-                end
-
-                toc
-            end
-        end
-        function this = call_subject_qc(this, s)
-            arguments
-                this mlraut.AnalyticSignal
-                s double
-            end
-
-            for t = 1:this.num_tasks
-                this.current_task = this.tasks{t};
-
-                tic  
-            
-                % BOLD
-                try
-                    bold = this.task_dtseries(); 
-                    assert(~isempty(bold))
-                    bold = this.omit_late_frames(bold);
-                    this.plot_timeseries_qc(bold, ylabel="BOLD");
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-                 
-                % Physio
-                try
-                    physio = this.task_physio_qc(bold);
-                    assert(~isempty(physio))
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-
-                toc
-            end
-        end
-        function psi = center(~,psi)
+        function psi = build_centered(this, psi)
             assert(~isempty(psi))
-            if all(psi == 1)
+            if all(psi == 0)
                 return
             end
             psi = psi - median(psi, 'all', 'omitnan');
         end
-        function psi = center_and_rescale(this, psi)
+        function psi = build_centered_and_rescaled(this, psi)
             %% Mimics z-score of |psi(t,x)> using median and mad.
 
-            psi = this.center(psi);
-            psi = this.rescale(psi);
+            psi = this.build_centered(psi);
+            psi = this.build_rescaled(psi);
         end
-        function gs = global_signal(this, sig)
-            %% global_signal := median(sig(t,x), 2)
-
-            assert(~isempty(sig))
-            assert(size(sig, 1) == this.num_frames)
-            assert(size(sig, 2) == this.num_nodes)
-
-            gs = median(sig, 2);
-        end
-        function obj = identity(~, obj)
-        end
-        function j = jsonread(~)
-            j = struct([]);
-        end
-        function this = malloc(this)
-
-            % accumulate for statistics on serialized AnalyticSignal
-            this.global_signals = complex(nan(this.num_frames, this.num_sub, this.num_tasks));
-            this.physio_signals = complex(nan(this.num_frames, this.num_sub, this.num_tasks));    
-            this.HCP_signals.cbmb = single(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.HCP_signals.ctxb = single(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.HCP_signals.strb = single(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.HCP_signals.thalb = single(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.HCP_signals.cbm = complex(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.HCP_signals.ctx = complex(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.HCP_signals.str = complex(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.HCP_signals.thal = complex(nan(this.num_frames,this.num_nets,this.num_sub,this.num_tasks));
-            this.bold_signals = single(nan(this.num_frames, this.num_nodes, this.num_sub, this.num_tasks)); % large
-            this.analytic_signals = complex(nan(this.num_frames, this.num_nodes, this.num_sub, this.num_tasks)); % largest
-        end
-        function as = normalize_all(this, as)
-
-            switch this.normalization
-                case 'norm_t'
-                    as = as ./ abs(this.steady_signal(as));
-                case 'norm_xyz'
-                    as = as ./ abs(this.global_signal(as));
-                case 'norm_xyzt'
+        function as = build_final_normalization(this, as)
+            switch convertStringsToChars(this.final_normalization)
+                case 'normt'
+                    % allowing fluctuations in xyz
+                    as = as ./ abs(median(as, 1));
+                case 'normxyz'
+                    % allowing fluctuations in t
+                    as = as ./ abs(median(as, 2));
+                case 'normxyzt'
+                    % allowing fluctuations in xyz & t
                     as = as/abs(median(as, "all"));
-                    as = as/this.scale_to_hcp;
                 otherwise
                     return
             end
         end
-        function data = physio_log(this, sub, task)
-            arguments
-                this mlraut.AnalyticSignal
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-            end
+        function [gs,beta] = build_global_signal_for(this, sig)
+            %% global_signal := median(sig, "space"), then formatted for greyordinates or 4D voxels
 
-            fqfn = fullfile( ...
-                this.data_dir(sub, task), strcat(task, '_Physio_log.txt'));
-            data = importdata(fqfn);
-            assert(length(data)/this.physFs >= this.min_physN, stackstr(2))
-        end
-        function plot_emd(this, opts)
-            %  Args:
-            %      this mlraut.AnalyticSignal           
-            %      opts.measure function_handle = @angle
-            %      opts.region {mustBeTextScalar} = 'ctx'
-            %      opts.isub {mustBeInteger} = 1
-            %      opts.itask {mustBeInteger} = 1
+            % task niigz in 4D, reshaped to 2D 
+            niigz = this.task_niigz();
+            sz = size(niigz);
+            assert(sz(4) == this.num_frames)
+            niigz = reshape(niigz, [sz(1)*sz(2)*sz(3), sz(4)]);
 
-            arguments
-                this mlraut.AnalyticSignal    
-                opts.freq_limits {mustBeNumeric} = []
-                opts.measure function_handle = @real
-                opts.region {mustBeTextScalar} = 'ctx'
-                opts.isub {mustBeInteger} = 1
-                opts.itask {mustBeInteger} = 1
-            end
-            assert(contains(opts.region, {'cbm', 'ctx', 'str', 'thal'}))
-            s_ = opts.isub;
-            t_ = opts.itask;
-            signals = this.HCP_signals.(lower(opts.region));
-            if isreal(signals)
+            % mask ~ 3D task signal reference; reshaped to 2D
+            msk = this.task_signal_mask();
+            msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1]);
+
+            % img ~ task niigz masked; then median
+            img_g = double(niigz);
+            img_g = img_g(logical(msk), :);
+            img_g = median(img_g, 1);
+
+            % format for greyordinates
+            this.global_signal_ = ascol(img_g);
+            this.global_signal_beta_ = 1;
+
+            if isnumeric(sig)
+                assert(size(sig, 1) == this.num_frames)
+                gs = this.global_signal_;  % col
+                beta = this.global_signal_beta_;  % row
                 return
             end
-            if isempty(opts.freq_limits)
-                Flim = [this.hp_thresh this.lp_thresh];
-            else
-                Flim = opts.freq_limits;
-            end
+            if isa(sig, "mlfourd.ImagingContext2")
+                sz = size(sig);
+                assert(sz(4) == this.num_frames)
+                sig = reshape(sig, [sz(1)*sz(2)*sz(3), sz(4)]);
 
-            % emd
-            if ~this.do_plot_emd % which automates many plots
-                for k = 1:9
-                    emd(opts.measure(signals(:,k,s_,t_)), SiftMaxIterations=256)
-                    set(gcf, Position=[0 0 2880*0.618 2880*0.618]);
-                    title(sprintf('EMD %s, showing 3 IMFs, RSN %s\n', char(opts.measure), this.RSN_NAMES{k}), FontSize=14)
-                end
-            end
+                msk = this.task_signal_mask();
+                msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1]);
 
-            % hht
-            h2 = figure;
-            h2.Position = [0 0 2880 2880*0.618];
-            tiledlayout(3,3);
-            for k = 1:9
-                nexttile
-                hht(emd(opts.measure(signals(:,k,s_,t_))), this.Fs, FrequencyLimits=Flim); % MaxNumIMF=5
-                title(sprintf('Hilbert Spectrum, opts.measure, %s', char(opts.measure), this.RSN_NAMES{k}))
-            end
+                img_g = double(sig);
+                img_g(logical(msk), :) = repmat(asrow(this.global_signal_), [sum(logical(msk)), 1]);
+                img_g = reshape(img_g, [sz(1), sz(2), sz(3), sz(4)]);
+  
+                img_b = double(sig);
+                img_b(logical(msk), :) = this.global_signal_beta_ * ones(sum(logical(msk), sz(4)));
+                img_b = reshape(img_b, [sz(1), sz(2), sz(3), sz(4)]);
 
-            % fsst
-            h3 = figure;
-            h3.Position = [0 0 2880 2880*0.618];
-            tiledlayout(3,3);
-            for k = 1:9
-                nexttile
-                fsst(opts.measure(signals(:,k,s_,t_)), this.Fs, 'yaxis')
-                title(sprintf('Fourier synchrosqueezed transform, %s, %s', char(opts.measure), this.RSN_NAMES{k}))
-            end
-
-            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.region), opts.isub, opts.itask);
-        end
-        function h1 = plot_global_physio(this, opts)
-            %  Args:
-            %      this mlraut.AnalyticSignal   
-            %      opts.measure function_handle = @angle        
-            %      opts.isub {mustBeInteger} = 1
-            %      opts.itask {mustBeInteger} = 1
-
-            arguments
-                this mlraut.AnalyticSignal
-                opts.measure function_handle = @abs
-                opts.isub {mustBeInteger} = 1
-                opts.itask {mustBeInteger} = 1
-            end
-            s_ = opts.isub;
-            t_ = opts.itask;
-            secs_ = this.tr * (0:this.num_frames-1);
-
-            h1 = figure;
-            h1.Position = [0 0 2880 2880*0.618];
-            hold on
-            plot(secs_, opts.measure(this.global_signals(:, s_, t_)));
-            plot(secs_, opts.measure(this.physio_signals(:, s_, t_)), '--', LineWidth=2);
-            legend({'global', 'arousal'}, FontSize=18)
-            xlabel('time/s', FontSize=24)
-            ylabel(char(opts.measure), FontSize=24, Interpreter="none")
-            title(sprintf('Global Signal, Arousal Signal, sub-%s, %s ', this.subjects{s_}, this.tasks{t_}), FontSize=24, Interpreter="none")
-            hold off
-
-            if this.do_save
-                this.saveFigures(char(opts.measure), opts.isub, opts.itask);
-            end
-        end
-        function plot_regions(this, funh, opts)
-            arguments
-                this mlraut.AnalyticSignal
-                funh function_handle
-                opts.measure function_handle
-                opts.isub {mustBeInteger} = 1
-                opts.itask {mustBeInteger} = 1
-            end
-
-            for anat = [this.ANAT_LIST, this.ANAT_LIST_B]
-                opts.region = anat{1};
-                funh(measure=opts.measure, region=opts.region, isub=opts.isub, itask=opts.itask);
-            end
-        end
-        function [h1,h3] = plot_networks(this, opts)
-            %  Args:
-            %      this mlraut.AnalyticSignal           
-            %      opts.measure function_handle = @abs
-            %      opts.region {mustBeTextScalar} = 'ctx'
-            %      opts.isub {mustBeInteger} = 1
-            %      opts.itask {mustBeInteger} = 1
-            %      opts.plot_range {mustBeInteger} = 150:300
-
-            arguments
-                this mlraut.AnalyticSignal           
-                opts.measure function_handle = @abs
-                opts.region {mustBeTextScalar} = 'ctx'
-                opts.isub {mustBeInteger} = 1
-                opts.itask {mustBeInteger} = 1
-                opts.plot_range {mustBeInteger} = []
-            end
-            assert(contains(opts.region, {'cbm', 'ctx', 'str', 'thal'}))
-            s_ = opts.isub;
-            t_ = opts.itask;
-            signals = this.HCP_signals.(lower(opts.region));
-            if isreal(signals) && ~strcmp(char(opts.measure), char(@real))
+                gs = sig.selectImagingTool(img=img_g);
+                gs.fileprefix = "global-signal";
+                beta = sig.selectImagingTool(img=img_b);
+                beta.fileprefix = "global-signal-beta";
                 return
             end
-            if isempty(opts.plot_range)
-                opts.plot_range = this.plot_range;
-            end
-            secs_ = this.tr * (0:this.num_frames-1);
-
-            % plot Yeo's 7 RSNs
-            h1 = figure;
-            h1.Position = [0 0 2880 2880*0.618];
-            hold on
-            for k = 1:5
-                meas_ = opts.measure(signals(:, k, s_, t_));
-                plot(secs_(opts.plot_range), meas_(opts.plot_range));
-            end
-            meas6_ = opts.measure(signals(:, 6, s_, t_));
-            plot(secs_(opts.plot_range), meas6_(opts.plot_range), '--', LineWidth=2); % frontoparietal
-            meas7_ = opts.measure(signals(:, 7, s_, t_));
-            plot(secs_(opts.plot_range), meas7_(opts.plot_range), '--', LineWidth=2); % default mode
-            legend(this.RSN_NAMES(1:7), FontSize=18)
-            xlabel('time/s', FontSize=24)
-            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.region), FontSize=24, Interpreter="none")
-            title(sprintf('Yeo RSNs, sub-%s, %s ', this.subjects{s_}, this.tasks{t_}), FontSize=24, Interpreter="none")
-            hold off
-
-            % plot task+, task- RSNs
-            h3 = figure;
-            h3.Position = [0 0 2880 2880*0.618];
-            hold on
-            meas8_ = opts.measure(signals(:, 8, s_, t_));
-            plot(secs_(opts.plot_range), meas8_(opts.plot_range));
-            meas9_ = opts.measure(signals(:, 9, s_, t_));
-            plot(secs_(opts.plot_range), meas9_(opts.plot_range), '--', LineWidth=2);
-            legend(this.RSN_NAMES(8:9), FontSize=18)
-            xlabel('time/s', FontSize=24)
-            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.region), FontSize=24, Interpreter="none")
-            title(sprintf('Task +/-, sub-%s, %s ', this.subjects{s_}, this.tasks{t_}), FontSize=24, Interpreter="none")
-            hold off
-
-            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.region), opts.isub, opts.itask);
+            error("mlraut:TypeError", stackstr())
         end
-        function [h,h1,h2] = plot_radar(this, opts)
-            %  Args:
-            %      this mlraut.AnalyticSignal           
-            %      opts.region {mustBeTextScalar} = 'ctx'
-            %      opts.isub {mustBeInteger} = 1
-            %      opts.itask {mustBeInteger} = 1
-
-            arguments
-                this mlraut.AnalyticSignal
-                opts.measure function_handle = @this.identity
-                opts.region {mustBeText} = 'ctx'
-                opts.isub {mustBeInteger} = 1
-                opts.itask {mustBeInteger} = 1
+        function psi = build_global_signal_regressed(this, psi)
+            if ~this.global_signal_regression
+                return
             end
-            assert(contains(opts.region, {'cbm', 'ctx', 'str', 'thal'}))
-            s_ = opts.isub;
-            t_ = opts.itask;
-            signals = this.HCP_signals.(lower(opts.region));
-            if isreal(signals)
+            if all(psi == 0)
                 return
             end
 
-            % plot "radar" of RSNs
-            h = figure;
-            h.Position = [0 0 2880*0.618 2880*0.618];
-            hold on
-            for k = 1:3
-                plot(signals(:, k, s_, t_), '.', MarkerSize=4);
-            end
-            plot(signals(:, 6, s_, t_), '.', MarkerSize=8)
-            plot(signals(:, 7, s_, t_), '.', MarkerSize=8)
-            legend([this.RSN_NAMES(1:3) this.RSN_NAMES(6:7)], FontSize=18)
-            xlabel(sprintf('real(%s_signals)', opts.region), FontSize=24, Interpreter="none")
-            ylabel(sprintf('imag(%s_signals)', opts.region), FontSize=24, Interpreter="none")
-            hold off
-
-            % plot "radar" of task+ and task-
-            h1 = figure;
-            h1.Position = [0 0 2880*0.618 2880*0.618];
-            hold on
-            plot(signals(:, 8, s_, t_), '.', MarkerSize=8)
-            plot(signals(:, 9, s_, t_), '.', MarkerSize=8)
-            %plot(this.global_signals(:, s_, t_), '-.')
-            %plot(this.physio_signals(:, s_, t_), '-.')
-            legend({'task+', 'task-'}, FontSize=18)
-            xlabel(sprintf('real(%s_signals)', opts.region), FontSize=24, Interpreter="none")
-            ylabel(sprintf('imag(%s_signals)', opts.region), FontSize=24, Interpreter="none")
-            hold off
-
-            % plot "radar" of global signal, arousal signal
-            h2 = figure;
-            h2.Position = [0 0 2880*0.618 2880*0.618];
-            hold on
-            plot(this.global_signals(:, s_, t_), '.', MarkerSize=8)
-            plot(this.physio_signals(:, s_, t_), '.', MarkerSize=8)
-            legend({'global', 'arousal'}, FontSize=18)
-            xlabel('real(signal)', FontSize=24, Interpreter="none")
-            ylabel('imag(signal)', FontSize=24, Interpreter="none")
-            hold off
-
-            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.region), opts.isub, opts.itask);
+            psi = psi - this.build_global_signal_for(psi);
         end
-        function [h,h1] = plot_timeseries_qc(this, tseries, opts)
-            arguments
-                this mlraut.AnalyticSignal
-                tseries double {mustBeNonempty}
-                opts.ylabel {mustBeTextScalar} = "time-series (arbitrary)"
-                opts.Fs double = []
-                opts.tr double = []
-                opts.L double = []
-            end
-            if isempty(opts.Fs); opts.Fs = this.Fs; end
-            if isempty(opts.tr); opts.tr = this.tr; end
-            if isempty(opts.L); opts.L = this.num_frames; end
-            times = ascol((0:opts.L-1)*opts.tr);
-            tseries_centered = mean(tseries, 2) - mean(tseries, 'all');
-
-            % plot times -> tseries
-            h = figure;
-            if isreal(tseries_centered)
-                plot(times, tseries_centered);
-            else
-                plot(times, real(tseries_centered), times, imag(tseries_centered))
-                legend(["real", "imag"])
-            end
-            xlabel("times (s)");
-            ylabel(opts.ylabel);
-            title(sprintf("%s: %s: %s", stackstr(3), stackstr(2), opts.ylabel), Interpreter="none");
-
-            % plot times -> Fourier(tseries)
-            h1 = figure;
-            P2 = abs(fft(tseries_centered))/opts.L;
-            P1 = P2(1:opts.L/2+1);
-            P1(2:end-1) = 2*P1(2:end-1);
-            logP1 = log(P1);
-            freqs = opts.Fs*(0:(opts.L/2))/opts.L;
-            plot(freqs(2:end), logP1(2:end));            
-            xlabel("frequency (Hz)");
-            ylabel("log "+opts.ylabel);
-            title(sprintf("%s: %s: log %s", stackstr(3), stackstr(2), opts.ylabel), Interpreter="none");
-        end
-        function psi = rescale(~, psi)
+        function psi = build_rescaled(this, psi)
             assert(~isempty(psi))
-            if all(psi == 1)
+            if all(psi == 0)
                 return
             end
-            if ~isreal(psi)
-                d = mad(abs(psi), 1, 'all');
-            else
-                d = mad(psi, 1, 'all');
-            end
+
+            d = mad(abs(psi), 1, 'all');
             psi = psi./d;
         end
-        function save(this)
-            save(fullfile(this.out_dir, strcat(stackstr(3), this.tags, '.mat')), 'this');
+        function obj = identity(~, obj)
         end
-        function saveFigures(this, label, s, t)
-            saveFigures(this.out_dir, closeFigure=true, prefix=sprintf('%s_%s%s_%i_%i_', stackstr(3), label, this.tags, s, t));
-        end
-        function ss = steady_signal(this, sig)
-            %% steady_signal := median(sig(t,x), 1)
+        function this = malloc(this)
 
-            assert(~isempty(sig))
-            assert(size(sig, 1) == this.num_frames)
-            assert(size(sig, 2) == this.num_nodes)
+            % accumulate for statistics on serialized AnalyticSignal
+            this.bold_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
+            this.physio_signal_ = complex(nan(this.num_frames, 1));   
+            this.analytic_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
 
-            ss = median(sig, 1);
+            this.HCP_signals_.cbm = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.ctx = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.str = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.thal = complex(nan(this.num_frames,this.num_nets));
         end
-        function physio = task_physio(this, bold, sub, task, roi_fileprefix, opts)
+        function b = omit_late_frames(this, b)
+            %% Keep frames 1:this.max_frames, following use of trim_frames() to remove this.num_frames_to_trim
+            %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
+            %  of the scanning session.            
+
+            if isnumeric(b)
+                bound = min(this.max_frames, size(b, 1));
+                b = b(1:bound, :);
+                return
+            end
+            if isa(b, "mlfourd.ImagingContext2")
+                bound = min(this.max_frames, size(b, 4));
+                img = double(b);
+                img = img(:,:,:,1:bound);
+                b.selectImagingTool(img=img);
+                j = b.json_metadata;
+                j.timesMid = j.timesMid(1:bound);
+                b.addJsonMetadata(j);
+                return
+            end
+            error("mlraut:TypeError", stackstr())
+        end
+
+        %% PLOTTING
+
+        function plot_emd(this, varargin)
+            this.plotting_.plot_emd(varargin{:});
+        end
+        function h1 = plot_global_physio(this, varargin)
+            this.plotting_.plot_global_physio(varargin{:});
+        end
+        function plot_regions(this, varargin)
+            this.plotting_.plot_regions(varargin{:});
+        end
+        function [h1,h3] = plot_networks(this, varargin)
+            [h1,h3] = this.plotting_.plot_networks(varargin{:});
+        end
+        function [h,h1,h2] = plot_radar(this, varargin)
+            [h,h1,h2] = this.plotting_.plot_radar(varargin{:});
+        end
+        function [h,h1] = plot_timeseries_qc(this, varargin)
+            [h,h1] = this.plotting_.plot_timeseries_qc(varargin{:});
+        end
+        
+        %%
+
+        function save(this, s, t)
+
+            the_tags_ = this.tags;
+            the_out_dir_ = this.out_dir;
+            
+            save(fullfile(the_out_dir_, ...
+                sprintf("sub-%s_ses-%s_%s.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), the_tags_)), ...
+                'this');
+        end
+        function mat = task_dtseries(this, varargin)
+            %  Args:
+            %      this mlraut.AnalyticSignal
+            %      sub {mustBeTextScalar} = this.current_subject
+            %      task {mustBeTextScalar} = this.current_task
+            %  Returns:
+            %      mat (numeric):  time x grayordinate from BOLDData
+
+            mat = task_dtseries@mlraut.HCP(this, varargin{:});
+            mat = this.trim_frames(mat);
+            mat = this.omit_late_frames(mat);
+            mat = single(mat);
+        end
+        function ic = task_niigz(this)
+            ic = task_niigz@mlraut.HCP(this);
+            ic = this.trim_frames(ic);
+            ic = this.omit_late_frames(ic);
+            ic.ensureSingle();
+            ic.fileprefix = stackstr(use_dashes=true);
+        end
+        function physio = task_physio(this, opts)
+            %  Returns:
+            %      physio numeric Nt x Nx
+            %  Throws:
+            %      mlraut:ValueError if this.source_physio not supported
+
             arguments
                 this mlraut.AnalyticSignal
-                bold {mustBeNumeric}
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-                roi_fileprefix {mustBeTextScalar} = this.roi_fileprefix
+                opts.roi = this.roi
                 opts.flipLR logical = false
+                opts.source_physio {mustBeText} = this.source_physio
             end
 
+            bold = this.task_niigz();
+            switch convertStringsToChars(this.source_physio)
+                case 'RV'
+                    RV = mlraut.PhysioRV(this, bold);
+                    physio = RV.call();
+                case 'HRV'
+                    HRV = mlraut.PhysioHRV(this, bold);
+                    physio = HRV.call();
+                case 'iFV'
+                    iFV = mlraut.IFourthVentricle(this, bold);
+                    physio = iFV.call();
+                case 'ROI'
+                    pROI = mlraut.PhysioRoi(this, bold, ...
+                        from_imaging_context=opts.roi, flipLR=opts.flipLR);
+                    physio = pROI.call();
+                case {'no-physio', 'nophys', 'none'}
+                    physio = zeros(size(bold, ndims(bold)), 1);
+                otherwise
+                    error("mlraut:ValueError", stackstr())
+            end
+            physio = single(physio);
+            assert(~isempty(physio))
+        end
+        function ic = task_signal_mask(this)
+            % if ~isempty(this.task_signal_mask_)
+            %     ic = this.task_signal_mask_;
+            %     return
+            % end
+
+            ic = this.task_signal_reference();
+            ic = ic.binarized();
+            
+            ic1 = mlfourd.ImagingContext2(this.wmparc_fqfn);
+            ic1 = ic1.binarized();
+            ic1 = ic1.blurred(6);
+            ic1 = ic1.thresh(0.1);
+            ic1 = ic1.binarized();
+            if ~isempty(getenv("DEBUG"))
+                ic1.view_qc(ic);
+            end
+
+            % mask should not have greater coverage than blurred binarized wmparc
+            if dipsum(ic) > dipsum(ic1)
+                ic = ic1;
+            end
+            ic.ensureSingle();
+            this.task_signal_mask_ = ic;
+        end
+        function ic = task_signal_reference(this)
+            ic = task_signal_reference@mlraut.HCP(this);
+            ic.ensureSingle();
+        end
+        function tseries = trim_frames(this, tseries)
             nt = this.num_frames_to_trim + 1;
-            switch char(this.source_physio)
-                case 'RV'
-                    physio = this.physio_rv(bold, sub, task);
-                case 'HRV'
-                    physio = this.physio_hrv(bold, sub, task);
-                case 'iFV'
-                    physio = this.physio_iFV(sub, task);
-                    physio = physio(nt:end-nt+1);
-                    physio = this.omit_late_frames(physio);
-                    physio = physio - this.global_signal(bold);
-                case 'ROI'
-                    physio = this.physio_roi(sub, task, roi_fileprefix, flipLR=opts.flipLR);
-                    physio = physio(nt:end-nt+1);
-                    physio = this.omit_late_frames(physio);
-                    physio = physio - this.global_signal(bold);
-                case {'nophys', 'none'}
-                    physio = ones(size(bold,1), 1);
-                otherwise
-                    physio = [];
+            if isnumeric(tseries)
+                tseries = tseries(nt:end-nt+1,:);
+                return
             end
-        end
-        function physio = task_physio_qc(this, bold, sub, task, roi_fileprefix, opts)
-            arguments
-                this mlraut.AnalyticSignal
-                bold {mustBeNumeric}
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-                roi_fileprefix {mustBeTextScalar} = this.roi_fileprefix
-                opts.flipLR logical = false
+            if isa(tseries, "mlfourd.ImagingContext2")
+                img = double(tseries);
+                img = img(:,:,:,nt:end-nt+1);
+                tseries.selectImagingTool(img=img);
+                j = tseries.json_metadata;
+                j.timesMid = j.timesMid(nt:end-nt+1);
+                tseries.addJsonMetadata(j);
+                return
             end
-
-            switch char(this.source_physio)
-                case 'RV'
-                    physio = this.physio_rv(bold, sub, task);
-                    this.plot_timeseries_qc(physio, ylabel="RV");
-                case 'HRV'
-                    physio = this.physio_hrv(bold, sub, task);
-                    this.plot_timeseries_qc(physio, ylabel="HRV");
-                case 'iFV'
-                    [physio,iFV] = this.physio_iFV(sub, task);
-                    physio = this.trim_frames(physio);
-                    this.plot_timeseries_qc(physio, ylabel="iFV");
-                    iFV.view_qc();
-                case 'ROI'
-                    [physio,pROI] = this.physio_roi(sub, task, roi_fileprefix, flipLR=opts.flipLR);
-                    physio = this.trim_frames(physio);
-                    this.plot_timeseries_qc(physio, ylabel="ROI");
-                    pROI.view_qc();
-                case {'nophys', 'none'}
-                    physio = ones(size(bold,1), 1);
-                otherwise
-                    physio = [];
-            end
+            error("mlraut:TypeError", stackstr())
         end
         function u = unwrap(~, psi)
             u = unwrap(angle(psi));
         end
-        function write_ciftis(this, cdata, fp)
-            arguments
-                this mlraut.AnalyticSignal
-                cdata {mustBeNumericOrLogical}
-                fp {mustBeTextScalar}
-            end
-            this.write_cifti(cdata, fp); % mlraut.HCP
-            cdata1 = median(cdata, 1); 
-            fp1 = strcat(fp, '_avgt');
-            this.write_cifti(cdata1, fp1); % mlraut.HCP
+        function write_ciftis(this, varargin)
+            this.cifti_.write_ciftis(varargin{:});
+        end
+        function write_nii(this, varargin)
+            this.cifti_.write_nii(varargin{:});
         end
 
         function this = AnalyticSignal(opts)
@@ -832,76 +657,62 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %  Args:
             %      opts.do_only_resting logical = true
             %      opts.do_only_tast logical = false
-            %      opts.do_plot_emd logical = false
             %      opts.do_plot_global_physio logical = true
             %      opts.do_plot_networks logical = true
             %      opts.do_plot_radar logical = true
             %      opts.do_save logical = true: save fully populated this to mlraut_AnalyticSignal.mat
-            %      opts.tag {mustBeTextScalar} = ""
+            %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
+            %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
             %      opts.force_band logical = tru e: force bandpass to [0.01 0.1] Hz
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05.
             %                                             nan =: 1/2
-            %      opts.max_frames {mustBeScalarOrEmpty} = 158  % for GBM rsfMRI
-            %      opts.normalization {mustBeTextScalar} = 'norm_xyzt': also: 'norm_t' | 'norm_xyz' | ''
-            %      opts.num_frames_ori double = 1200: for HCP, 160 for RT GBM
-            %      opts.num_frames_to_trim double = 4: Ryan used just 4 at start; 1 for RT GBM
+            %      opts.max_frames {mustBeScalarOrEmpty} = nan: try 158 for assessing GBM rsfMRI
             %      opts.out_dir {mustBeFolder} = pwd
-            %      opts.plot_range {mustBeInteger} = 1:158
-            %      opts.root_dir {mustBeFolder} = pwd
-            %      opts.roi_fileprefix {mustBeTextScalar} = "WT_on_T1w": for files found in sub-*/MNINonLinear; 
-            %                                                            used with this.physio_roi()
+            %      opts.roi = []:  e.g. fqfn;
+            %                      ImagingContext2 for "WT_on_T1w", "CE_on_T1w", for files found in sub-*/MNINonLinear; 
+            %                      double row_vec for mlraut.PhysioRoi(from_wmparc_indices=row_vec)
+            %                      used with this.task_physio()
+            %      opts.scale_to_hcp {mustBeScalar,mustBePositive} = 1: scaling factor
             %      opts.source_physio {mustBeTextScalar} = 'iFV'
-            %      opts.subjects cell = {}
-            %      opts.tasks cell = {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'}
-            %      opts.tr double = 0.72: for HCP, 2.71 for RT GBM
+            %      opts.global_signal_regression logical = true
+            %      opts.subjects cell {mustBeText} = {}
+            %      opts.tags {mustBeTextScalar} = ""
+            %      opts.tasks cell {mustBeText} = {}
             
             arguments
                 opts.do_only_resting logical = true
                 opts.do_only_task logical = false
                 opts.do_plot_emd logical = false
-                opts.do_plot_global_physio logical = true
-                opts.do_plot_networks logical = true
+                opts.do_plot_global_physio logical = false
+                opts.do_plot_networks logical = false
                 opts.do_plot_radar logical = false
                 opts.do_save logical = false
-                opts.tag {mustBeTextScalar} = ""
+                opts.do_save_ciftis logical = false
+                opts.final_normalization {mustBeTextScalar} = "normxyzt"
                 opts.force_band logical = true
-                opts.hp_thresh {mustBeScalarOrEmpty} = nan
-                opts.lp_thresh {mustBeScalarOrEmpty} = nan
-                opts.max_frames {mustBeScalarOrEmpty} = nan
-                opts.normalization {mustBeTextScalar} = 'norm_xyzt'
-                opts.num_frames_ori = nan
-                opts.num_frames_to_trim double = 4
-                opts.out_dir {mustBeFolder} = pwd
-                opts.plot_range {mustBeInteger} = 1:572
-                opts.roi_fileprefix {mustBeTextScalar} = ""
-                opts.root_dir {mustBeFolder} = pwd
-                opts.source_physio {mustBeTextScalar} = 'iFV'
+                opts.global_signal_regression logical = true
+                opts.hp_thresh {mustBeScalarOrEmpty} = []
+                opts.lp_thresh {mustBeScalarOrEmpty} = []
+                opts.max_frames double = Inf
+                opts.out_dir {mustBeTextScalar} = ""
+                opts.plot_range double = 1:572
+                opts.roi = []
+                opts.scale_to_hcp double {mustBePositive} = 1
+                opts.source_physio {mustBeTextScalar} = "iFV"
                 opts.subjects = {}
-                opts.tasks cell = {}
-                opts.tr double = 0.72
-            end
-            %tasks = {'rfMRI_REST1_7T_AP','rfMRI_REST1_7T_PA' 'rfMRI_REST2_7T_AP','rfMRI_REST2_7T_PA'};
-            %tasks = {'tfMRI_MOTOR_LR','tfMRI_MOTOR_RL'};
-            %tasks = {'tfMRI_LANGUAGE_LR','tfMRI_LANGUAGE_RL','tfMRI_LANGUAGE'};
-            %tasks = {'rfMRI_REST1_RL','rfMRI_REST2_RL'};
-            this.root_dir = opts.root_dir;
-            if isempty(opts.subjects)
-                opts.subjects = cellfun(@(x) basename(x), ...
-                    glob(fullfile(this.root_dir, '*'))', UniformOutput=false);
-            end
-            if ischar(opts.subjects)
-                opts.subjects = {opts.subjects};
-            end
-            if isstring(opts.subjects)
-                opts.subjects = convertStringsToChars(opts.subjects);
+                opts.tags {mustBeTextScalar} = ""
+                opts.tasks = {}
             end
 
-            this.max_frames = opts.max_frames;
-            this.normalization = opts.normalization;
-            this.num_frames_ori = opts.num_frames_ori;
-            this.num_frames_to_trim = opts.num_frames_to_trim;
+            this = this@mlraut.HCP(max_frames=opts.max_frames, subjects=opts.subjects, tasks=opts.tasks)
+
+            addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
+            addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
+            this.cifti_ = mlraut.Cifti(this);
+            this.plotting_ = mlraut.Plotting(this, plot_range=opts.plot_range);
+
             this.do_only_resting = opts.do_only_resting;
             this.do_only_task = opts.do_only_task;
             this.do_plot_emd = opts.do_plot_emd;
@@ -909,168 +720,70 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_networks = opts.do_plot_networks;
             this.do_plot_radar = opts.do_plot_radar;
             this.do_save = opts.do_save;
-            this.tag_ = opts.tag;
-            this.tr = opts.tr;
-            assert(~isnan(this.tr))
-            if ~isnan(opts.hp_thresh)
-                this.hp_thresh_ = opts.hp_thresh;
-            end
-            if ~isnan(opts.lp_thresh)
-                this.lp_thresh_ = opts.lp_thresh;
-            end
+            this.do_save_ciftis = opts.do_save_ciftis;
+
             this.force_band = opts.force_band;
-            this.out_dir = opts.out_dir;
-            ensuredir(this.out_dir);
-            this.plot_range = opts.plot_range;
-            this.roi_fileprefix = opts.roi_fileprefix;
+            this.global_signal_regression_ = opts.global_signal_regression;
+            this.hp_thresh_ = opts.hp_thresh;
+            this.lp_thresh_ = opts.lp_thresh;
+            this.max_frames = opts.max_frames;
+            this.final_normalization = opts.final_normalization;
+            this.cohort_data_.out_dir = opts.out_dir;
+            this.build_roi(opts.roi);
+            this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
-            this.subjects_ = opts.subjects;
-            this.tasks_ = opts.tasks;
+            this.tags_ = opts.tags;
 
-            addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
-            addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
-        end
-    end
-
-    methods (Static)
-        function write_cifti(c1_data, fn)
-            out_dir = pwd;
-            cifti_last = cifti_read(mlraut.AnalyticSignal.TEMPLATE_DSCALAR);
-            
-            sz = size(c1_data);
-            if sz(2) > sz(1)
-                c1_data = c1_data'; % grey-ordinates x series
-                sz = sort(sz, 'descend');
-            end
-            if sz(2) > 1 && ~contains(fn, '.dtseries')
-                [pth,fp,ext] = myfileparts(fn);
-                if isempty(pth) || "" == pth
-                    pth = out_dir;
-                end
-                fn = strcat(fullfile(pth, fp), '.dtseries', ext);
-            end
-            if sz(2) == 1 && ~contains(fn, '.dscalar')
-                [pth,fp,ext] = myfileparts(fn);
-                if isempty(pth) || "" == pth
-                    pth = out_dir;
-                end
-                fn = strcat(fullfile(pth, fp), '.dscalar', ext);
-            end
-            if ~contains(fn, '.nii')
-                fn = strcat(fn, '.nii');
-            end
-            c_ = cifti_last;
-            c_.cdata = c1_data;
-            if contains(fn, '.dtseries')
-                c_.diminfo{2} = cifti_diminfo_make_series(sz(2), 0, 1, 'SECOND');
-            else
-                c_.diminfo{2} = cifti_diminfo_make_scalars(1);
-            end
-            cifti_write(c_, fn);
+            this.debugging_ = struct();
         end
     end
 
     %% PROTECTED
 
     properties (Access = protected)
+        cifti_
+        debugging_
         hp_thresh_
-        json_
         lp_thresh_
+        plotting_
         scale_to_hcp_
-        subjects_
-        tag_
-        tasks_
+        tags_
+        task_signal_mask_
+
+        analytic_signal_
+        bold_signal_
+        global_signal_
+        global_signal_beta_
+        HCP_signals_
+        physio_signal_
+        global_signal_regression_
     end
 
     %% PRIVATE
 
     methods (Access = private)
-        function [physio,pROI] = physio_roi(this, sub, task, roi_fileprefix, opts)
+        function this = build_roi(this, roi)
             arguments
                 this mlraut.AnalyticSignal
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-                roi_fileprefix {mustBeTextScalar} = this.roi_fileprefix
-                opts.flipLR logical = false
+                roi = []
             end
-            try
-                pROI = mlraut.PhysioRoi(this, sub, task, roi_fileprefix, flipLR=opts.flipLR);
-                physio = call(pROI);
-            catch ME
-                handwarning(ME)
+            if ~isempty(roi)
+                this.source_physio = "ROI";
             end
-        end
-        function physio = physio_hrv(this, bold, sub, task)
-            %% pulse ox samples <- *_Physio_log.txt, data_(:,3)
-
-            arguments
-                this mlraut.AnalyticSignal
-                bold {mustBeNumeric}
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
+            if istext(roi) && isfile(roi)
+                this.roi = mlfourd.ImagingContext2(roi);
+                return
             end
-
-            data_ = this.physio_log(sub, task);
-            time_vec_bold = this.tr*(1:size(bold,1))';
-            time_vec_phys = (0:length(data_)-1)'/this.physFs;
-            physio = zeros(size(time_vec_bold));            
-            data_(:,3) = zscore(data_(:,3)); % of pulse ox tracing
-
-            idx0 = this.num_frames_to_trim + 1;
-            idxf = length(physio) - this.num_frames_to_trim;
-            for idx = idx0:idxf
-                
-                % For HRV, get 6 sec windows
-                [~,phys_start] = min(abs(time_vec_phys - (time_vec_bold(idx) - 3)));
-                [~,phys_end] = min(abs(time_vec_phys - (time_vec_bold(idx) + 3)));
-               
-                % For HRV
-                [pks,locs] = findpeaks(data_(phys_start:phys_end,3),'minpeakdistance',round(this.physFs/(180/60)));
-                             %,'minpeakwidth',400/(1/(200/60))); 
-                             % max heart rate = 180 bpm; at 400 Hz, minimum of 100 samples apart
-                locs = locs(pks>prctile(data_(phys_start:phys_end,3),60));
-                physio(idx) = median(diff(locs),'omitnan')/this.physFs;
+            if isnumeric(roi) && ndims(roi) == 3
+                this.roi = mlfourd.ImagingContext2(roi);
+                return
             end
-        end
-        function [physio,iFV] = physio_iFV(this, sub, task)
-            arguments
-                this mlraut.AnalyticSignal
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
+            if isnumeric(roi) && ismatrix(roi)
+                pr = mlraut.PhysioRoi(this, this.task_niigz, from_wmparc_indices=roi);
+                this.roi = pr.roi_mask;
+                return
             end
-            iFV = mlraut.IFourthVentricle(this, sub, task);
-            physio = call(iFV);
-        end
-        function physio = physio_rv(this, bold, sub, task)
-            %% resp. belt samples <- *_Physio_log.txt, data_(:,2)
-            %  Args:
-            %      subj (text)
-            %      task (text)
-            %      bold (numeric)
-            %  Returns:
-            %      physio (numeric): from <task>_Physio_log.txt
-
-            arguments
-                this mlraut.AnalyticSignal
-                bold {mustBeNumeric}
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task                
-            end
-
-            data_ = this.physio_log(sub, task);
-            time_vec_bold = this.tr*(1:size(bold,1))';
-            time_vec_phys = (0:length(data_)-1)'/this.physFs;
-            physio = zeros(size(time_vec_bold));
-
-            idx0 = this.num_frames_to_trim + 1;
-            idxf = length(physio) - this.num_frames_to_trim;
-            for idx = idx0:idxf
-                
-                % For RV, get 6 sec windows
-                [~,phys_start] = min(abs(time_vec_phys - (time_vec_bold(idx) - 3)));
-                [~,phys_end] = min(abs(time_vec_phys - (time_vec_bold(idx) + 3)));
-                physio(idx) = std(data_(phys_start:phys_end,2)); % of resp. belt tracing
-            end
+            error("mlraut:ValueError", stackstr())
         end
     end
     

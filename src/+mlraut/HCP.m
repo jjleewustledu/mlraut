@@ -1,4 +1,4 @@
-classdef HCP < handle
+classdef HCP < handle & mlsystem.IHandle
     %% Supports Ryan Raut's use of the Human Connectome Project.  See also:
     %  https://www.science.org/doi/10.1126/sciadv.abf2709
     %  physio_phase_mapping.m
@@ -6,164 +6,172 @@ classdef HCP < handle
     %  Created 29-Nov-2022 00:11:57 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 9.13.0.2105380 (R2022b) Update 2 for MACI64.  Copyright 2022 John J. Lee.
     
-    properties (Abstract)
-        HCP_signals
-        subjects
-        tasks
-    end
 
-    properties (Constant)
-        RSN_NAMES = ...
-            {'visual', 'somatomotor', 'dorsal attention', 'ventral attention', 'limbic', ...
-             'frontoparietal', 'default mode', ...
-             'task+', 'task-'}
-    end
-
-    properties
-        %  set defaults since HCP may not have a ctor
-        current_subject = ''
-        current_task = ''
-        
-        max_frames = NaN  % max(num_frames) to enforce, used by omit_late_frames()
-        num_frames_ori = NaN  % set by HCP.task_dtseries()
-        num_frames_to_trim = NaN  % used by HCP.task_dtseries->HCP.trim_frames; AnalyticSignal.physio_*(); Ryan used 4
-        num_nodes = 91282  % HCP standard 2mm "grayordinates"
-        tr = NaN  % sampling interval (s), 0.72 for HCP, 2.71 for RT GBM
+    properties        
+        max_frames = Inf  % max(num_frames) to enforce, used by omit_late_frames()
     end
 
     properties (Dependent)
+        current_subject  % defers to subjects{1} as needed
+        current_task  % defers to tasks{1} as needed
+        subjects
+        tasks
+
+        bold_data
+        cohort_data
         cifti_last  % configures cifti historically
-        extended_dir  % HCP Aging extended data directory
         Fs  % BOLD sampling rate (Hz)
-        mask_cbm_HCP
-        mask_ctx_HCP
-        mask_str_HCP
-        mask_thal_HCP
-        masks_HCP
-        networks_HCP
         num_frames
-        num_nets
+        num_frames_ori  % set by BOLDData.task_dtseries()
+        num_frames_to_trim  % used by HCP.task_dtseries, HCP.trim_frames, AnalyticSignal.physio_*(); Ryan used 4
+        num_nodes  % set by BOLDData
         out_dir
         root_dir  % HCP data directory
-        waves_dir
-        workbench_dir
-
+        task_dir  % e.g., subject/MNINonlinear/Results/rfMRI_REST1_RL
+        task_dtseries_fqfn
         task_niigz_fqfn
+        task_signal_reference_fqfn
+        t1w_fqfn
+        tr  % sampling interval (s), 0.72 for HCP Y.A., 0.8 for HCP Aging, 2.71 for RT GBM
+        waves_dir
+        wmparc_fqfn
+        workbench_dir
     end
 
     methods %% GET, SET
+        function g = get.bold_data(this)
+            g = this.bold_data_;
+        end
+        function g = get.cohort_data(this)
+            g = this.cohort_data_;
+        end
+        function g = get.current_subject(this)
+            if ~isempty(this.current_subject_)
+                g = this.current_subject_;
+                return
+            end
+            if ~isempty(this.subjects)
+                g = this.subjects{1};
+                return
+            end
+            g = [];
+        end
+        function     set.current_subject(this, s)
+            arguments
+                this mlraut.HCP
+                s {mustBeTextScalar}
+            end
+            this.current_subject_ = s;
+        end
+        function g = get.current_task(this)
+            if ~isempty(this.current_task_)
+                g = this.current_task_;
+                return
+            end
+            if ~isempty(this.tasks)
+                g = this.tasks{1};
+                return
+            end
+            g = [];
+        end
+        function     set.current_task(this, s)
+            arguments
+                this mlraut.HCP
+                s {mustBeTextScalar}
+            end
+            this.current_task_ = s;
+        end
+        function g = get.subjects(this)
+            g = this.subjects_;
+        end
+        function     set.subjects(this, s)
+            arguments
+                this mlraut.HCP
+                s {mustBeText}
+            end
+            this.subjects_ = s;
+        end 
+        function g = get.tasks(this)
+            if ~isempty(this.tasks_)
+                g = this.tasks_;
+                return
+            end
+
+            tasks_dir = fullfile(this.root_dir, this.current_subject, 'MNINonLinear', 'Results');
+            if ~isfolder(tasks_dir)
+                g = this.tasks_;
+                return
+            end
+            this.tasks_ = cellfun(@basename, glob(fullfile(tasks_dir, '*')), UniformOutput=false);
+            %this.tasks_ = this.tasks_(~contains(this.tasks_, '7T'));
+            this.tasks_ = this.tasks_(~contains(this.tasks_, 'tfMRI'));
+            g = this.tasks_;
+        end
+
         function g = get.cifti_last(this)
             if ~isempty(this.cifti_last_)
                 g = this.cifti_last_;
                 return
             end
-            this.cifti_last_ = cifti_read(this.task_dtseries(this.subjects{1},this.tasks{1}));
+
+            this.cifti_last_ = cifti_read(this.task_dtseries_fqfn);
             g = this.cifti_last_;
         end
         function     set.cifti_last(this, s)
             assert(isstruct(s));
             this.cifti_last_ = s;
         end
-        function g = get.extended_dir(this)
-            g = this.get_extended_dir__();
-        end
-        function     set.extended_dir(this, s)
-            assert(isfolder(s), stackstr())
-            this.extended_dir_ = s;
-        end
         function g = get.Fs(this)
             g = 1/this.tr;
-        end
-        function g = get.mask_cbm_HCP(this)
-            if ~isempty(this.mask_cbm_HCP_)
-                g = this.mask_cbm_HCP_;
-                return
-            end
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_cbm_HCP.mat'));
-            this.mask_cbm_HCP_ = ld.mask_cbm;
-            g = this.mask_cbm_HCP_;
-        end
-        function g = get.mask_ctx_HCP(this)
-            if ~isempty(this.mask_ctx_HCP_)
-                g = this.mask_ctx_HCP_;
-                return
-            end
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_ctx_HCP.mat'));
-            this.mask_ctx_HCP_ = ld.mask_ctx;
-            g = this.mask_ctx_HCP_;
-        end
-        function g = get.mask_str_HCP(this)
-            if ~isempty(this.mask_str_HCP_)
-                g = this.mask_str_HCP_;
-                return
-            end
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_str_HCP.mat'));
-            this.mask_str_HCP_ = ld.mask_str;
-            g = this.mask_str_HCP_;
-        end
-        function g = get.mask_thal_HCP(this)
-            if ~isempty(this.mask_thal_HCP_)
-                g = this.mask_thal_HCP_;
-                return
-            end
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_thal_HCP.mat'));
-            this.mask_thal_HCP_ = ld.mask_thal;
-            g = this.mask_thal_HCP_;
-        end        
-        function g = get.masks_HCP(this)
-            if ~isempty(this.masks_HCP_)
-                g = this.masks_HCP_;
-                return
-            end
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_cbm_HCP.mat'));
-            this.masks_HCP_.cbm = ld.mask_cbm;
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_ctx_HCP.mat'));
-            this.masks_HCP_.ctx = ld.mask_ctx;
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_str_HCP.mat'));
-            this.masks_HCP_.str = ld.mask_str;
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_thal_HCP.mat'));
-            this.masks_HCP_.thal = ld.mask_thal;
-            g = this.masks_HCP_;
-        end
-        function g = get.networks_HCP(this)
-            if ~isempty(this.networks_HCP_)
-                g = this.networks_HCP_;
-                return
-            end
-            ld = load(fullfile(this.waves_dir, 'supporting_files', 'networks_HCP.mat'));
-            this.networks_HCP_ = ld.assns2;
-            g = this.networks_HCP_;
-        end
-        function g = get.num_nets(this)
-            g = length(this.RSN_NAMES);
         end
         function g = get.num_frames(this)
             trimmed = this.num_frames_ori - 2*this.num_frames_to_trim;
             g = min(trimmed, this.max_frames);
         end
+        function g = get.num_frames_ori(this)
+            g = this.bold_data_.num_frames_ori;
+        end
+        function g = get.num_frames_to_trim(this)
+            g = this.cohort_data_.num_frames_to_trim;
+        end
+        function g = get.num_nodes(this)
+            g = this.bold_data_.num_nodes;
+        end
         function g = get.out_dir(this)
-            if isempty(this.out_dir_)
-                g = pwd;
-                return
-            end
-            g = this.out_dir_;
+            g = this.cohort_data_.out_dir;
         end
         function     set.out_dir(this, s)
-            assert(isfolder(s))
-            this.out_dir_ = s;
+            this.cohort_data_.out_dir = s;
         end
         function g = get.root_dir(this)
-            g = this.get_root_dir__();
+            g = this.cohort_data_.root_dir;
         end
-        function     set.root_dir(this, s)
-            assert(isfolder(s), stackstr())
-            this.root_dir_ = s;
+        function g = get.task_dir(this)
+            g = this.cohort_data_.task_dir;
+        end
+        function g = get.task_dtseries_fqfn(this)
+            g = this.cohort_data_.task_dtseries_fqfn;
+        end
+        function g = get.task_niigz_fqfn(this)
+            g = this.cohort_data_.task_niigz_fqfn;
+        end
+        function g = get.task_signal_reference_fqfn(this)
+            g = this.cohort_data_.task_signal_reference_fqfn;
+        end
+        function g = get.t1w_fqfn(this)
+            g = this.cohort_data_.t1w_fqfn;
+        end
+        function g = get.tr(this)
+            g = this.cohort_data_.tr;
         end
         function g = get.waves_dir(~)
             g = fullfile(getenv('HOME'), 'MATLAB-Drive', 'arousal-waves-main', '');
         end
+        function g = get.wmparc_fqfn(this)
+            g = this.cohort_data_.wmparc_fqfn;
+        end
         function g = get.workbench_dir(~)
-            if contains(hostname, 'precuneal')
+            if contains(computer, 'MAC')
                 g = '/Applications/workbench/bin_macosx64';
                 return
             end
@@ -179,95 +187,9 @@ classdef HCP < handle
             end
             error('mlraut:NotImplementedError', 'HCP.get.workbench_dir');
         end
-
-        function g = get.task_niigz_fqfn(this)
-            g = this.cohort_data_.task_niigz_fqfn;
-        end
     end
 
     methods
-        function this = HCP(varargin)
-            this.bold_data_ = mlraut.BOLDData(this);
-            this.cohort_data_ = mlraut.CohortData.create(this);
-        end
-
-        function fn = aparc_a2009s_label_gii(this, sub, hemi)
-            %  e.g.:
-            %  cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
-            %  g = gifti('100307.L.aparc.a2009s.32k_fs_LR.label.gii')
-            
-            arguments
-                this mlraut.HCP
-                sub {mustBeTextScalar} = this.current_subject
-                hemi {mustBeTextScalar} = 'L'
-            end
-            if contains(hemi, 'L', IgnoreCase=true)
-                hemi = 'L';
-            end
-            if contains(hemi, 'R', IgnoreCase=true)
-                hemi = 'R';
-            end
-
-            pth = fullfile(this.root_dir, sub, 'MNINonLinear', 'fsaverage_LR32k');
-            fn = sprintf('%s.%s.aparc.a2009s.32k_fs_LR.label.gii', sub, hemi);
-            fn = fullfile(pth, fn);
-        end
-        function fn = aparc_a2009s_dlabel_nii(this, sub)
-            %  e.g.:
-            %  cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200/100307/MNINonLinear/fsaverage_LR32k')
-            %  g = gifti('100307.aparc.a2009s.32k_fs_LR.dlabel.gii')
-
-            arguments
-                this mlraut.HCP
-                sub {mustBeTextScalar} = this.current_subject
-            end
-            pth = fullfile(this.root_dir, sub, 'MNINonLinear', 'fsaverage_LR32k');
-            fn = sprintf('%s.aparc.a2009s.32k_fs_LR.dlabel.nii', sub);
-            fn = fullfile(pth, fn);
-        end
-        function bold = bold_fs_parcel(this, sub, task, parc)
-            arguments
-                this mlraut.HCP
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-                parc double = 15 % fourth ventricle
-            end
-            bold = this.task_dtseries(sub, task);
-            mask = this.mask_fs_parcel(sub, parc);
-            bold = mean(bold(:, mask), 2, 'omitnan');
-        end
-        function dd = data_dir(this, sub, task)
-            arguments
-                this mlraut.HCP
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-            end
-            dd = fullfile(this.root_dir, sub, 'MNINonLinear', 'Results', task);
-        end
-        function m = mask_fs_parcel(this, sub, parc)
-            %  sub (text):  e.g., 100307
-            %  parc (char):  e.g., 'L_S_parieto_occipital'
-
-            arguments
-                this mlraut.HCP
-                sub {mustBeTextScalar} = this.current_subject
-                parc double = 15 % fourth ventricle
-            end
-
-            hemi = parc(1);
-            g = gifti(this.aparc_a2009s_label_gii(sub, hemi));
-            tf = matches(g.labels.name, parc);
-            key = g.labels.key(tf');
-            m = false(this.num_nodes, 1);
-            switch hemi
-                case 'L'                   
-                    m(1:32492,1) = g.cdata == key;
-                case 'R'                  
-                    m(32493:64984) = g.cdata == key;
-                otherwise 
-                    error('mlraut:ValueError', 'HCP.mask_fs_parcel.hemi->%s', hemi);
-            end
-        end
         function b = omit_late_frames(this, b)
             %% Keep frames 1:this.max_frames, following use of trim_frames() to remove this.num_frames_to_trim
             %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
@@ -278,8 +200,9 @@ classdef HCP < handle
         end
         function mat = task_dtseries(this, sub, task)
             %  Args:
-            %      subj (text)
-            %      task (text)
+            %      this mlraut.HCP
+            %      sub {mustBeTextScalar} = this.current_subject
+            %      task {mustBeTextScalar} = this.current_task
             %  Returns:
             %      mat (numeric):  time x grayordinate from BOLDData
 
@@ -299,111 +222,94 @@ classdef HCP < handle
         function ic = task_signal_reference(this)
             ic = this.bold_data_.task_signal_reference();
         end
-        function tseries = trim_frames(this, tseries)
-            nt = this.num_frames_to_trim + 1;
-            tseries = tseries(nt:end-nt+1,:);
-        end
-        function write_cifti(this, c1_data, fn)
-            sz = size(c1_data);
-            if sz(2) > sz(1)
-                c1_data = c1_data'; % grey-ordinates x series
-                sz = sort(sz, 'descend');
+
+        function this = HCP(opts)
+            %%
+            %  Args:
+            %      opts.max_frames double = Inf
+            %      opts.subjects cell {mustBeText} = {}
+            %      opts.tasks cell {mustBeText} = {}
+
+            arguments
+                opts.max_frames double = Inf
+                opts.subjects cell {mustBeText} = {}
+                opts.tasks cell {mustBeText} = {}
             end
-            if sz(2) > 1 && ~contains(fn, '.dtseries')
-                [pth,fp,ext] = myfileparts(fn);
-                if isempty(pth) || "" == pth
-                    pth = this.out_dir;
-                end
-                fn = strcat(fullfile(pth, fp), '.dtseries', ext);
+            this.max_frames = opts.max_frames;
+            this.subjects_ = opts.subjects;
+            this.tasks_ = opts.tasks;
+            this.bold_data_ = mlraut.BOLDData(this);
+            this.cohort_data_ = mlraut.CohortData.create(this);
+
+            %% DEPRECATED
+            % if isempty(this.subjects_)
+            %     this.subjects_ = cellfun(@(x) basename(x), ...
+            %         glob(fullfile(this.root_dir, '*'))', UniformOutput=false);
+            % end
+            if ischar(this.subjects_)
+                this.subjects_ = {this.subjects_};
             end
-            if sz(2) == 1 && ~contains(fn, '.dscalar')
-                [pth,fp,ext] = myfileparts(fn);
-                if isempty(pth) || "" == pth
-                    pth = this.out_dir;
-                end
-                fn = strcat(fullfile(pth, fp), '.dscalar', ext);
+            if isstring(this.subjects_)
+                this.subjects_ = convertStringsToChars(this.subjects_);
             end
-            if ~contains(fn, '.nii')
-                fn = strcat(fn, '.nii');
-            end
-            c_ = this.cifti_last;
-            c_.cdata = c1_data;
-            if contains(fn, '.dtseries')
-                c_.diminfo{2} = cifti_diminfo_make_series(sz(2), 0, 1, 'SECOND');
-            else
-                c_.diminfo{2} = cifti_diminfo_make_scalars(1);
-            end
-            cifti_write(c_, fn);
         end
     end
 
     %% PROTECTED
 
     properties (Access = protected)
-        bold_data_
-        cohort_data_
+        current_subject_  % defers to subjects{1} as needed
+        current_task_  % defers to tasks{1} as needed
 
+        bold_data_
         cifti_last_
-        extended_dir_
-        mask_ctx_HCP_
-        mask_str_HCP_
-        mask_thal_HCP_
-        mask_cbm_HCP_
-        masks_HCP_
-        networks_HCP_
-        out_dir_
-        root_dir_
+        cohort_data_
+        subjects_
+        tasks_
     end
 
     methods (Access = protected)
+    end
 
-        %% for overriding getters
+    %% HIDDEN & DEPRECATED
 
-        function g = get_extended_dir__(this)
-            if ~isempty(this.extended_dir_)
-                g = this.extended_dir_;
-                return
+    methods (Hidden)
+        function bold = bold_fs_parcel(this, sub, task, parc)
+            arguments
+                this mlraut.HCP
+                sub {mustBeTextScalar} = this.current_subject
+                task {mustBeTextScalar} = this.current_task
+                parc char = 'L_G_precuneus'
             end
-
-            if contains(computer, 'MAC')
-                g = '/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            if contains(hostname, 'vglab2')
-                g = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            if contains(hostname, 'cluster')
-                g = '/ceph/hcpdb/packages/unzip/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            error('mlraut:NotImplementedError', 'HCP.get.subjects');
+            bold = this.task_dtseries(sub, task);
+            mask = this.mask_fs_parcel(sub, parc);
+            bold = mean(bold(:, mask), 2, 'omitnan');
         end
-        function g = get_root_dir__(this)
-            if ~isempty(this.root_dir_)
-                g = this.root_dir_;
-                return
+        function m = mask_fs_parcel(this, sub, parc)
+            % this mlraut.HCP
+            % sub {mustBeTextScalar} = this.current_subject
+            % parc double = 15 % fourth ventricle
+            % hemi {mustBeTextScalar} = 'LR'
+
+            arguments
+                this mlraut.HCP
+                sub {mustBeTextScalar} = this.current_subject
+                parc char = 'L_G_precuneus'
             end
 
-            if contains(computer, 'MAC')
-                g = '/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200';
-                assert(isfolder(g));
-                return
+            hemi = parc(1);
+            g = gifti(convertStringsToChars(this.aparc_a2009s_label_gii(sub, hemi)));
+            tf = matches(g.labels.name, parc);
+            key = g.labels.key(tf');
+            m = false(this.num_nodes, 1);
+            switch hemi
+                case 'L'                   
+                    m(1:32492) = g.cdata == key;
+                case 'R'                  
+                    m(32493:64984) = g.cdata == key;
+                otherwise 
+                    error('mlraut:ValueError', stackstr());
             end
-            if contains(hostname, 'vglab2')
-                g = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            if contains(hostname, 'cluster')
-                g = '/ceph/hcpdb/packages/unzip/HCP_1200';
-                assert(isfolder(g));
-                return
-            end
-            error('mlraut:NotImplementedError', 'HCP.get.subjects');
         end
     end
     

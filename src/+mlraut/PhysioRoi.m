@@ -1,81 +1,107 @@
 classdef PhysioRoi < handle & mlraut.PhysioData
     %% Extends the concepts underlying mlraut.IFourthVentricle to arbitrary ROIs,
     %  especially pathophysiological ROIs such as samples from within tumors.
+    %  Internally manages whether to perform flipLR.
+    %  call(this) to obtain physio signal as col vector for time-series.
     %  
     %  Created 10-Aug-2023 18:11:35 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 9.14.0.2306882 (R2023a) Update 4 for MACI64.  Copyright 2023 John J. Lee.
     
     properties (Dependent)
-        is_7T
         roi_mask
-        subject
     end
 
     methods %% GET/SET
         function g = get.roi_mask(this)
-            if ~isempty(this.roi_mask_)
-                g = this.roi_mask_;
-            end
-
-            fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', [this.roi_fileprefix_, '.nii.gz']);
-            if ~isfile(fqfn)
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear',  [this.roi_fileprefix_, '.nii.gz']);
-            end
-            this.roi_mask_ = mlfourd.ImagingContext2(fqfn);
-            SBRef = this.ihcp_.task_signal_reference();
-            mask2 = SBRef.blurred(7).thresh(100).binarized();
-            if this.flipLR_
-                this.roi_mask_ = flip(this.roi_mask_, 1);
-                mask2 = flip(mask2, 1);
-            end
-            this.roi_mask_ = this.roi_mask_ .* mask2;
             g = this.roi_mask_;
-        end
-        function g = get.is_7T(this)
-            g = contains(this.task_, '7T');
-        end
-        function g = get.subject(this)
-            g = this.subject_;
         end
     end
     
     methods
+        function ic = build_roi_mask(this, opts)
+            %% Performs exactly one flipLR as needed.
+            %  Args:
+            %      this mlraut.PhysioRoi
+            %      opts.from_imaging_context = [] % arbitary mask
+            %      opts.from_wmparc_indices double = [] % from wmparc
+
+            arguments
+                this mlraut.PhysioRoi
+                opts.from_imaging_context = []
+                opts.from_wmparc_indices double = []
+            end
+
+            if ~isempty(opts.from_imaging_context)
+                ic = mlfourd.ImagingContext2(opts.from_imaging_context);
+                SBmsk = this.ihcp_.task_signal_mask();  % minimize extra-parenchymal ROI
+                ic = ic .* SBmsk;
+                ic = ic.binarized();
+                if this.flipLR_
+                    ic = flip(ic, 1);
+                end
+                return
+            end
+            if ~isempty(opts.from_wmparc_indices)
+                wmp = mlfourd.ImagingContext2(this.ihcp_.wmparc_fqfn);
+                ic = zeros(wmp);                
+                for idx = opts.from_wmparc_indices
+                    ic = ic + wmp.numeq(idx);
+                end
+                ic = ic.binarized();
+                ic.fileprefix = wmp.fileprefix + "-idx" + strrep(num2str(opts.from_wmparc_indices), "  ", ",");
+                if this.flipLR_
+                    ic = flip(ic, 1);
+                end
+                return
+            end
+
+            % return trivial unit mask
+            wmp = mlfourd.ImagingContext2(this.ihcp_.wmparc_fqfn);
+            ic = ones(wmp);
+        end
         function bold = call(this)
-            fMRI = this.task_niigz();
+            %% Performs exactly one flipLR as needed.
+
+            fMRI = this.bold_;
+            if this.flipLR_
+                assert(isa(fMRI, "mlfourd.ImagingContext2"))
+                fMRI = flip(fMRI, 1);
+            end
             ic = fMRI.volumeAveraged(this.roi_mask);
             bold = ascol(ic.nifti.img);
         end
-        function ic = task_niigz(this)
-            ic = this.ihcp_.task_niigz();
-            if this.flipLR_
-                ic = flip(ic, 1);
-            end
-        end
         function view_qc(this)
-            this.roi_mask.view_qc(flip(this.ihcp_.task_signal_reference, 1))
+            %% Performs exactly one flipLR as needed.
+            %  QC by comparison to task_signal_reference.
+
+            task_signal_reference = this.ihcp_.task_signal_reference;
+            if this.flipLR_
+                assert(isa(task_signal_reference, "mlfourd.ImagingContext2"))
+                task_signal_reference = flip(task_signal_reference, 1);
+            end
+            this.roi_mask.view_qc(task_signal_reference)
         end
 
-        function this = PhysioRoi(ihcp, subject, task, fileprefix, opts)
+        function this = PhysioRoi(ihcp, bold, opts)
             %% PHYSIOROI 
             %  Args:
             %      ihcp mlraut.HCP : client possessing HCP information, esp. filesystem information.
-            %      subject {mustBeTextScalar} : e.g., 995174.
-            %      task {mustBeTextScalar} : e.g., rfMRI_REST1_LR.
-            %      fileprefix }mustBeTextScalar} : e.g., WT_on_T1w.
             %      opts.flipLR logical = false : flipping may be needed to match task_dtseries, task_niigz
+            %      opts.from_imaging_context = [] : arbitary mask
+            %      opts.from_wmparc_indices double = [] : from wmparc
             
             arguments
                 ihcp mlraut.HCP {mustBeNonempty}
-                subject {mustBeTextScalar}
-                task {mustBeTextScalar}
-                fileprefix {mustBeTextScalar}
+                bold {mustBeValidBold}
                 opts.flipLR logical = false
+                opts.from_imaging_context = []
+                opts.from_wmparc_indices double = []
             end
-            this = this@mlraut.PhysioData(ihcp);
-            this.subject_ = subject;
-            this.task_ = task;
-            this.roi_fileprefix_ = fileprefix;
+            this = this@mlraut.PhysioData(ihcp, bold);
             this.flipLR_ = opts.flipLR;
+            this.roi_mask_ = this.build_roi_mask( ...
+                from_imaging_context=opts.from_imaging_context, ...
+                from_wmparc_indices=opts.from_wmparc_indices);
         end
     end
 
@@ -83,11 +109,17 @@ classdef PhysioRoi < handle & mlraut.PhysioData
 
     properties (Access = private)
         flipLR_
-        roi_fileprefix_
         roi_mask_
-        subject_
-        task_
+    end
+
+    methods (Access = private)
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
+end
+
+
+
+function mustBeValidBold(b)
+    assert(isnumeric(b) || isa(b, "mlfourd.ImagingContext2"))
 end

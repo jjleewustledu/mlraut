@@ -38,11 +38,6 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
             this = this@mlraut.AnalyticSignal(varargin{:});
 
             this.current_subject = this.subjects{1};
-            j = this.json;
-            assert(~isempty(j), stackstr())            
-            this.num_frames_ori = j.num_frames_ori;  % KLUDGE
-            this.num_frames_to_trim = j.num_frames_to_trim;  % KLUDGE
-            this.tr = j.tr;
             %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
             this.max_frames = 158;
             this.plot_range = 1:158;
@@ -69,7 +64,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 end
 
                 % Global signal
-                gs = this.global_signal(bold);
+                gs = this.build_global_signal(bold);
                  
                 % Physio
                 try
@@ -82,8 +77,8 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 end
 
                 % Analytic signal
-                bold_ = this.center_and_rescale(this.band_pass(bold - gs));
-                physio_ = this.center_and_rescale(this.band_pass(physio)); % removes gs as needed
+                bold_ = this.build_centered_and_rescaled(this.build_band_passed(bold - gs));
+                physio_ = this.build_centered_and_rescaled(this.build_band_passed(physio)); % removes gs as needed
                 bold_ = hilbert(bold_);
                 physio_ = hilbert(physio_);
                 as = conj(physio_).*bold_; % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
@@ -102,38 +97,9 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 s double
             end
 
-            for t = 1:this.num_tasks
-                this.current_task = this.tasks{t};
-
-                tic  
-            
-                % BOLD
-                try
-                    [bold,isleft] = this.task_dtseries_gbm(); 
-                    assert(~isempty(bold))
-                    bold = this.omit_late_frames(bold);
-                    this.plot_timeseries_qc(bold, ylabel="BOLD");
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-                 
-                % Physio
-                try
-                    physio = this.task_physio_qc(bold, flipLR=isleft);
-                    assert(~isempty(physio))
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-
-                toc
-            end
         end
         function j = jsonread(this)
-            j = jsonread(fullfile(this.root_dir, this.current_subject, "gbm.json"));
+            j = jsonread(this.cohort_data_.json_fqfn);
         end
         function [bold,isleft] = task_dtseries_gbm(this, sub, task)
             %  Args:
@@ -162,36 +128,6 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                     bold = this.task_dtseries_alllesion(sub, task);
                 otherwise
                     bold = this.task_dtseries(sub, task);
-            end
-        end
-        function bold = task_dtseries(this, sub, task)
-            %  Args:
-            %      subj (text)
-            %      task (text)
-            %  Returns:
-            %      BOLD (numeric):  time x grayordinate
-
-            arguments
-                this mlraut.AnalyticSignalGBM
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-            end
-
-            assert(istext(sub));
-            assert(istext(task));
-            fqfn = fullfile( ...
-                this.data_dir(sub, task), strcat(task, '_Atlas_s0.dtseries.nii'));
-
-            try
-                cifti = cifti_read(fqfn);
-                this.cifti_last_ = cifti;
-                bold = cifti.cdata';
-                bold = this.trim_frames(bold);
-            catch ME
-                disp([sub ' ' task ' missing:']);
-                disp(ME)
-                bold = [];
-                return
             end
         end
         function bold = task_dtseries_1hemi(this, sub, task, hemi)
@@ -281,6 +217,10 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 return
             end
             bold = this.task_dtseries(sub, task); % bilateral
+        end
+        function ic = task_signal_mask(this)
+            ic = this.task_signal_reference();
+            ic = ic.blurred(7).thresh(100).binarized();
         end
     end
 

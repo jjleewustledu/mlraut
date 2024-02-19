@@ -22,6 +22,9 @@ classdef Physio < handle
         h2
         physio_ds % physiological signal resampled to match BOLD
         plvs_xt % phase-locked BOLD in spacetime
+
+        current_subject = ''
+        current_task = ''
     end
 
     properties (Dependent)
@@ -202,7 +205,9 @@ classdef Physio < handle
         function physio = physio_hrv(this, subj, task, BOLD)
         end
         function physio = physio_iFV(this, subj, task)
-            iFV = mlraut.IFourthVentricle(this, subj, task);
+            this.current_subject = subj;
+            this.current_task = task;
+            iFV = mlraut.IFourthVentricle(this);
             physio = call(iFV);
         end
         function physio = physio_rv(this, subj, task, BOLD)

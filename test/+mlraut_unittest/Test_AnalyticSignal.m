@@ -16,203 +16,353 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+        function test_ctor(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
+            this.verifyEqual(as.num_nets, 9);
+            this.verifyFalse(isemptytext(as.current_subject));
+            this.verifyFalse(isemptytext(as.current_task));
+            
+            cifti_last = as.cifti_last;
+            [a,b,c] = cifti_last.metadata.value;
+            this.verifyTrue(contains(a, "Commit"));
+            this.verifyTrue(contains(b, "wb_command -cifti-convert"));
+            this.verifyTrue(strcmp(c, '/HCP/hcpdb/build_ssd/chpc/BUILD/HCP_Staging/DeDriftAndResample_1449032106_995174/995174/MNINonLinear/Results/rfMRI_REST1_RL/rfMRI_REST1_RL_hp2000.ica'));
+            this.verifyTrue(isstruct(cifti_last.diminfo{1}));
+            this.verifyEqual(cifti_last.diminfo{1}.type, 'dense');
+            this.verifyTrue(isstruct(cifti_last.diminfo{1}.vol));
+            this.verifyTrue(iscell(cifti_last.diminfo{1}.models));
+            this.verifyEqual(cifti_last.diminfo{1}.length, 91282);
+            this.verifyEqual(cifti_last.diminfo{2}.type, 'series');
+            this.verifyEqual(cifti_last.diminfo{2}.length, 1200);
+            this.verifyEqual(cifti_last.diminfo{2}.seriesStart, 0);
+            this.verifyEqual(cifti_last.diminfo{2}.seriesStep, 0.7200);
+            this.verifyEqual(cifti_last.diminfo{2}.seriesUnit, 'SECOND');
+            this.verifyEqual(size(cifti_last.cdata), [91282, 1200]);
+
+            this.verifyEqual(as.Fs, 1.38888888888889, RelTol=10*eps);
+            this.verifyEqual(as.num_frames, 1192);
+            this.verifyEqual(as.num_frames_ori, 1200);
+            this.verifyEqual(as.num_frames_to_trim, 4);
+            this.verifyEqual(as.num_nodes, 91282);
+            this.verifyTrue(contains(as.out_dir, "AnalyticSignal"));
+            this.verifyTrue(contains(as.root_dir, "HCP_1200"));
+            this.verifyTrue(contains(as.task_dir, fullfile("Results", "rfMRI_REST1_RL")));
+            this.verifyTrue(contains(as.task_dtseries_fqfn, "Atlas_MSMAll_hp2000_clean"));
+            this.verifyTrue(contains(as.task_niigz_fqfn, "hp2000_clean"));
+            this.verifyTrue(contains(as.task_signal_reference_fqfn, "SBRef"));
+            this.verifyTrue(contains(as.t1w_fqfn, "T1w_restore.2.nii.gz"));
+            this.verifyEqual(as.tr, 0.72);
+            this.verifyTrue(contains(as.waves_dir, fullfile("MATLAB-Drive", "arousal-waves")));
+            this.verifyTrue(contains(as.wmparc_fqfn, fullfile("ROIs", "wmparc.2.nii.gz")));
+            this.verifyTrue(contains(as.workbench_dir, "workbench"));
+            disp(as)
+        end
+        function test_ctor_7T(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal(subjects={'995174'}, tasks={'rfMRI_REST_7T_PA'});
+            disp(as)
+        end
+        function test_analytic_bold(this)
+            %% following hilbert transform, ensure:
+
+            % - sensible amplitudes and angles
+
+            % - sensible residual from global signal
+
+            % - sensible normalization (centering & rescaling)
+
+        end
+        function test_iFV(this)
+        end
+        function test_physioROI(this)
+        end
+        function test_physioRV(this)
+        end
+        function test_physioHRV(this)
+        end
+        function test_bra_ket(this)
+        end
+
         function test_call(this)
             cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            this.testObj_ = mlraut.AnalyticSignal(subjects={'995174'}, do_save=true, ...
-                max_frames=1192, plot_range=1:572, tag="_proc-20231027"); % tasks={'rfMRI_REST1_RL'}
-            call(this.testObj_)
-            disp(this.testObj_)
-            %mysystem('wb_view')
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                do_save_ciftis=true, ...
+                tags=stackstr(use_dashes=true));
+            call(as);
+            disp(as)
+
+            % Elapsed time is 327.790908 seconds.
+        end
+        function test_call_dphysio(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            for p = ["iFV" "RV", "HRV"]
+                as = mlraut.AnalyticSignal( ...
+                    subjects={'995174'}, ...
+                    tasks={'rfMRI_REST1_RL'}, ...
+                    do_save=true, ...
+                    do_save_ciftis=true, ...
+                    force_band=false, ...
+                    tags=stackstr(use_dashes=true), ...
+                    source_physio=p(1));
+                call(as);
+                disp(as)
+            end
+
+            % Elapsed time is 327.790908 seconds.
+        end
+        function test_call_roi_from_wmparc_indices(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                do_save_ciftis=true, ...
+                force_band=false, ...
+                tags=stackstr(use_dashes=true)+"-deepwhite", ...
+                source_physio="ROI", ...
+                roi=[5001, 5002]);
+            call(as);
+            disp(as)
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                do_save_ciftis=true, ...
+                force_band=false, ...
+                tags=stackstr(use_dashes=true)+"-csf", ...
+                source_physio="ROI", ...
+                roi=[1, 4, 5, 24, 43, 44]);
+            call(as);
+            disp(as)
 
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_no_physio(this)
-            cd('/home/usr/jjlee/Singularity/AnalyticSignalZFS');
-            %cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            this.testObj_ = mlraut.AnalyticSignal(subjects={'995174'}, do_save=true, ...
-                max_frames=1192, plot_range=1:572, tag="_proc-no-physio", source_physio="none");
-            call(this.testObj_)
-            %disp(this.testObj_)
-            %mysystem('wb_view')
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                do_save_ciftis=true, ...
+                force_band=false, ...
+                tags=stackstr(use_dashes=true), ...
+                source_physio="none");
+            call(as)
+            disp(as)
 
             % Elapsed time is 327.790908 seconds.
         end
-        function test_call_do_qc(this)
+        function test_call_all_tasks(this)
             cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            this.testObj_ = mlraut.AnalyticSignal(subjects={'995174'}, do_save=true, ...
-                max_frames=1192, plot_range=1:572, ...
-                tasks={'rfMRI_REST1_RL'});
-            call(this.testObj_, do_qc=true)
-            disp(this.testObj_)
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={}, ...
+                do_save=true, ...
+                do_save_ciftis=true, ...
+                tags=stackstr(use_dashes=true), ...
+                source_physio="iFV");
+            call(as);
+            disp(as)
+
+            % Elapsed time is 327.790908 seconds.
+        end
+        function test_call_7T(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_7T_PA'}, ...
+                do_save=true, ...
+                do_save_ciftis=true, ...
+                force_band=false, ...
+                tags=stackstr(use_dashes=true), ...
+                source_physio="iFV");
+            call(as);
+            disp(as)
+
+            % Elapsed time is 327.790908 seconds.
+        end
+        function test_call_qc(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                source_physio="iFV");
+            call(as, do_qc=true)
+            disp(as)
 
             % Elapsed time is ___ seconds.
-        end
-        function test_call_do_qc_hcpaging(this)
-            
-        end
-        function test_call_do_qc_I3CR0023(this)
-            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
-            cd(root_dir);
-            mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0023 .')
-            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout/test-CE';
-            ensuredir(out_dir);
-            this.testObj_ = mlraut.AnalyticSignalGBM( ...
-                subjects={'sub-I3CR0023'}, ...
-                root_dir=root_dir, out_dir=out_dir, do_save=true, ...
-                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'}, ...
-                source_physio='ROI', roi_fileprefix='CE_on_T1w');  
-            call(this.testObj_, do_qc=true)
-            disp(this.testObj_)
-            cd(fullfile(out_dir, 'sub-I3CR0023'))
-            saveFigures();
-
-            % Elapsed time is ___ seconds.
-        end
-        function test_call_do_qc_I3CR0479(this)
-            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
-            cd(root_dir);
-            mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0479 .')
-            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout/test-CE';
-            ensuredir(out_dir);
-            this.testObj_ = mlraut.AnalyticSignalGBM( ...
-                subjects={'sub-I3CR0479'}, ...
-                root_dir=root_dir, out_dir=out_dir, do_save=true, ...
-                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'}, ...
-                source_physio='ROI', roi_fileprefix='CE_on_T1w');  
-            call(this.testObj_, do_qc=true)
-            disp(this.testObj_)
-            cd(fullfile(out_dir, 'sub-I3CR0479'))
-            saveFigures();
-
-            % Elapsed time is ___ seconds.
-        end
-        function test_call_do_qc_RT126(this)
-            cd('/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout_20230629111500/ciftify');
-            this.testObj_ = mlraut.AnalyticSignalGBM(subjects={'sub-RT126'}, do_save=true);  
-            call(this.testObj_, do_qc=true)
-            disp(this.testObj_)
-
-            % Elapsed time is ___ seconds.
-        end
-        function test_call_gbm_par(this)
-            cd('/vgpool02/data2/jjlee/AnalyticSignalGBM/analytic_signal/dockerout/ciftify');
-            out_dir = '/vgpool02/data2/jjlee/AnalyticSignalGBM/analytic_signal/matlabout';
-            ensuredir(out_dir);
-            asgbm = mlraut.AnalyticSignalGBMPar(subjects='sub-I3CR0479', root_dir=pwd, out_dir=out_dir, ...
-                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'});
-            disp(asgbm)
-            asgbm.call();
-        end
-        function test_call_I3CR0023(this)   
-            %% left insula, no midline shift
-
-            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
-            cd(root_dir);
-            mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0023 .')
-            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout/test-CE';
-            ensuredir(out_dir);
-            this.testObj_ = mlraut.AnalyticSignalGBM( ...
-                subjects={'sub-I3CR0023'}, ...
-                root_dir=root_dir, out_dir=out_dir, do_save=true, ...
-                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'}, ...
-                source_physio='ROI', roi_fileprefix='CE_on_T1w');
-            call(this.testObj_);
-            disp(this.testObj_)
-            mysystem('wb_view')
-
-            % Elapsed time is ___ seconds.
-        end
-        function test_call_I3CR0479(this)   
-            %% right frontal, midline shift
-           
-            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
-            cd(root_dir);
-            mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0479 .')
-            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout/test-CE';
-            ensuredir(out_dir);
-            this.testObj_ = mlraut.AnalyticSignalGBM( ...
-                subjects={'sub-I3CR0479'}, ...
-                root_dir=root_dir, out_dir=out_dir, do_save=true, ...
-                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'}, ...
-                source_physio='ROI', roi_fileprefix='CE_on_T1w');
-            call(this.testObj_);
-            disp(this.testObj_)
-            mysystem('wb_view')
-
-            % Elapsed time is ___ seconds.
-        end
-        function test_call_I3CR0479_no_physio(this)   
-            %% right frontal, midline shift
-           
-            root_dir = '~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
-            cd(root_dir);
-            %mysystem('rsync -ra pascal.neuroimage.wustl.edu:~/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify/sub-I3CR0479 .')
-            out_dir = '~/Singularity/AnalyticSignalGBM/analytic_signal/matlabout/test-CE';
-            ensuredir(out_dir);
-            this.testObj_ = mlraut.AnalyticSignalGBM( ...
-                subjects={'sub-I3CR0479'}, ...
-                root_dir=root_dir, out_dir=out_dir, do_save=true, ...
-                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'}, ...
-                tag="_proc-no-physio", source_physio="none");
-            call(this.testObj_);
-            %disp(this.testObj_)
-            %mysystem('wb_view')
-
-            % Elapsed time is ___ seconds.
-        end
-        function test_call_RT126(this)
-            cd('/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout_20230629111500/ciftify');
-            this.testObj_ = mlraut.AnalyticSignalGBM(subjects={'sub-RT126'}, do_save=true);  
-            call(this.testObj_)
-            disp(this.testObj_)
-            %mysystem('wb_view')
-
-            % Elapsed time is ___ seconds
-        end
-        function test_metric_stats(this)
-            metric_fun = @abs;
-            metric_lbl = "abs";
-            %metric_fun = @angle;
-            %metric_lbl = "angle";
-
-            out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalGBM/analytic_signal/matlabout/lesionR-CE';
-            %out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignal';
-            cd(out_dir);
-
-            g = glob(fullfile(out_dir, 'sub-*', 'AnalyticSignalGBM_call_subject_lesionR-CE_as_proc-norm_xyzt-ROI_*.mat'));
-            %g = glob(fullfile(out_dir, '*', 'AnalyticSignalPar_call_subject_as_proc-norm_xyzt-ROI_*.mat'));
-            leng = length(g);
-            metric_mu = zeros(1, 91282);
-            metric_sig2 = zeros(1, 91282);
-
-            for gidx = 1:leng
-                try
-                    ld = load(g{gidx});
-                    metric_mu = metric_mu + mean(metric_fun(ld.as), 1)/leng; % mean
-                catch ME
-                    handwarning(ME)
-                end
-            end
-            save(metric_lbl+"_mu.mat", "metric_mu");
-            write_cifti_(metric_mu, convertStringsToChars(metric_lbl+"_mu.dscalar.nii"));
-        
-            for gidx = 1:leng
-                try
-                    ld = load(g{gidx});
-                    metric_sig2 = metric_sig2 + (mean(metric_fun(ld.as),1) - metric_mu).^2/leng; % var
-                catch ME
-                    handwarning(ME)
-                end
-            end
-            metric_sig = metric_sig2.^(0.5);
-            save(metric_lbl+"_sig.mat", "metric_sig");
-            write_cifti_(metric_sig, convertStringsToChars(metric_lbl+"_sig.dscalar.nii"));
-        end
-        function test_sig(this)
         end
         function test_num_frames_to_trim(this)
         end
         function test_max_frames(this)
+        end
+        function test_average_network_signals(this)
+            %% candidate supplemental figure, with concat runs
+
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                force_band=false, ...
+                tags=stackstr(use_dashes=true));
+
+            bold = as.task_dtseries();
+            bold = as.build_global_signal_regressed(bold);
+
+            yeos = as.average_network_signals(bold);
+            yeo_names = mlraut.NetworkData.NETWORKS_YEO_NAMES;
+            for anat = ["cbm", "ctx", "str", "thal"]
+                figure
+                hold on
+                for y = 1:length(yeo_names)
+                    plot(yeos.(anat(1))(:, y)); 
+                end
+                title(sprintf("yeos.%s", anat(1)));  
+                legend(yeo_names)
+                hold off
+
+                figure;     
+                tiledlayout(3,3);
+                for y = 1:length(yeo_names)
+                    nexttile
+                    histogram(yeos.(anat(1))(:, y)); title(sprintf("yeos(%s)", yeo_names{y}), 100);
+                    title(sprintf("yeos.%s(%s)", anat(1), yeo_names{y}));    
+                end
+            end
+        end
+        function test_task_dtseries(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                tags=stackstr(use_dashes=true));
+
+            bold = as.task_dtseries();
+            gs = as.build_global_signal_for(bold);
+
+            figure; plot(gs); title("gs");
+            figure; plot(bold(:, 600)); title("bold(:, 600)");
+            figure; plot(bold(:, 600) - gs); title("bold(:, 600) - gs");
+            figure; histogram(bold); title("histogram(bold)");
+            figure; histogram(gs); title("histogram(gs)");
+            figure; histogram(bold - gs); title("histogram(bold - gs)")
+        end
+        function test_physio_HRV(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=false, ...
+                tags=stackstr(use_dashes=true), ...
+                source_physio='HRV');
+
+            bold = as.task_niigz();
+            HRV = mlraut.PhysioHRV(as, bold);
+            physio = HRV.call();
+            gs = as.build_global_signal_for(physio);
+
+            figure; plot(physio); title("physio");
+            figure; plot(gs); title("gs");
+            figure; histogram(physio); title("histogram(physio)");
+            figure; histogram(gs); title("histogram(gs)");
+        end
+        function test_physio_iFV(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=false, ...
+                tags=stackstr(use_dashes=true), ...
+                source_physio='iFV');
+
+            bold = as.task_niigz();
+            iFV = mlraut.IFourthVentricle(as, bold);
+            iFV.wmparc.view_qc(iFV.ifv_mask);
+            physio = iFV.call();   
+            gs = as.build_global_signal_for(physio);
+
+            figure; plot(physio); title("physio");
+            figure; plot(gs); title("gs");
+            figure; plot(physio - gs); title("physio - gs");
+            figure; histogram(physio); title("histogram(physio)");
+            figure; histogram(gs); title("histogram(gs)");
+            figure; histogram(physio - gs); title("histogram(physio - gs)");
+        end
+        function test_physio_ROI(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=false, ...
+                tags=stackstr(use_dashes=true), ...close a
+                source_physio='ROI');
+
+            bold = as.task_niigz();
+            Roi = mlraut.PhysioRoi(as, bold, from_wmparc_indices=[1 4 5 24 43 44]);  % csf
+            Roi.wmparc.view();
+            physio = Roi.call();
+            gs = as.build_global_signal_for(physio);
+
+            figure; plot(physio); title("physio");
+            figure; plot(gs); title("gs");
+            figure; plot(physio - gs); title("physio - gs");
+            figure; histogram(physio); title("histogram(physio)");
+            figure; histogram(gs); title("histogram(gs)");
+            figure; histogram(physio - gs); title("histogram(physio - gs)");
+        end
+        function test_physio_RV(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=false, ...
+                tags=stackstr(use_dashes=true), ...
+                source_physio='RV');
+
+            bold = as.task_niigz();
+            RV = mlraut.PhysioRV(as, bold);
+            physio = RV.call();
+            gs = as.build_global_signal_for(physio);
+
+            figure; plot(physio); title("physio");
+            figure; plot(gs); title("gs");
+            figure; histogram(physio); title("histogram(physio)");
+            figure; histogram(gs); title("histogram(gs)");
+        end
+        function test_task_signal_mask(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignal(subjects={'995174'}, do_save=true, ...
+                plot_range=1:572, tags=stackstr(use_dashes=true), tasks={'rfMRI_REST1_RL'});
+            as.task_signal_reference.view( ...
+                as.task_signal_mask);
+        end
+        function test_histograms(this)
+            %figure; histogram(this.bold_signal_); title("bold_signal_", interpreter="none")
+            %figure; histogram(this.physio_signal_); title("physio_signal_", interpreter="none")
+            %figure; histogram(abs(this.bold_signal_)); title("abs(bold_signal_ in C)", interpreter="none")
+            %figure; histogram(abs(this.physio_signal_)); title("abs(physio_signal_ in C)", interpreter="none")
+            %figure; histogram(abs(this.analytic_signal_)); title("abs(analytic_signal_ in C)", interpreter="none")    
+        end
+
+        function test_ASPar_call(this)
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            as = mlraut.AnalyticSignalPar( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=true, ...
+                do_save_ciftis=false, ...
+                tags=stackstr(use_dashes=true));
+            call(as);
+            disp(as)
+
+            % Elapsed time is 327.790908 seconds.
         end
     end
     

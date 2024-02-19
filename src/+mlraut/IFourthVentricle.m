@@ -7,90 +7,71 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
     %  Developed on Matlab 9.13.0.2049777 (R2022b) for MACI64.  Copyright 2022 John J. Lee.
     
     properties (Dependent)
-        aparc_a2009s
         ifv_mask
-        is_7T
-        subject
-        wmparc
     end
 
     methods %% GET/SET
-        function g = get.aparc_a2009s(this)
-            g = this.wmparc;
-        end
         function g = get.ifv_mask(this)
-            ic = this.aparc_a2009s.numeq(15); % [0 1]; 15 is 4th ventricle
-            ifc = ic.nifti;
-            ifc.img(:,:,23:end) = 0;
-            if this.is_7T
-                ifc.fileprefix = 'ifv.1.60';
-            else
-                ifc.fileprefix = 'ifv.2';
-            end
-            g = mlfourd.ImagingContext2(ifc);
-        end
-        function g = get.is_7T(this)
-            g = contains(this.task_, '7T');
-        end
-        function g = get.subject(this)
-            g = this.subject_;
-        end
-        function g = get.wmparc(this)
-            if ~isempty(this.aparc_a2009s_)
-                g = this.aparc_a2009s_;
-            end
+            % if ~isempty(this.ifv_mask_)
+            %     g = this.ifv_mask_;
+            % end
 
+            ic = this.wmparc.numeq(15); % [0 1]; FS index 15 is 4th ventricle
+            idx_girth = this.find_idx_girth(ic);
+            ifc = ic.imagingFormat;
+            ifc.img(:,:,idx_girth+2:end) = 0;
             if this.is_7T
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.1.60.nii.gz');
+                ifc.fileprefix = 'ifv.1.60';  %% mm of voxels
             else
-                fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'ROIs', 'wmparc.2.nii.gz');
-                if ~isfile(fqfn)
-                    fqfn = fullfile(this.ihcp_.root_dir, this.subject, 'MNINonLinear', 'wmparc.nii.gz');
-                end
+                ifc.fileprefix = 'ifv.2';  %% mm of voxels
             end
-            this.aparc_a2009s_ = mlfourd.ImagingContext2(fqfn);
-            g = this.aparc_a2009s_;
+            this.ifv_mask_ = mlfourd.ImagingContext2(ifc);
+            g = this.ifv_mask_;
         end
     end
 
     methods
         function bold = call(this)
-            fMRI = this.task_niigz();
-            ic = fMRI.volumeAveraged(this.ifv_mask);
-            bold = ascol(ic.nifti.img);
-        end
-        function ic = task_niigz(this)
-            ic = this.ihcp_.task_niigz();
+            bold = call(this.physio_roi_);
         end
         function view_qc(this)
             this.ifv_mask.view_qc(this.ihcp_.task_signal_reference)
         end
 
-        function this = IFourthVentricle(ihcp, subject, task)
-            %% IFOURTHVENTRICLE 
-            %  Args:
-            %      ihcp mlraut.HCP : client possessing HCP information, esp. filesystem information.
-            %      subject {mustBeTextScalar} : e.g., 995174.
-            %      task mustBeTextScalar : e.g., rfMRI_REST1_LR.
-            
+        function this = IFourthVentricle(ihcp, bold, opts)
             arguments
                 ihcp mlraut.HCP {mustBeNonempty}
-                subject {mustBeTextScalar}
-                task {mustBeTextScalar}
+                bold mlfourd.ImagingContext2
+                opts.flipLR logical = false
             end
-            this = this@mlraut.PhysioData(ihcp);
-            this.subject_ = subject;
-            this.task_ = task;
+            this = this@mlraut.PhysioData(ihcp, bold);
+            this.physio_roi_ = mlraut.PhysioRoi(ihcp, bold, ...
+                flipLR=opts.flipLR, ...
+                from_imaging_context=this.ifv_mask);
         end
     end
 
     %% PRIVATE
 
     properties (Access = private)
-        aparc_a2009s_
-        task_niigz_
-        subject_
-        task_
+        ifv_mask_
+        physio_roi_    
+    end
+
+    methods (Access = private)
+        function idx = find_idx_girth(~, ic)
+            ic = max(ic, [], 1); 
+            img_yz = squeeze(ic.imagingFormat.img);
+            img_z = sum(img_yz, 1);
+            [~,idx_] = max(img_z);  % idx_ of widest part of mip of 4th ventricle
+
+            [~,idxL] = max(img_z > 0);  % idxL of img_z, a histogram
+            [~,idxR_] = max(flip(img_z) > 0);
+            idxR = length(img_z) - idxR_;  % idxR of img_z, a histogram
+            idx_median = ceil(1 + idxL + (idxR - idxL)/2);  % idx_median of 4th ventricle along z
+
+            idx = max(idx_, idx_median);
+        end
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
