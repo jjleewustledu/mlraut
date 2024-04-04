@@ -269,6 +269,13 @@ classdef HCP < handle & mlsystem.IHandle
     end
 
     methods (Access = protected)
+        function that = copyElement(this)
+            that = copyElement@matlab.mixin.Copyable(this);
+            if ~isempty(this.bold_data_)
+                that.bold_data_ = copy(this.bold_data_); end
+            if ~isempty(this.cohort_data_)
+                that.cohort_data_ = copy(this.cohort_data_); end
+        end
     end
 
     %% HIDDEN & DEPRECATED

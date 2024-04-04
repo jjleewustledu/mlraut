@@ -8,7 +8,7 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
     methods (Static)
         function parcall(cores, opts)
             arguments
-                cores {mustBeScalarOrEmpty} = 45
+                cores {mustBeScalarOrEmpty} = 24
                 opts.N_sub {mustBeScalarOrEmpty} = 1113
             end
 
@@ -24,13 +24,14 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
             g = g(1:opts.N_sub);
             leng = length(g);
             %for idxg = 1:1
+            %parfor (idxg = 1:2, 2)
             parfor (idxg = 1:leng, cores)
                 try
                     this = mlraut.AnalyticSignalPar( ...
                         subjects=g(idxg), ...                     
                         do_save=true, ...
                         do_save_ciftis=false, ...
-                        tags=stackstr(use_dashes=true));
+                        tags="AnalyticSignalPar-parcall");
                     call(this);
                 catch ME
                     handwarning(ME)
@@ -40,22 +41,6 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
     end
 
     methods
-        function save(this, s, t)
-
-            the_out_dir_ = this.out_dir;
-            the_tags_ = this.tags;
-
-            % reduce file size
-            this.roi = [];
-            this.bold_data_ = [];
-            this.cohort_data_ = [];
-            this.cifti_last_ = [];
-            
-            save(fullfile(the_out_dir_, ...
-                sprintf("sub-%s_ses-%s_%s.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), the_tags_)), ...
-                'this');
-        end
-
         function this = AnalyticSignalPar(varargin)
             this = this@mlraut.AnalyticSignal(varargin{:});
         end

@@ -64,6 +64,16 @@ classdef PhysioData < handle & mlsystem.IHandle
         ihcp_
         wmparc_    
     end
+
+    methods (Access = protected)
+        function that = copyElement(this)
+            that = copyElement@matlab.mixin.Copyable(this);
+            if ~isempty(this.bold_) && ishandle(this.bold_)
+                that.bold_ = copy(this.bold_); end
+            if ~isempty(this.wmparc_) && ishandle(this.wmparc_)
+                that.wmparc_ = copy(this.wmparc_); end
+        end
+    end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
 end

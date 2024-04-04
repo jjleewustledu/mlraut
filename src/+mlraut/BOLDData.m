@@ -104,6 +104,16 @@ classdef BOLDData < handle & mlsystem.IHandle
         task_niigz_
         task_signal_reference_
     end
+
+    methods (Access = protected)
+        function that = copyElement(this)
+            that = copyElement@matlab.mixin.Copyable(this);
+            if ~isempty(this.task_niigz_)
+                that.task_niigz_ = copy(this.task_niigz_); end
+            if ~isempty(this.task_signal_reference_)
+                that.task_signal_reference_ = copy(this.task_signal_reference_); end
+        end
+    end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
 end

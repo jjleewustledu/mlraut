@@ -17,6 +17,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_radar
         do_save
         do_save_ciftis
+        do_save_dynamic
 
         force_band  % force bandpass to [0.01 0.1] Hz
         final_normalization
@@ -176,16 +177,20 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             out_dir_ = this.out_dir;
             for s = 1:this.num_sub
-                this.current_subject = this.subjects{s};
-                if ~contains(out_dir_, this.current_subject)
-                    proposed_dir = fullfile(out_dir_, this.current_subject);
-                    this.out_dir = proposed_dir;
-                    ensuredir(proposed_dir);
-                end
-                if opts.do_qc
-                    this.call_subject_qc(s);
-                else
-                    this.call_subject(s);
+                try
+                    this.current_subject = this.subjects{s};
+                    if ~contains(out_dir_, this.current_subject)
+                        proposed_dir = fullfile(out_dir_, this.current_subject);
+                        this.out_dir = proposed_dir;
+                        ensuredir(proposed_dir);
+                    end
+                    if opts.do_qc
+                        this.call_subject_qc(s);
+                    else
+                        this.call_subject(s);
+                    end
+                catch ME
+                    handexcept(ME)
                 end
             end
         end
@@ -196,97 +201,102 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
 
             this.malloc();
-
             for t = 1:this.num_tasks     
-
-                this.current_task = this.tasks{t};
-
-                % BOLD
                 try
-                    bold_ = this.task_dtseries(); 
-                    bold_ = this.build_global_signal_regressed(bold_);
-                    bold_ = hilbert(bold_);
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-                 
-                % Physio
-                try
-                    physio_ = this.task_physio();
-                    physio_ = this.build_global_signal_regressed(physio_);
-                    physio_ = hilbert(physio_);
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
+                    this.current_task = this.tasks{t};
 
-                % Store BOLD, Physio, and Analytic signals
-                this.bold_signal_ = this.build_band_passed(this.build_centered_and_rescaled(bold_));
-                this.bold_signal_ = this.build_final_normalization(this.bold_signal_);
-                if ~all(physio_ == 0)                    
-                    this.physio_signal_ = this.build_band_passed(this.build_centered_and_rescaled(physio_));
-                    this.physio_signal_ = this.build_final_normalization(this.physio_signal_);
-                    % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                    this.analytic_signal_ = this.build_band_passed( ...
-                        this.build_centered_and_rescaled(conj(physio_)) .* ...
-                        this.build_centered_and_rescaled(bold_));
-                    this.analytic_signal_ = this.build_final_normalization(this.analytic_signal_);
-                else
-                    this.physio_signal_ = physio_;
-                    this.analytic_signal_ = this.bold_signal_;
-                end
+                    % BOLD
+                    try
+                        bold_ = this.task_dtseries();
+                        bold_ = this.build_global_signal_regressed(bold_);
+                        bold_ = hilbert(bold_);
+                    catch ME
+                        disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
+                        handwarning(ME)
+                        continue
+                    end
 
-                % Averages for networks
-                this.average_network_signals(this.analytic_signal_);
-                
-                % Store reduced analytic signal, real(), imag(), abs(), angle()
-                if this.do_save           
-                    % Store reduced analytic signals for all s, t
-                    % grid of data from s, t may be assessed with stats
-                    save(this, s, t);
-                    
+                    % Physio
+                    try
+                        physio_ = this.task_physio();
+                        physio_ = this.build_global_signal_regressed(physio_);
+                        physio_ = hilbert(physio_);
+                    catch ME
+                        disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
+                        handwarning(ME)
+                        continue
+                    end
+
+                    % Store BOLD, Physio, and Analytic signals
+                    this.bold_signal_ = this.build_band_passed(this.build_centered_and_rescaled(bold_));
+                    this.bold_signal_ = this.build_final_normalization(this.bold_signal_);
+                    if ~all(physio_ == 0)
+                        this.physio_signal_ = this.build_band_passed(this.build_centered_and_rescaled(physio_));
+                        this.physio_signal_ = this.build_final_normalization(this.physio_signal_);
+                        % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
+                        this.analytic_signal_ = this.build_band_passed( ...
+                            this.build_centered_and_rescaled(conj(physio_)) .* ...
+                            this.build_centered_and_rescaled(bold_));
+                        this.analytic_signal_ = this.build_final_normalization(this.analytic_signal_);
+                    else
+                        this.physio_signal_ = physio_;
+                        this.analytic_signal_ = this.bold_signal_;
+                    end
+
+                    % Averages for networks
+                    this.average_network_signals(this.analytic_signal_);
+
+                    % Store reduced analytic signal, real(), imag(), abs(), angle()
+                    if this.do_save
+                        % Store reduced analytic signals for all s, t
+                        % grid of data from s, t may be assessed with stats
+                        save(this, s, t);
+                    end
                     if this.do_save_ciftis
                         this.write_ciftis( ...
                             abs(this.analytic_signal_), ...
-                            sprintf('abs_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                            sprintf('abs_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
                         this.write_ciftis( ...
                             angle(this.analytic_signal_), ...
-                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
 
                         % analytic_signal_ - bold_signal_
                         diff_ = this.analytic_signal_ - this.bold_signal_;
                         this.write_ciftis( ...
                             abs(diff_), ...
-                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
                         this.write_ciftis( ...
                             angle(diff_), ...
-                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
                     end
-                end
 
-                % do plot
-                if this.do_plot_global_physio
-                    this.plot_global_physio(measure=@this.unwrap);
-                    this.plot_global_physio(measure=@angle);
-                    this.plot_global_physio(measure=@abs);
-                    this.plot_global_physio(measure=@real);
-                end
-                if this.do_plot_networks
-                    this.plot_regions(@this.plot_networks, measure=@this.unwrap);
-                    this.plot_regions(@this.plot_networks, measure=@angle);
-                    this.plot_regions(@this.plot_networks, measure=@abs);
-                    this.plot_regions(@this.plot_networks, measure=@real);
-                end
-                if this.do_plot_radar
-                    this.plot_regions(@this.plot_radar, measure=@this.identity);
-                end
-                if this.do_plot_emd
-                    this.plot_regions(@this.plot_emd, measure=@this.unwrap);
-                    this.plot_regions(@this.plot_emd, measure=@angle);
-                    this.plot_regions(@this.plot_emd, measure=@abs);
+                    % do plot
+                    if this.do_plot_global_physio
+                        this.plot_global_physio(measure=@this.unwrap);
+                        this.plot_global_physio(measure=@angle);
+                        this.plot_global_physio(measure=@abs);
+                        this.plot_global_physio(measure=@real);
+                    end
+                    if this.do_plot_networks
+                        this.plot_regions(@this.plot_networks, measure=@this.unwrap);
+                        this.plot_regions(@this.plot_networks, measure=@angle);
+                        this.plot_regions(@this.plot_networks, measure=@abs);
+                        this.plot_regions(@this.plot_networks, measure=@real);
+                    end
+                    if this.do_plot_radar
+                        this.plot_regions(@this.plot_radar, measure=@this.identity);
+                    end
+                    if this.do_plot_emd
+                        this.plot_regions(@this.plot_emd, measure=@this.unwrap);
+                        this.plot_regions(@this.plot_emd, measure=@angle);
+                        this.plot_regions(@this.plot_emd, measure=@abs);
+                    end
+                catch ME
+                    handwarning(ME)
                 end
             end
         end
@@ -535,12 +545,64 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function save(this, s, t)
 
+            % reduce size of saved            
+            this_subset.do_only_resting = this.do_only_resting;
+            this_subset.do_only_task = this.do_only_task;
+            this_subset.do_save = this.do_save;
+            this_subset.do_save_ciftis = this.do_save_ciftis;
+            this_subset.do_save_dynamic = this.do_save_dynamic;
+            this_subset.force_band = this.force_band;
+            this_subset.final_normalization = this.final_normalization;
+            this_subset.roi = this.roi;
+            this_subset.source_physio = this.source_physio;
+            this_subset.global_signal = this.global_signal;
+            this_subset.global_signal_regression = this.global_signal_regression;
+            this_subset.hp_thresh = this.hp_thresh;
+            this_subset.lp_thresh = this.lp_thresh;
+            this_subset.num_nets = this.num_nets;
+            this_subset.num_sub = this.num_sub;
+            this_subset.num_tasks = this.num_tasks;
+            this_subset.scale_to_hcp = this.scale_to_hcp;
+            this_subset.tags = this.tags;
+            this_subset.analytic_signal = this.analytic_signal;
+            % this_subset.bold_signal = this.bold_signal;
+            this_subset.HCP_signals = this.HCP_signals;
+            this_subset.physio_signal = this.physio_signal;
+            this_subset.max_frames = this.max_frames;
+            this_subset.current_subject = this.current_subject;
+            this_subset.current_task = this.current_task;
+            this_subset.subjects = this.subjects;
+            this_subset.tasks = this.tasks;
+            % this_subset.bold_data = this.bold_data;
+            % this_subset.cohort_data = this.cohort_data;
+            % this_subset.cifti_last = this.cifti_last;
+            this_subset.Fs = this.Fs;
+            this_subset.num_frames = this.num_frames;
+            this_subset.num_frames_ori = this.num_frames_ori;
+            this_subset.num_frames_to_trim = this.num_frames_to_trim;
+            this_subset.num_nodes = this.num_nodes;
+            this_subset.out_dir = this.out_dir;
+            this_subset.root_dir = this.root_dir;
+            this_subset.task_dir = this.task_dir;
+            this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
+            this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
+            this_subset.task_signal_reference_fqfn = this.task_signal_reference_fqfn;
+            this_subset.t1w_fqfn = this.t1w_fqfn;
+            this_subset.tr = this.tr;
+            this_subset.waves_dir = this.waves_dir;
+            this_subset.wmparc_fqfn = this.wmparc_fqfn;
+            this_subset.workbench_dir = this.workbench_dir;
+
             the_tags_ = this.tags;
             the_out_dir_ = this.out_dir;
             
-            save(fullfile(the_out_dir_, ...
-                sprintf("sub-%s_ses-%s_%s.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), the_tags_)), ...
-                'this');
+            try
+                save(fullfile(the_out_dir_, ...
+                    sprintf("sub-%s_ses-%s_%s.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), the_tags_)), ...
+                    'this_subset');
+            catch ME
+                handwarning(ME)
+            end
         end
         function mat = task_dtseries(this, varargin)
             %  Args:
@@ -664,6 +726,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_radar logical = true
             %      opts.do_save logical = true: save fully populated this to mlraut_AnalyticSignal.mat
             %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
+            %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
             %      opts.force_band logical = tru e: force bandpass to [0.01 0.1] Hz
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
@@ -692,6 +755,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_radar logical = false
                 opts.do_save logical = false
                 opts.do_save_ciftis logical = false
+                opts.do_save_dynamic logical = false
                 opts.final_normalization {mustBeTextScalar} = "normxyzt"
                 opts.force_band logical = true
                 opts.global_signal_regression logical = true
@@ -723,6 +787,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_radar = opts.do_plot_radar;
             this.do_save = opts.do_save;
             this.do_save_ciftis = opts.do_save_ciftis;
+            this.do_save_dynamic = opts.do_save_dynamic;
 
             this.force_band = opts.force_band;
             this.global_signal_regression_ = opts.global_signal_regression;
@@ -761,6 +826,18 @@ classdef AnalyticSignal < handle & mlraut.HCP
         global_signal_regression_
     end
 
+    methods (Access = protected)
+        function that = copyElement(this)
+            that = copyElement@matlab.mixin.Copyable(this);
+            if ~isempty(this.cifti_)
+                that.cifti_ = copy(this.cifti_); end
+            if ~isempty(this.plotting_)
+                that.plotting_ = copy(this.plotting_); end
+            if ~isempty(this.task_signal_mask_)
+                that.task_signal_mask_ = copy(this.task_signal_mask_); end
+        end
+    end
+
     %% PRIVATE
 
     methods (Access = private)
@@ -769,20 +846,23 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 this mlraut.AnalyticSignal
                 roi = []
             end
-            if ~isempty(roi)
-                this.source_physio = "ROI";
-            end
-            if istext(roi) && isfile(roi)
-                this.roi = mlfourd.ImagingContext2(roi);
+            if isempty(roi)
+                this.roi = [];
                 return
             end
-            if isnumeric(roi) && ndims(roi) == 3
+            
+            this.source_physio = "ROI";
+            if istext(roi) && isfile(roi)
                 this.roi = mlfourd.ImagingContext2(roi);
                 return
             end
             if isnumeric(roi) && ismatrix(roi)
                 pr = mlraut.PhysioRoi(this, this.task_niigz, from_wmparc_indices=roi);
                 this.roi = pr.roi_mask;
+                return
+            end
+            if isnumeric(roi) && ~ismatrix(roi)
+                this.roi = mlfourd.ImagingContext2(roi);
                 return
             end
             error("mlraut:ValueError", stackstr())

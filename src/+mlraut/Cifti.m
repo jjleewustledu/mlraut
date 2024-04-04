@@ -109,16 +109,25 @@ classdef Cifti < handle & mlsystem.IHandle
             end
             cifti_write(c_, convertStringsToChars(fn));
         end
-        function [cdata,cdata1] = write_ciftis(this, cdata, fp)
+        function [cdata,cdata1] = write_ciftis(this, cdata, fp, opts)
             arguments
                 this mlraut.Cifti
                 cdata {mustBeNumericOrLogical}
                 fp {mustBeTextScalar}
+                opts.do_save_dynamic logical = false
+                opts.averaging_method function_handle = @median
             end
-            this.write_cifti(cdata, fp); % mlraut.HCP
-            cdata1 = median(cdata, 1); 
-            fp1 = strcat(fp, '_avgt');
-            this.write_cifti(cdata1, fp1); % mlraut.HCP
+
+            try
+                if opts.do_save_dynamic
+                    this.write_cifti(cdata, fp); % mlraut.HCP
+                end
+                cdata1 = opts.averaging_method(cdata, 1);
+                fp1 = strcat(fp, '_avgt');
+                this.write_cifti(cdata1, fp1); % mlraut.HCP
+            catch ME
+                handwarning(ME)
+            end
         end
         function ic = write_nii(this, img, fp)
             arguments
@@ -126,20 +135,25 @@ classdef Cifti < handle & mlsystem.IHandle
                 img {mustBeNumericOrLogical}
                 fp {mustBeTextScalar}
             end
-            ifc = mlfourd.ImagingFormatContext2(this.template_niigz);
-            ifc.img = img;
-            [pth,fp] = myfileparts(fp);
-            if isempty(pth) || "" == pth
-                pth = this.out_dir;
-            end
-            ifc.filepath = pth;
-            ifc.fileprefix = fp;
-            tr = this.ihcp_.tr;            
-            Nt = length(img);
-            ifc.json_metadata.timesMid = 0:tr:tr*(Nt - 1);
-            ifc.save();
 
-            ic = mlfourd.ImagingContext2(ifc);
+            try
+                ifc = mlfourd.ImagingFormatContext2(this.template_niigz);
+                ifc.img = img;
+                [pth,fp] = myfileparts(fp);
+                if isempty(pth) || "" == pth
+                    pth = this.out_dir;
+                end
+                ifc.filepath = pth;
+                ifc.fileprefix = fp;
+                tr = this.ihcp_.tr;
+                Nt = length(img);
+                ifc.json_metadata.timesMid = 0:tr:tr*(Nt - 1);
+                ifc.save();
+
+                ic = mlfourd.ImagingContext2(ifc);
+            catch ME
+                handwarning(ME)
+            end
         end
 
         function this = Cifti(ihcp)

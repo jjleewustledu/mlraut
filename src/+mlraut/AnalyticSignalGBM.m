@@ -49,57 +49,100 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 s double
             end
 
+            this.malloc();
             for t = 1:this.num_tasks
-                this.current_task = this.tasks{t};   
-
-                % BOLD
                 try
-                    [bold, isleft] = this.task_dtseries_gbm(); 
-                    assert(~isempty(bold))
-                    bold = this.omit_late_frames(bold);
+                    this.current_task = this.tasks{t};
+
+                    % BOLD
+                    try
+                        [bold_, isleft] = this.task_dtseries();
+                        bold_ = this.build_global_signal_regressed(bold_);
+                        bold_ = hilbert(bold_);
+                    catch ME
+                        disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
+                        handwarning(ME)
+                        continue
+                    end
+
+                    % Physio
+                    try
+                        physio_ = this.task_physio(bold_, flipLR=isleft);
+                        assert(~isempty(physio_))
+                        physio_ = this.build_global_signal_regressed(physio_);
+                        physio_ = hilbert(physio_);
+                    catch ME
+                        disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
+                        handwarning(ME)
+                        continue
+                    end
+
+                    % Store BOLD, Physio, and Analytic signals
+                    this.bold_signal_ = this.build_band_passed(this.build_centered_and_rescaled(bold_));
+                    this.bold_signal_ = this.build_final_normalization(this.bold_signal_);
+                    if ~all(physio_ == 0)
+                        this.physio_signal_ = this.build_band_passed(this.build_centered_and_rescaled(physio_));
+                        this.physio_signal_ = this.build_final_normalization(this.physio_signal_);
+                        % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
+                        this.analytic_signal_ = this.build_band_passed( ...
+                            this.build_centered_and_rescaled(conj(physio_)) .* ...
+                            this.build_centered_and_rescaled(bold_));
+                        this.analytic_signal_ = this.build_final_normalization(this.analytic_signal_);
+                    else
+                        this.physio_signal_ = physio_;
+                        this.analytic_signal_ = this.bold_signal_;
+                    end
+                    
+                    % Averages for networks
+                    this.average_network_signals(this.analytic_signal_);
+
+                    % Store reduced analytic signal, real(), imag(), abs(), angle()
+                    if this.do_save
+                        % Store reduced analytic signals for all s, t
+                        % grid of data from s, t may be assessed with stats
+                        save(this, s, t);
+                    end
+                    if this.do_save_ciftis
+                        this.write_ciftis( ...
+                            abs(this.analytic_signal_), ...
+                            sprintf('abs_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
+                        this.write_ciftis( ...
+                            angle(this.analytic_signal_), ...
+                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
+
+                        % analytic_signal_ - bold_signal_
+                        diff_ = this.analytic_signal_ - this.bold_signal_;
+                        this.write_ciftis( ...
+                            abs(diff_), ...
+                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
+                        this.write_ciftis( ...
+                            angle(diff_), ...
+                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
+                    end
                 catch ME
-                    disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                     handwarning(ME)
-                    continue
                 end
-
-                % Global signal
-                gs = this.build_global_signal(bold);
-                 
-                % Physio
-                try
-                    physio = this.task_physio(bold, flipLR=isleft);
-                    assert(~isempty(physio))
-                catch ME
-                    disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                    handwarning(ME)
-                    continue
-                end
-
-                % Analytic signal
-                bold_ = this.build_centered_and_rescaled(this.build_band_passed(bold - gs));
-                physio_ = this.build_centered_and_rescaled(this.build_band_passed(physio)); % removes gs as needed
-                bold_ = hilbert(bold_);
-                physio_ = hilbert(physio_);
-                as = conj(physio_).*bold_; % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                as = this.normalize_all(as);
-        
-                % Store reduced analytic signal, real(), imag(), abs(), angle()
-                save(fullfile(this.out_dir, sprintf('%s_%s_bold-gs%s_%i_%i', ...
-                    stackstr(2), this.config_hemispheres, this.tags, s, t)), 'bold_');
-                save(fullfile(this.out_dir, sprintf('%s_%s_as%s_%i_%i', ...
-                    stackstr(2), this.config_hemispheres, this.tags, s, t)), 'as');
             end
-        end
-        function this = call_subject_qc(this, s)
-            arguments
-                this mlraut.AnalyticSignal
-                s double
-            end
-
         end
         function j = jsonread(this)
             j = jsonread(this.cohort_data_.json_fqfn);
+        end
+        function [mat,isleft] = task_dtseries(this, varargin)
+            %  Args:
+            %      this mlraut.AnalyticSignal
+            %      sub {mustBeTextScalar} = this.current_subject
+            %      task {mustBeTextScalar} = this.current_task
+            %  Returns:
+            %      mat (numeric):  time x grayordinate from BOLDData
+
+            [mat,isleft] = this.task_dtseries_gbm(varargin{:});
+            mat = this.trim_frames(mat);
+            mat = this.omit_late_frames(mat);
+            mat = single(mat);
         end
         function [bold,isleft] = task_dtseries_gbm(this, sub, task)
             %  Args:

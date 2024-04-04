@@ -105,14 +105,19 @@ classdef PhysioRoi < handle & mlraut.PhysioData
         end
     end
 
-    %% PRIVATE
+    %% PROTECTED
 
     properties (Access = private)
         flipLR_
         roi_mask_
     end
 
-    methods (Access = private)
+    methods (Access = protected)
+        function that = copyElement(this)
+            that = copyElement@matlab.mixin.Copyable(this);
+            if ~isempty(this.roi_mask_) && ishandle(this.roi_mask_)
+                that.roi_mask_ = copy(this.roi_mask_); end
+        end
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.

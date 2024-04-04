@@ -22,7 +22,8 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             disp(as)
         end
         function test_call(this)
-            cd('/Volumes/PrecunealSSD2/HCPAging/HCPAgingRec/fmriresults01');
+            tic
+            % cd('/Volumes/PrecunealSSD2/HCPAging/HCPAgingRec/fmriresults01');
             as = mlraut.AnalyticSignalHCPAging( ...
                 subjects={'HCA9992517_V1_MR'}, ...
                 tasks={'fMRI_CONCAT_ALL'}, ...
@@ -30,9 +31,11 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
                 do_save_ciftis=true, ...
                 tags=stackstr(use_dashes=true));
             call(as)
+            toc
             disp(as)
 
-            % Elapsed time is ___ seconds.
+            % Elapsed time is 273 seconds on twistor.  Peak memory is 64 GB.  Files saved < 8 GB.
+            % Elapsed time is ~791 seconds on vglab2.
         end
     end
     
