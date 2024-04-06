@@ -40,6 +40,7 @@ classdef CohortData < handle & mlsystem.IHandle
             end
 
             this.json_ = jsonread(this.json_fqfn);
+            g = this.json_;
         end
         function     set.json(this, s)
             assert(isstruct(s), stackstr())

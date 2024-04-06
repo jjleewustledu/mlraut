@@ -84,7 +84,8 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
             assert(isfile(g), stackstr())
         end
         function g = get.num_frames_to_trim(this)
-            g = this.json.num_frames_to_trim;
+            g = 0;
+            % g = this.json.num_frames_to_trim;
         end
         function g = get.tr(this)
             g = this.json.tr;

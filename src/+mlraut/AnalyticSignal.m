@@ -127,7 +127,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if isfinite(this.max_frames)
                 g = g + "-maxframes" + num2str(this.max_frames);
             end
-            if ~isempty(this.tags_) 
+            if ~isemptytext(this.tags_) 
                 g = g + "-" + this.tags_;
             end
         end
@@ -227,12 +227,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
                         continue
                     end
 
-                    % Store BOLD, Physio, and Analytic signals
+                    % Store BOLD signals
                     this.bold_signal_ = this.build_band_passed(this.build_centered_and_rescaled(bold_));
                     this.bold_signal_ = this.build_final_normalization(this.bold_signal_);
+
+                    % Store physio signals
                     if ~all(physio_ == 0)
                         this.physio_signal_ = this.build_band_passed(this.build_centered_and_rescaled(physio_));
                         this.physio_signal_ = this.build_final_normalization(this.physio_signal_);
+
+                        % Store analytic signals
                         % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
                         this.analytic_signal_ = this.build_band_passed( ...
                             this.build_centered_and_rescaled(conj(physio_)) .* ...
@@ -262,16 +266,22 @@ classdef AnalyticSignal < handle & mlraut.HCP
                             sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
                             do_save_dynamic=this.do_save_dynamic);
 
+                        % real this.bold_signal_ with matching normalizations
+                        this.write_ciftis( ...
+                            real(this.bold_signal_), ...
+                            sprintf('real_bold_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
+
                         % analytic_signal_ - bold_signal_
-                        diff_ = this.analytic_signal_ - this.bold_signal_;
-                        this.write_ciftis( ...
-                            abs(diff_), ...
-                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            angle(diff_), ...
-                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
+                        % diff_ = this.analytic_signal_ - this.bold_signal_;
+                        % this.write_ciftis( ...
+                        %     abs(diff_), ...
+                        %     sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                        %     do_save_dynamic=this.do_save_dynamic);
+                        % this.write_ciftis( ...
+                        %     angle(diff_), ...
+                        %     sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                        %     do_save_dynamic=this.do_save_dynamic);
                     end
 
                     % do plot
@@ -728,7 +738,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
-            %      opts.force_band logical = tru e: force bandpass to [0.01 0.1] Hz
+            %      opts.force_band logical = true: force bandpass to [0.01 0.1] Hz
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05.
@@ -766,7 +776,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.plot_range double = 1:572
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
-                opts.source_physio {mustBeTextScalar} = "iFV"
+                opts.source_physio = "iFV"
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}
@@ -796,10 +806,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.max_frames = opts.max_frames;
             this.final_normalization = opts.final_normalization;
             this.cohort_data_.out_dir = opts.out_dir;
-            this.build_roi(opts.roi);
             this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
             this.tags_ = opts.tags;
+
+            this.build_roi(opts.roi);
 
             this.debugging_ = struct();
         end
@@ -847,11 +858,14 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 roi = []
             end
             if isempty(roi)
-                this.roi = [];
                 return
             end
             
             this.source_physio = "ROI";
+            if isa(roi, "mlfourd.ImagingContext2")
+                this.roi = copy(roi);
+                return
+            end
             if istext(roi) && isfile(roi)
                 this.roi = mlfourd.ImagingContext2(roi);
                 return

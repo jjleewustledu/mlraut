@@ -30,6 +30,14 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
     end
 
     properties
+
+        %% set config_hemispheres := "lesionR" to accumulate collection of right-sided tumors.
+        %  set config_hemispheres := "lesionR_CE" to use contrast-enhanced
+        %  set config_hemispheres := "lesionR_WT" to use whole tumor
+        %  set config_hemispheres := "nolesion"
+        %  set config_hemispheres := "alllesion"
+        %  set config_hemispheres := ""
+
         config_hemispheres = "lesionR"
     end
 
@@ -39,11 +47,11 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
 
             this.current_subject = this.subjects{1};
             %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
-            this.max_frames = 158;
-            this.plot_range = 1:158;
+            %this.max_frames = 158;
         end
         
         function this = call_subject(this, s)
+
             arguments
                 this mlraut.AnalyticSignal
                 s double
@@ -56,7 +64,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
 
                     % BOLD
                     try
-                        [bold_, isleft] = this.task_dtseries();
+                        [bold_, isleft] = this.task_dtseries_gbm();
                         bold_ = this.build_global_signal_regressed(bold_);
                         bold_ = hilbert(bold_);
                     catch ME
@@ -67,8 +75,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
 
                     % Physio
                     try
-                        physio_ = this.task_physio(bold_, flipLR=isleft);
-                        assert(~isempty(physio_))
+                        physio_ = this.task_physio();
                         physio_ = this.build_global_signal_regressed(physio_);
                         physio_ = hilbert(physio_);
                     catch ME
@@ -130,19 +137,6 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
         end
         function j = jsonread(this)
             j = jsonread(this.cohort_data_.json_fqfn);
-        end
-        function [mat,isleft] = task_dtseries(this, varargin)
-            %  Args:
-            %      this mlraut.AnalyticSignal
-            %      sub {mustBeTextScalar} = this.current_subject
-            %      task {mustBeTextScalar} = this.current_task
-            %  Returns:
-            %      mat (numeric):  time x grayordinate from BOLDData
-
-            [mat,isleft] = this.task_dtseries_gbm(varargin{:});
-            mat = this.trim_frames(mat);
-            mat = this.omit_late_frames(mat);
-            mat = single(mat);
         end
         function [bold,isleft] = task_dtseries_gbm(this, sub, task)
             %  Args:
@@ -439,7 +433,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
             for idxg = 1:leng
                 try
                     this = mlraut.AnalyticSignalGBM(subjects=g(idxg), ...
-                        root_dir=root_dir, out_dir=out_dir, tasks=tasks);
+                        rout_dir=out_dir, tasks=tasks);
                     this.config_hemispheres = opts.config_hemispheres; 
                     call(this);
                 catch ME
