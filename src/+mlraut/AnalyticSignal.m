@@ -228,20 +228,20 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     end
 
                     % Store BOLD signals
-                    this.bold_signal_ = this.build_band_passed(this.build_centered_and_rescaled(bold_));
-                    this.bold_signal_ = this.build_final_normalization(this.bold_signal_);
+                    this.bold_signal_ = this.build_final_normalization( ...
+                        this.build_band_passed(this.build_centered_and_rescaled(bold_)));
 
                     % Store physio signals
                     if ~all(physio_ == 0)
-                        this.physio_signal_ = this.build_band_passed(this.build_centered_and_rescaled(physio_));
-                        this.physio_signal_ = this.build_final_normalization(this.physio_signal_);
+                        this.physio_signal_ = this.build_final_normalization( ...
+                            this.build_band_passed(this.build_centered_and_rescaled(physio_)));
 
                         % Store analytic signals
                         % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                        this.analytic_signal_ = this.build_band_passed( ...
+                        this.analytic_signal_ = this.build_final_normalization( ...
+                            this.build_band_passed( ...
                             this.build_centered_and_rescaled(conj(physio_)) .* ...
-                            this.build_centered_and_rescaled(bold_));
-                        this.analytic_signal_ = this.build_final_normalization(this.analytic_signal_);
+                            this.build_centered_and_rescaled(bold_)));
                     else
                         this.physio_signal_ = physio_;
                         this.analytic_signal_ = this.bold_signal_;
