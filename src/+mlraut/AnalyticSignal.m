@@ -17,6 +17,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_radar
         do_save
         do_save_ciftis
+        do_save_ciftis_of_diffs
         do_save_dynamic
 
         force_band  % force bandpass to [0.01 0.1] Hz
@@ -276,17 +277,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
                             real(this.bold_signal_), ...
                             sprintf('real_bold_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
                             do_save_dynamic=this.do_save_dynamic);
-
-                        % analytic_signal_ - bold_signal_
-                        % diff_ = this.analytic_signal_ - this.bold_signal_;
-                        % this.write_ciftis( ...
-                        %     abs(diff_), ...
-                        %     sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                        %     do_save_dynamic=this.do_save_dynamic);
-                        % this.write_ciftis( ...
-                        %     angle(diff_), ...
-                        %     sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                        %     do_save_dynamic=this.do_save_dynamic);
+                    end
+                    if this.do_save_ciftis_of_diffs  % analytic_signal_ - bold_signal_
+                        diff_ = this.analytic_signal_ - this.bold_signal_;
+                        this.write_ciftis( ...
+                            abs(diff_), ...
+                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
+                        this.write_ciftis( ...
+                            angle(diff_), ...
+                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            do_save_dynamic=this.do_save_dynamic);
                     end
 
                     % do plot
@@ -565,6 +566,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this_subset.do_only_task = this.do_only_task;
             this_subset.do_save = this.do_save;
             this_subset.do_save_ciftis = this.do_save_ciftis;
+            this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
             this_subset.do_save_dynamic = this.do_save_dynamic;
             this_subset.force_band = this.force_band;
             this_subset.final_normalization = this.final_normalization;
@@ -741,6 +743,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_radar logical = true
             %      opts.do_save logical = true: save fully populated this to mlraut_AnalyticSignal.mat
             %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
+            %      opts.do_save_ciftis_of_diffs logical = true: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
             %      opts.force_band logical = true: force bandpass to [0.01 0.1] Hz
@@ -770,6 +773,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_radar logical = false
                 opts.do_save logical = false
                 opts.do_save_ciftis logical = false
+                opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
                 opts.final_normalization {mustBeTextScalar} = "normxyzt"
                 opts.force_band logical = true
@@ -802,6 +806,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_radar = opts.do_plot_radar;
             this.do_save = opts.do_save;
             this.do_save_ciftis = opts.do_save_ciftis;
+            this.do_save_ciftis_of_diffs = opts.do_save_ciftis_of_diffs;
             this.do_save_dynamic = opts.do_save_dynamic;
 
             this.force_band = opts.force_band;
