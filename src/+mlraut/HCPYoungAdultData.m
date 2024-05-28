@@ -44,19 +44,9 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 this.out_dir_ = g;
                 return
             end
-            if contains(computer, "GLNXA64")
-                g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignal");
-                assert(isfolder(g));
-                this.out_dir_ = g;
-                return
-            end
-            if contains(hostname, "cluster")
-                g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignal");
-                assert(isfolder(g));
-                this.out_dir_ = g;
-                return
-            end
-            error("mlraut:NotImplementedError", stackstr());
+            g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignal");
+            assert(isfolder(g));
+            this.out_dir_ = g;
         end
         function     set.out_dir(this, s)
             if isempty(s) || isemptytext(s)
@@ -72,7 +62,7 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 assert(isfolder(g));
                 return
             end
-            if contains(hostname, "vglab") || contains(hostname, "linux")
+            if contains(hostname, "vglab") || contains(hostname, "linux") || contains(hostname, "pascal")
                 g = "/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200";
                 assert(isfolder(g));
                 return

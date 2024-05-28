@@ -49,6 +49,83 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
             %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
             %this.max_frames = 158;
         end
+
+        function build_conc(this)
+
+            %% for AnalyticSignalGBM, concat BOLD runs to have 320 frames available
+
+            ciftis = mglob(fullfile(this.cohort_data.mninonlinear_dir, "Results", "*", "ses-*.dtseries.nii"));
+            niftis = mglob(fullfile(this.cohort_data.mninonlinear_dir, "Results", "*", "ses-*.nii.gz"));
+            niftis = niftis(~endsWith(niftis, "_avgt.nii.gz"));
+
+            task_dir = this.cohort_data.task_dir;
+            ensuredir(task_dir);
+
+            fn = char(fullfile(task_dir, this.current_task + "_Atlas_s0.dtseries.nii"));
+            if ~isfile(fn)
+                cdata = [];
+                len = 0;
+                for c = ciftis
+                    c1 = cifti_read(c);
+                    cdata = [cdata, c1.cdata]; %#ok<AGROW>
+                    len = len + c1.diminfo{2}.length;
+                end
+                c1.cdata = cdata;
+                c1.diminfo{2}.length = len;
+                cifti_write(c1, fn);
+            end
+
+            fn = char(fullfile(task_dir, this.current_task + ".nii.gz"));
+            if ~isfile(fn)
+                img = [];
+                for n = niftis
+                    n1 = mlfourd.ImagingFormatContext2(n);
+                    if isempty(img)
+                        img = [img, n1.img]; %#ok<AGROW>
+                    else
+                        img = cat(4, img, n1.img);
+                    end
+                end
+                n1.img = img;
+                n1.fqfilename = fn;
+                save(n1);
+
+                n2 = mlfourd.ImagingContext2(n1);
+                n2 = n2.timeAveraged();
+                save(n2);
+                n2.fileprefix = "SBRef_dc";
+                save(n2);
+            end
+
+            %% flip maps on T1w for use with sets of central & right-sided GBMs
+
+            mnl_dir = this.cohort_data.mninonlinear_dir;
+            ce = mlfourd.ImagingContext2(fullfile(mnl_dir, "CE_on_T1w.nii.gz"));
+            ce = flip(ce, 1);
+            ce.save;
+            wt = mlfourd.ImagingContext2(fullfile(mnl_dir, "WT_on_T1w.nii.gz"));
+            wt = flip(wt, 1);
+            wt.save;
+            t1w = mlfourd.ImagingContext2(fullfile(mnl_dir, "T1w.nii.gz"));
+            t1w = flip(t1w, 1);
+            t1w.save;
+        end
+
+        function build_angles_gt_0(this)
+
+            %% shift phases to start at zero for use with "Videen-style" color spaces in wb_view
+
+            wb_dir = this.out_dir;
+            toglob = fullfile(wb_dir, "angle*_avgt.dscalar.nii");
+            mg = mglob(toglob);
+            for c = mg
+                c = char(c);
+                c1 = cifti_read(c);
+                min_ = min(c1.cdata, [], "all");
+                c1.cdata = c1.cdata - min_;
+                cifti_write(c1, strrep(c, '_avgt.dscalar.nii', '_shifted_avgt.dscalar.nii'));
+            end
+        end
         
         function this = call_subject(this, s)
 
@@ -56,6 +133,8 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 this mlraut.AnalyticSignal
                 s double
             end
+
+            this.build_conc();
 
             this.malloc();
             for t = 1:this.num_tasks
@@ -84,17 +163,26 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                         continue
                     end
 
-                    % Store BOLD, Physio, and Analytic signals
-                    this.bold_signal_ = this.build_band_passed(this.build_centered_and_rescaled(bold_));
-                    this.bold_signal_ = this.build_final_normalization(this.bold_signal_);
+                    % Store BOLD signals
+                    this.bold_signal_ = ...
+                        this.build_final_normalization( ...
+                        this.build_band_passed( ...
+                        this.build_centered_and_rescaled(bold_)));
+
+                    % Store physio signals
                     if ~all(physio_ == 0)
-                        this.physio_signal_ = this.build_band_passed(this.build_centered_and_rescaled(physio_));
-                        this.physio_signal_ = this.build_final_normalization(this.physio_signal_);
+                        this.physio_signal_ = ...
+                            this.build_final_normalization( ...
+                            this.build_band_passed( ...
+                            this.build_centered_and_rescaled(physio_)));
+
+                        % Store analytic signals
                         % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                        this.analytic_signal_ = this.build_band_passed( ...
-                            this.build_centered_and_rescaled(conj(physio_)) .* ...
-                            this.build_centered_and_rescaled(bold_));
-                        this.analytic_signal_ = this.build_final_normalization(this.analytic_signal_);
+                        this.analytic_signal_ = ...
+                            this.build_final_normalization( ...
+                            this.build_band_passed( ...
+                                this.build_centered_and_rescaled(conj(physio_)) .* ...
+                                this.build_centered_and_rescaled(bold_)));
                     else
                         this.physio_signal_ = physio_;
                         this.analytic_signal_ = this.bold_signal_;
@@ -119,7 +207,13 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                             sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
                             do_save_dynamic=this.do_save_dynamic);
 
-                        % analytic_signal_ - bold_signal_
+                        % connectivity(this.bold_signal_, this.physio_signal_), with matching normalizations
+                        this.write_cifti( ...
+                            this.connectivity(this.bold_signal_, this.physio_signal_), ...
+                            sprintf('connectivity_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                        this.build_angles_gt_0();
+                    end
+                    if this.do_save_ciftis_of_diffs  % analytic_signal_ - bold_signal_
                         diff_ = this.analytic_signal_ - this.bold_signal_;
                         this.write_ciftis( ...
                             abs(diff_), ...

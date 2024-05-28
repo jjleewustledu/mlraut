@@ -8,17 +8,20 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
     methods (Static)
         function parcall(cores, opts)
             arguments
-                cores {mustBeScalarOrEmpty} = 24
+                cores {mustBeScalarOrEmpty} = 4
                 opts.N_sub {mustBeScalarOrEmpty} = 1113
+                opts.flip_globbed logical = true
             end
 
             root_dir = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
             %root_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/HcpAging/HCPAgingRec/fmriresults01';
-            %out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignal';
+            out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignal';
             %out_dir = '/vgpool02/data2/jjlee/AnalyticSignalHcpAging';
 
             g = glob(fullfile(root_dir, '*'));
-            g = flip(g); % examine more recent ones
+            if opts.flip_globbed
+                g = flip(g); % examine more recent ones
+            end
             g = cellfun(@(x) basename(x), g, UniformOutput=false);
             g = g(~contains(g, 'manifests'));
             g = g(1:opts.N_sub);
@@ -27,10 +30,14 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
             %parfor (idxg = 1:2, 2)
             parfor (idxg = 1:leng, cores)
                 try
+                    if isfolder(fullfile(out_dir, g(idxg)))
+                        continue
+                    end
                     this = mlraut.AnalyticSignalPar( ...
                         subjects=g(idxg), ...                     
-                        do_save=true, ...
-                        do_save_ciftis=false, ...
+                        do_save=false, ...
+                        do_save_ciftis=true, ...
+                        do_save_ciftis_of_diffs=false, ...
                         tags="AnalyticSignalPar-parcall");
                     call(this);
                 catch ME

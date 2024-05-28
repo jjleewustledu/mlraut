@@ -272,11 +272,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
                             sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
                             do_save_dynamic=this.do_save_dynamic);
 
-                        % real this.bold_signal_ with matching normalizations
-                        this.write_ciftis( ...
-                            real(this.bold_signal_), ...
-                            sprintf('real_bold_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
+                        % connectivity(this.bold_signal_, this.physio_signal_), with matching normalizations
+                        this.write_cifti( ...
+                            this.connectivity(this.bold_signal_, this.physio_signal_), ...
+                            sprintf('connectivity_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
                     end
                     if this.do_save_ciftis_of_diffs  % analytic_signal_ - bold_signal_
                         diff_ = this.analytic_signal_ - this.bold_signal_;
@@ -398,7 +397,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 dat1 = double(dat1);
             end
         end
-        function psi = build_centered(this, psi)
+        function psi = build_centered(~, psi)
             assert(~isempty(psi))
             if all(psi == 0)
                 return
@@ -490,7 +489,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             psi = psi - this.build_global_signal_for(psi);
         end
-        function psi = build_rescaled(this, psi)
+        function psi = build_rescaled(~, psi)
             assert(~isempty(psi))
             if all(psi == 0)
                 return
@@ -498,6 +497,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             d = mad(abs(psi), 1, 'all');  % median abs. dev.
             psi = psi./d;
+        end
+        function mat = connectivity(~, bold, seed)
+            bold = real(bold)';  % Nx x Nt
+            seed = real(seed)';  % 1 x Nt
+            Nx = size(bold, 1);
+            mat = nan(Nx, 1);  % Nx x 1
+            for pos = 1:Nx
+                R = corrcoef(bold(pos, :), seed);
+                mat(pos) = R(1, 2);
+            end
         end
         function obj = identity(~, obj)
         end
@@ -725,6 +734,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
         function u = unwrap(~, psi)
             u = unwrap(angle(psi));
+        end
+        function write_cifti(this, varargin)
+            this.cifti_.write_cifti(varargin{:});
         end
         function write_ciftis(this, varargin)
             this.cifti_.write_ciftis(varargin{:});

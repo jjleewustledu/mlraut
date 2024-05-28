@@ -103,7 +103,7 @@ classdef HCP < handle & mlsystem.IHandle
                 return
             end
             this.tasks_ = cellfun(@basename, glob(fullfile(tasks_dir, '*')), UniformOutput=false);
-            %this.tasks_ = this.tasks_(~contains(this.tasks_, '7T'));
+            this.tasks_ = this.tasks_(~contains(this.tasks_, '7T'));
             this.tasks_ = this.tasks_(~contains(this.tasks_, 'tfMRI'));
             g = this.tasks_;
         end

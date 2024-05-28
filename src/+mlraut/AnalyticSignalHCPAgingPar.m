@@ -8,8 +8,8 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
     methods (Static)
         function parcall(cores, opts)
             arguments
-                cores {mustBeScalarOrEmpty} = 3
-                opts.N_sub {mustBeScalarOrEmpty} = 3 % 725
+                cores {mustBeScalarOrEmpty} = 8
+                opts.N_sub {mustBeScalarOrEmpty} = 725
             end
 
             % root_dir = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
@@ -21,8 +21,8 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
             g = cellfun(@(x) basename(x), g, UniformOutput=false);
             g = g(1:opts.N_sub);
             leng = length(g);
-            for idxg = 1:1
-            % parfor (idxg = 1:leng, cores)
+            %for idxg = 1:1
+            parfor (idxg = 1:leng, cores)
                 try
                     tic
                     this = mlraut.AnalyticSignalHCPAging( ...
