@@ -29,9 +29,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
     properties (Dependent)
         global_signal
         global_signal_regression  % logical
-        hp_thresh  % lower bound, Ryan ~ 0.01 Hz -> units of 1/frame_duration
+        hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz -> dimensionless
         json
-        lp_thresh  % higher bound, Ryan ~ 0.05 Hz -> units of 1/frame_duration
+        lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz -> dimensionless
         no_physio
         num_nets
         num_sub
@@ -56,7 +56,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             N = this.num_frames - 2*this.num_frames_to_trim;
             Nyquist = 2/N; % Nyquist limited
             if this.force_band
-                g = max(0.01*this.tr, Nyquist);
+                g = max(0.01, Nyquist);
                 return
             end
             if ~isempty(this.hp_thresh_)
@@ -74,7 +74,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function g = get.lp_thresh(this)
             Nyquist = 1/2; % Nyquist limited
             if this.force_band
-                g = min(0.1*this.tr, Nyquist);
+                g = min(0.05, Nyquist);
                 return
             end
             if ~isempty(this.lp_thresh_)
@@ -387,7 +387,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 dat1 = dat;
                 return
             end
-            [z,p,k] = butter(2, [this.hp_thresh/2, 2*this.lp_thresh - eps('single')]); % digital Wn in [0, 1]
+            [z,p,k] = butter(2, [this.hp_thresh, this.lp_thresh - eps('single')]/(this.Fs/2)); % digital Wn in [0, 1]
             [sos,g] = zp2sos(z, p, k);
             dat1 = filtfilt(sos, g, double(dat));
             if isa(dat, 'single')
