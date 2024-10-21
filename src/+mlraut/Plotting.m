@@ -12,7 +12,8 @@ classdef Plotting < handle & mlsystem.IHandle
     end
 
     properties (Dependent)
-        region_list
+        anatomy_list
+        rsn_list
         do_save
         Fs
         HCP_signals
@@ -31,8 +32,11 @@ classdef Plotting < handle & mlsystem.IHandle
     end
 
     methods %% GET
-        function g = get.region_list(this)
-            g = this.ias_.region_list;
+        function g = get.anatomy_list(this)
+            g = this.ias_.anatomy_list;
+        end
+        function g = get.rsn_list(this)
+            g = this.ias_.rsn_list;
         end
         function g = get.do_save(this)
             g = this.ias_.do_save;
@@ -86,16 +90,16 @@ classdef Plotting < handle & mlsystem.IHandle
             %  Args:
             %      this mlraut.Plotting           
             %      opts.measure function_handle = @angle
-            %      opts.region {mustBeTextScalar} = 'ctx'
+            %      opts.anatomy {mustBeTextScalar} = 'ctx'
 
             arguments
                 this mlraut.Plotting    
                 opts.freq_limits {mustBeNumeric} = []
                 opts.measure function_handle = @real
-                opts.region {mustBeTextScalar} = 'ctx'
+                opts.anatomy {mustBeTextScalar} = 'ctx'
             end
-            assert(contains(opts.region, {'cbm', 'ctx', 'str', 'thal'}))
-            signals = this.HCP_signals.(lower(opts.region));
+            assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
+            signals = this.HCP_signals.(lower(opts.anatomy));
             if isreal(signals)
                 return
             end
@@ -107,10 +111,10 @@ classdef Plotting < handle & mlsystem.IHandle
 
             % emd
             if ~this.do_plot_emd % which automates many plots
-                for k = 1:length(this.region_list)
+                for k = 1:length(this.rsn_list)
                     emd(opts.measure(signals(:,k)), SiftMaxIterations=256)
                     set(gcf, Position=[0 0 2880*0.618 2880*0.618]);
-                    title(sprintf('EMD %s, showing 3 IMFs, RSN %s\n', char(opts.measure), this.region_list{k}), FontSize=14)
+                    title(sprintf('EMD %s, showing 3 IMFs, RSN %s\n', char(opts.measure), this.rsn_list{k}), FontSize=14)
                 end
             end
 
@@ -118,23 +122,23 @@ classdef Plotting < handle & mlsystem.IHandle
             h2 = figure;
             h2.Position = [0 0 2880 2880*0.618];
             tiledlayout(3,3);
-            for k = 1:length(this.region_list)
+            for k = 1:length(this.rsn_list)
                 nexttile
                 hht(emd(opts.measure(signals(:,k))), this.Fs, FrequencyLimits=Flim); % MaxNumIMF=5
-                title(sprintf('Hilbert Spectrum, opts.measure, %s', char(opts.measure), this.region_list{k}))
+                title(sprintf('Hilbert Spectrum, opts.measure, %s', char(opts.measure), this.rsn_list{k}))
             end
 
             % fsst
             h3 = figure;
             h3.Position = [0 0 2880 2880*0.618];
             tiledlayout(3,3);
-            for k = 1:length(this.region_list)
+            for k = 1:length(this.rsn_list)
                 nexttile
                 fsst(opts.measure(signals(:,k)), this.Fs, 'yaxis')
-                title(sprintf('Fourier synchrosqueezed transform, %s, %s', char(opts.measure), this.region_list{k}))
+                title(sprintf('Fourier synchrosqueezed transform, %s, %s', char(opts.measure), this.rsn_list{k}))
             end
 
-            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.region));
+            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.anatomy));
         end
         function h1 = plot_global_physio(this, opts)
             %  Args:
@@ -167,28 +171,29 @@ classdef Plotting < handle & mlsystem.IHandle
                 this mlraut.Plotting
                 funh function_handle
                 opts.measure function_handle
+                opts.anatomy {mustBeTextScalar} = 'ctx'
             end
 
-            for anat = this.region_list
-                opts.region = anat{1};
-                funh(measure=opts.measure, region=opts.region);
+            for anat = this.anatomy_list
+                opts.anatomy = anat{1};
+                funh(measure=opts.measure, anatomy=opts.anatomy);
             end
         end
         function [h1,h3] = plot_networks(this, opts)
             %  Args:
             %      this mlraut.Plotting           
             %      opts.measure function_handle = @abs
-            %      opts.region {mustBeTextScalar} = 'ctx'
+            %      opts.anatomy {mustBeTextScalar} = 'ctx'
             %      opts.plot_range {mustBeInteger} = 150:300
 
             arguments
                 this mlraut.Plotting           
                 opts.measure function_handle = @abs
-                opts.region {mustBeTextScalar} = 'ctx'
+                opts.anatomy {mustBeTextScalar} = 'ctx'
                 opts.plot_range {mustBeInteger} = []
             end
-            assert(contains(opts.region, {'cbm', 'ctx', 'str', 'thal'}))
-            signals = this.HCP_signals.(lower(opts.region));
+            assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
+            signals = this.HCP_signals.(lower(opts.anatomy));
             if isreal(signals) && ~strcmp(char(opts.measure), char(@real))
                 return
             end
@@ -211,9 +216,9 @@ classdef Plotting < handle & mlsystem.IHandle
             plot(secs_(opts.plot_range), meas6_(opts.plot_range), '--', LineWidth=2); % frontoparietal
             meas7_ = opts.measure(signals(:, 7));
             plot(secs_(opts.plot_range), meas7_(opts.plot_range), '--', LineWidth=2); % default mode
-            legend(this.region_list(1:7), FontSize=18)
+            legend(this.rsn_list(1:7), FontSize=18)
             xlabel('time/s', FontSize=24)
-            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.region), FontSize=24, Interpreter="none")
+            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.anatomy), FontSize=24, Interpreter="none")
             title(sprintf('Yeo RSNs, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
             hold off
 
@@ -227,26 +232,26 @@ classdef Plotting < handle & mlsystem.IHandle
             % 9 is instrinsic (task-)
             meas9_ = opts.measure(signals(:, 9));
             plot(secs_(opts.plot_range), meas9_(opts.plot_range), '--', LineWidth=2);
-            legend(this.region_list(8:9), FontSize=18)
+            legend(this.rsn_list(8:9), FontSize=18)
             xlabel('time/s', FontSize=24)
-            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.region), FontSize=24, Interpreter="none")
+            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.anatomy), FontSize=24, Interpreter="none")
             title(sprintf('Task +/-, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
             hold off
 
-            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.region));
+            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.anatomy));
         end
         function [h,h1,h2] = plot_radar(this, opts)
             %  Args:
             %      this mlraut.Plotting           
-            %      opts.region {mustBeTextScalar} = 'ctx'
+            %      opts.anatomy {mustBeTextScalar} = 'ctx'
 
             arguments
                 this mlraut.Plotting
                 opts.measure function_handle = @this.identity
-                opts.region {mustBeText} = 'ctx'
+                opts.anatomy {mustBeText} = 'ctx'
             end
-            assert(contains(opts.region, {'cbm', 'ctx', 'str', 'thal'}))
-            signals = this.HCP_signals.(lower(opts.region));
+            assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
+            signals = this.HCP_signals.(lower(opts.anatomy));
             if isreal(signals)
                 return
             end
@@ -260,9 +265,9 @@ classdef Plotting < handle & mlsystem.IHandle
             end
             plot(signals(:, 6), '.', MarkerSize=8)
             plot(signals(:, 7), '.', MarkerSize=8)
-            legend([this.region_list(1:3) this.region_list(6:7)], FontSize=18)
-            xlabel(sprintf('real(%s_signals)', opts.region), FontSize=24, Interpreter="none")
-            ylabel(sprintf('imag(%s_signals)', opts.region), FontSize=24, Interpreter="none")
+            legend([this.rsn_list(1:3) this.rsn_list(6:7)], FontSize=18)
+            xlabel(sprintf('real(%s_signals)', opts.anatomy), FontSize=24, Interpreter="none")
+            ylabel(sprintf('imag(%s_signals)', opts.anatomy), FontSize=24, Interpreter="none")
             hold off
 
             % plot "radar" of task+ and task-
@@ -274,8 +279,8 @@ classdef Plotting < handle & mlsystem.IHandle
             %plot(this.global_signal, '-.')
             %plot(this.physio_signal, '-.')
             legend({'task+', 'task-'}, FontSize=18)
-            xlabel(sprintf('real(%s_signals)', opts.region), FontSize=24, Interpreter="none")
-            ylabel(sprintf('imag(%s_signals)', opts.region), FontSize=24, Interpreter="none")
+            xlabel(sprintf('real(%s_signals)', opts.anatomy), FontSize=24, Interpreter="none")
+            ylabel(sprintf('imag(%s_signals)', opts.anatomy), FontSize=24, Interpreter="none")
             hold off
 
             % plot "radar" of global signal, arousal signal
@@ -289,7 +294,7 @@ classdef Plotting < handle & mlsystem.IHandle
             ylabel('imag(signal)', FontSize=24, Interpreter="none")
             hold off
 
-            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.region));
+            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.anatomy));
         end
         function [h,h1] = plot_timeseries_qc(this, tseries, opts)
             arguments

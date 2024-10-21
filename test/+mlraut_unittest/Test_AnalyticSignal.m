@@ -447,7 +447,8 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             % 3D Line Plot
             subplot(1, 2, 1);
-            plot3(t, real(z), imag(z));
+            civ = cividis;
+            plot3(t, real(z), imag(z), LineWidth=2, Color=civ(1,:));
             xlabel('Time');
             ylabel('Real Part');
             zlabel('Imaginary Part');
@@ -456,17 +457,18 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             % Add a 2D projection onto the complex plane
             subplot(1, 2, 2);
-            scatter(real(z), imag(z), [], t, 'filled');
+            scatter(real(z), imag(z), [], t, 'filled', 'o', MarkerFaceAlpha=0.8);
             xlabel('Real Part');
             ylabel('Imaginary Part');
             title('Complex Time Series: Complex Plane Projection');
             axis equal;
             colorbar;
-            colormap('jet');
+            colormap('cividis');
             c = colorbar;
             c.Label.String = 'Time';
 
             % Adjust the layout
+            fontsize(scale=1.5)
             sgtitle('Complex Oscillatory Time Series Visualization');
         end
     end

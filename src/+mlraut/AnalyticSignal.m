@@ -27,12 +27,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
     end
 
     properties (Dependent)
+        anatomy_list
         global_signal
         global_signal_regression  % logical
         hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz -> dimensionless
         json
         lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz -> dimensionless
-        region_list
+        rsn_list
         scale_to_hcp  % adjust norm by time of scanning
         tags  % for filenames
         tags_user
@@ -42,6 +43,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
     end
 
     methods %% GET, SET
+        function g = get.anatomy_list(this)
+            g = {'cbm', 'ctx', 'str', 'thal'};
+        end
         function g = get.global_signal(this)
             g = this.global_signal_;
         end
@@ -84,7 +88,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             g = Nyquist;
         end     
 
-        function g = get.region_list(this)
+        function g = get.rsn_list(~)
             g = mlraut.NetworkData.NETWORKS_YEO_NAMES;
         end
 
@@ -342,7 +346,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 this mlraut.AnalyticSignal
                 opts.t double = []
                 opts.x double = []
-                opts.title = stackstr(use_spaces=true)
+                opts.title = ""
             end
             if isempty(opts.t)
                 tf = this.num_frames*this.tr;
@@ -371,7 +375,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             % Plot the power spectrum on a log-log scale
             figure;
-            loglog(f, P);
+            civ = cividis;
+            loglog(f, P, LineWidth=2, Color=civ(1,:));
             xlabel('Frequency (Hz)');
             ylabel('Power');
             title(opts.title);
@@ -386,8 +391,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             % Add the fit line to the plot
             hold on;
-            loglog(f(fit_range), 10.^(polyval(p, log10(f(fit_range)))), 'r--', 'LineWidth', 2);
-            legend('times-series', sprintf('power law exponent = %.2f', p(1)), Location="southeast");
+            loglog(f(fit_range), 10.^(polyval(p, log10(f(fit_range)))), 'm--', 'LineWidth', 2);
+            legend('BOLD', sprintf('power law exponent = %.2f', p(1)), Location="southeast");
+            fontsize(scale=1.5)
 
             % Display the slope (which is the power law exponent)
             fprintf('Power law exponent: %.2f\n', p(1));
@@ -431,14 +437,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
             z = opts.z;
 
             % Create the 3D figure
-            figure('Position', [100, 100, 1200, 500]);
+            figure('Position', [100, 100, 1800, 600]);
 
             % 3D Line Plot
-            subplot(1, 2, 1);
-            plot3(t, real(z), imag(z));
+            tlo = tiledlayout(1,3);
+            nexttile(1, [1, 2]);
+            civ = cividis;
+            plot3(t, real(z), imag(z), LineWidth=2, Color=civ(1,:));
             xlabel('time / s');
-            ylabel('real');
-            zlabel('imag');
+            ylabel('Re \psi(t)');
+            zlabel('Im \psi(t)');
             title("");
             grid on;
 
@@ -447,10 +455,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             pbaspect([4 1 1]);  % Stretch time axis (x-axis) by a factor of 3
 
             % Add a 2D projection onto the complex plane
-            subplot(1, 2, 2);
-            scatter(real(z), imag(z), [], t, '.');
-            xlabel('real');
-            ylabel('imag');
+            nexttile;
+            scatter(real(z), imag(z), [], t, 'filled', 'o', MarkerFaceAlpha=0.618);
+            xlabel('Re \psi(t)');
+            ylabel('Im \psi(t)');
             title("");
             axis equal;
             colorbar;
@@ -459,7 +467,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             c.Label.String = 'time / s';
 
             % Adjust the layout
-            sgtitle(opts.title);
+            fontsize(scale=1.5)
+            title(tlo, opts.title);
         end
 
         function plot_emd(this, varargin)
