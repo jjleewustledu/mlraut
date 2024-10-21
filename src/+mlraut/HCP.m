@@ -23,7 +23,7 @@ classdef HCP < handle & mlsystem.IHandle
         Fs  % BOLD sampling rate (Hz)
         num_frames
         num_frames_ori  % set by BOLDData.task_dtseries()
-        num_frames_to_trim  % used by HCP.task_dtseries, HCP.trim_frames, AnalyticSignal.physio_*(); Ryan used 4
+        num_frames_to_trim  % used by HCP.task_dtseries, HCP.trim_frames, AnalyticSignalHCP.physio_*(); Ryan used 4
         num_nodes  % set by BOLDData
         out_dir
         root_dir  % HCP data directory
@@ -229,6 +229,7 @@ classdef HCP < handle & mlsystem.IHandle
             %      opts.max_frames double = Inf
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tasks cell {mustBeText} = {}
+            %      opts.network {mustBeText} = ""
 
             arguments
                 opts.max_frames double = Inf

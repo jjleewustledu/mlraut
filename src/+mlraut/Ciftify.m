@@ -53,7 +53,7 @@ classdef Ciftify < handle & mlsystem.IHandle
             g = fullfile(this.workdir, "tmp_dcm2bids");
         end
         function g = get.workdir(~)
-           g = fullfile(getenv('SINGULARITY_HOME'), 'AnalyticSignal', 'analytic_signal');
+           g = fullfile(getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'analytic_signal');
         end
     end
 
@@ -205,7 +205,7 @@ classdef Ciftify < handle & mlsystem.IHandle
             disp(c.AdditionalProperties)            
             mladni.CHPC3.setenvs();
 
-            ld = load(fullfile(getenv('SINGULARITY_HOME'), 'AnalyticSignal', 'analytic_signal', 'parcluster_globbed.mat'));
+            ld = load(fullfile(getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'analytic_signal', 'parcluster_globbed.mat'));
             globbed = ld.globbed;
             if 1 == n_cpus
                 j = c.batch(@mlraut.Ciftify.fmriprep_ciftify_singularity, 1, {globbed{1}, 1}, ...
@@ -283,10 +283,10 @@ classdef Ciftify < handle & mlsystem.IHandle
             mladni.CHPC3.setenvs();            
             t0 = tic;
             try
-                derivdir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignal", "analytic_signal", mybasename(derivdir));
+                derivdir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP", "analytic_signal", mybasename(derivdir));
                 outdir = strrep(derivdir, "derivatives", "dockerout");
-                license = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignal", "analytic_signal", "license.txt");
-                image = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignal", "tigrlab_fmriprep_ciftify_v1.3.2-2.3.3-2019-08-16-0a84f7a43b38.simg");
+                license = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP", "analytic_signal", "license.txt");
+                image = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP", "tigrlab_fmriprep_ciftify_v1.3.2-2.3.3-2019-08-16-0a84f7a43b38.simg");
                 s = sprintf("singularity run --cleanenv -B %s:/data -B %s:/out -B %s:/fs_license.txt %s /data /out participant --n_cpus %g --fs-license /fs_license.txt", ...
                     derivdir, outdir, license, image, n_cpus);
                 system(s)

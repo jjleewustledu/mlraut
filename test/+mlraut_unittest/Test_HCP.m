@@ -23,7 +23,7 @@ classdef Test_HCP < matlab.unittest.TestCase
             hcp.current_task = 'rfMRI_REST1_RL';
             %disp(hcp)
 
-            this.verifyEqual(mybasename(hcp.out_dir), "AnalyticSignal")
+            this.verifyEqual(mybasename(hcp.out_dir), "AnalyticSignalHCP")
             this.verifyEqual(mybasename(hcp.root_dir), "HCP_1200")
             this.verifyEqual(mybasename(hcp.task_dir), "rfMRI_REST1_RL")
             this.verifyEqual(mybasename(hcp.task_dtseries_fqfn, withext=true), "rfMRI_REST1_RL_Atlas_MSMAll_hp2000_clean.dtseries.nii")
@@ -49,7 +49,7 @@ classdef Test_HCP < matlab.unittest.TestCase
             this.verifyTrue(isempty(this.testObj.tasks));
             this.verifyTrue(isempty(this.testObj.current_task));
 
-            this.verifyTrue(contains(this.testObj.out_dir, "AnalyticSignal"));
+            this.verifyTrue(contains(this.testObj.out_dir, "AnalyticSignalHCP"));
             this.verifyTrue(contains(this.testObj.root_dir, "HCP_1200"));
             this.verifyTrue(contains(this.testObj.task_dir, fullfile("HCP_1200", "MNINonLinear", "Results")));
             this.verifyTrue(contains(this.testObj.waves_dir, fullfile("MATLAB-Drive", "arousal-waves-main")));

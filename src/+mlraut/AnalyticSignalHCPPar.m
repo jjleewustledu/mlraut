@@ -1,4 +1,4 @@
-classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
+classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
     %% line1
     %  line2
     %  
@@ -15,7 +15,7 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
 
             root_dir = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
             %root_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/HcpAging/HCPAgingRec/fmriresults01';
-            out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignal';
+            out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP';
             %out_dir = '/vgpool02/data2/jjlee/AnalyticSignalHcpAging';
 
             g = glob(fullfile(root_dir, '*'));
@@ -33,12 +33,12 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
                     if isfolder(fullfile(out_dir, g(idxg)))
                         continue
                     end
-                    this = mlraut.AnalyticSignalPar( ...
+                    this = mlraut.AnalyticSignalHCPPar( ...
                         subjects=g(idxg), ...                     
                         do_save=false, ...
                         do_save_ciftis=true, ...
                         do_save_ciftis_of_diffs=false, ...
-                        tags="AnalyticSignalPar-parcall");
+                        tags="AnalyticSignalHCPPar-parcall");
                     call(this);
                 catch ME
                     handwarning(ME)
@@ -48,8 +48,8 @@ classdef AnalyticSignalPar < handle & mlraut.AnalyticSignal
     end
 
     methods
-        function this = AnalyticSignalPar(varargin)
-            this = this@mlraut.AnalyticSignal(varargin{:});
+        function this = AnalyticSignalHCPPar(varargin)
+            this = this@mlraut.AnalyticSignalHCP(varargin{:});
         end
     end
     

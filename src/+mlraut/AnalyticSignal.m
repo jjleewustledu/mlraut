@@ -32,16 +32,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
         hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz -> dimensionless
         json
         lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz -> dimensionless
-        no_physio
-        num_nets
-        num_sub
-        num_tasks
+        region_list
         scale_to_hcp  % adjust norm by time of scanning
         tags  % for filenames
+        tags_user
 
-        analytic_signal
         bold_signal
-        HCP_signals
         physio_signal
     end
 
@@ -49,9 +45,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function g = get.global_signal(this)
             g = this.global_signal_;
         end
+
         function g = get.global_signal_regression(this)
             g = this.global_signal_regression_;
         end
+
         function g = get.hp_thresh(this)
             N = this.num_frames - 2*this.num_frames_to_trim;
             Nyquist = 2/N; % Nyquist limited
@@ -65,16 +63,18 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             g = Nyquist; 
         end
+
         function g = get.json(this)
             g = this.cohort_data_.json;
         end
         function     set.json(this, s)
             this.cohort_data_.json = s;
         end
+
         function g = get.lp_thresh(this)
             Nyquist = 1/2; % Nyquist limited
             if this.force_band
-                g = min(0.05, Nyquist);
+                g = min(0.1, Nyquist);
                 return
             end
             if ~isempty(this.lp_thresh_)
@@ -82,19 +82,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
             g = Nyquist;
-        end        
-        function g = get.no_physio(this)
-            g = ~stricmp(this.source_physio, "none") && ~stricmp(this.source_physio, "nophy");
+        end     
+
+        function g = get.region_list(this)
+            g = mlraut.NetworkData.NETWORKS_YEO_NAMES;
         end
-        function g = get.num_nets(this)
-            g = length(mlraut.NetworkData.NETWORKS_YEO_NAMES);
-        end
-        function g = get.num_sub(this)
-            g = numel(this.subjects);
-        end
-        function g = get.num_tasks(this)
-            g = numel(this.tasks);
-        end        
+
         function g = get.scale_to_hcp(this)
             if ~isempty(this.scale_to_hcp_)
                 g = this.scale_to_hcp_;
@@ -104,6 +97,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.scale_to_hcp_ = min(1192, this.max_frames)*0.72/(this.num_frames*this.tr);
             g = this.scale_to_hcp_;
         end
+
         function g = get.tags(this)
             if isempty(this.final_normalization) && strcmp(this.source_physio, "iFV") && ...
                     ~isempty(this.hp_thresh) && ~isempty(this.lp_thresh)
@@ -128,250 +122,65 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if isfinite(this.max_frames)
                 g = g + "-maxframes" + num2str(this.max_frames);
             end
-            if ~isemptytext(this.tags_) 
-                g = g + "-" + this.tags_;
+            if ~isemptytext(this.tags_user_) 
+                g = g + "-" + this.tags_user_;
             end
         end
 
-        function g = get.analytic_signal(this)
-            g = this.analytic_signal_;
+        function g = get.tags_user(this)
+            g = this.tags_user_;
+        end        
+        function set.tags_user(this, s)
+            this.tags_user_ = s;
         end
+
         function g = get.bold_signal(this)
             g = this.bold_signal_;
         end
-        function g = get.HCP_signals(this)
-            g = this.HCP_signals_;
-        end
+
         function g = get.physio_signal(this)
             g = this.physio_signal_;
         end
     end
     
     methods
+
+        %% helpers for buillding
+
         function a = angle(~, as)
             a = unwrap(angle(as)); % [-pi pi] -> [-inf inf]
             a = mod(a, 2*pi); % [-inf inf] -> [0 2*pi]
         end
-        function psis = average_network_signals(this, psi)
-            cbm = mlraut.CerebellarData(this, psi);
-            this.HCP_signals_.cbm = cbm.build_Yeo_signals();
-            ctx = mlraut.CorticalData(this, psi);
-            this.HCP_signals_.ctx = ctx.build_Yeo_signals();
-            str = mlraut.StriatalData(this, psi);
-            this.HCP_signals_.str = str.build_Yeo_signals();
-            thal = mlraut.ThalamicData(this, psi);
-            this.HCP_signals_.thal = thal.build_Yeo_signals();
 
-            psis = this.HCP_signals;
-        end
-        function this = call(this, opts)
-            %% CALL all subjects
-
+        function psi = average_network_signal(this, psi, opts)
             arguments
                 this mlraut.AnalyticSignal
-                opts.do_qc logical = false
+                psi {mustBeNumeric}
+                opts.network_type {mustBeText} = "cortical"
             end
 
-            % exclude subjects
-            this.subjects = this.subjects(~contains(this.subjects, '_7T'));
-            %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
-
-            out_dir_ = this.out_dir;
-            for s = 1:this.num_sub
-                try
-                    this.current_subject = this.subjects{s};
-                    if ~contains(out_dir_, this.current_subject)
-                        proposed_dir = fullfile(out_dir_, this.current_subject);
-                        this.out_dir = proposed_dir;
-                        ensuredir(proposed_dir);
-                    end
-                    if opts.do_qc
-                        this.call_subject_qc(s);
-                    else
-                        this.call_subject(s);
-                    end
-                catch ME
-                    handexcept(ME)
-                end
+            if contains(opts.network_type, "cerebell", IgnoreCase=true)
+                dat = mlraut.CerebellarData(this, psi);
+                psi = dat.build_Yeo_signals();
+                return
             end
+            if contains(opts.network_type, "cort", IgnoreCase=true)
+                dat = mlraut.CorticalData(this, psi);
+                psi = dat.build_Yeo_signals();
+                return
+            end
+            if contains(opts.network_type, "striat", IgnoreCase=true)
+                dat = mlraut.StriatalData(this, psi);
+                psi = dat.build_Yeo_signals();
+                return
+            end
+            if contains(opts.network_type, "thalam", IgnoreCase=true)
+                dat = mlraut.ThalamicData(this, psi);
+                psi = dat.build_Yeo_signals();
+                return
+            end
+            error("mlraut:ValueError", stackstr())
         end
-        function this = call_subject(this, s)
-            arguments
-                this mlraut.AnalyticSignal
-                s double
-            end
-
-            this.malloc();
-            for t = 1:this.num_tasks     
-                try
-                    this.current_task = this.tasks{t};
-
-                    % BOLD
-                    try
-                        bold_ = ...
-                            hilbert( ...
-                            this.build_global_signal_regressed(this.task_dtseries()));
-                    catch ME
-                        disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
-                        handwarning(ME)
-                        continue
-                    end
-
-                    % Physio
-                    try
-                        physio_ = ...
-                            hilbert( ...
-                            this.build_global_signal_regressed(this.task_physio()));
-                    catch ME
-                        disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                        handwarning(ME)
-                        continue
-                    end
-
-                    % Store BOLD signals
-                    this.bold_signal_ = ...
-                        this.build_final_normalization( ...
-                        this.build_band_passed( ...
-                        this.build_centered_and_rescaled(bold_)));
-
-                    % Store physio signals
-                    if ~all(physio_ == 0)
-                        this.physio_signal_ = ...
-                            this.build_final_normalization( ...
-                            this.build_band_passed( ...
-                            this.build_centered_and_rescaled(physio_)));
-
-                        % Store analytic signals
-                        % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                        this.analytic_signal_ = ...
-                            this.build_final_normalization( ...
-                            this.build_band_passed( ...
-                                this.build_centered_and_rescaled(conj(physio_)) .* ...
-                                this.build_centered_and_rescaled(bold_)));
-                    else
-                        this.physio_signal_ = physio_;
-                        this.analytic_signal_ = this.bold_signal_;
-                    end
-
-                    % Averages for networks
-                    this.average_network_signals(this.analytic_signal_);
-
-                    % Store reduced analytic signal, real(), imag(), abs(), angle()
-                    if this.do_save
-                        % Store reduced analytic signals for all s, t
-                        % grid of data from s, t may be assessed with stats
-                        save(this, s, t);
-                    end
-                    if this.do_save_ciftis
-                        this.write_ciftis( ...
-                            abs(this.analytic_signal_), ...
-                            sprintf('abs_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            angle(this.analytic_signal_), ...
-                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-
-                        % connectivity(this.bold_signal_, this.physio_signal_), with matching normalizations
-                        this.write_cifti( ...
-                            this.connectivity(this.bold_signal_, this.physio_signal_), ...
-                            sprintf('connectivity_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
-                    end
-                    if this.do_save_ciftis_of_diffs  % analytic_signal_ - bold_signal_
-                        diff_ = this.analytic_signal_ - this.bold_signal_;
-                        this.write_ciftis( ...
-                            abs(diff_), ...
-                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            angle(diff_), ...
-                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-                    end
-
-                    % do plot
-                    if this.do_plot_global_physio
-                        this.plot_global_physio(measure=@this.unwrap);
-                        this.plot_global_physio(measure=@angle);
-                        this.plot_global_physio(measure=@abs);
-                        this.plot_global_physio(measure=@real);
-                    end
-                    if this.do_plot_networks
-                        this.plot_regions(@this.plot_networks, measure=@this.unwrap);
-                        this.plot_regions(@this.plot_networks, measure=@angle);
-                        this.plot_regions(@this.plot_networks, measure=@abs);
-                        this.plot_regions(@this.plot_networks, measure=@real);
-                    end
-                    if this.do_plot_radar
-                        this.plot_regions(@this.plot_radar, measure=@this.identity);
-                    end
-                    if this.do_plot_emd
-                        this.plot_regions(@this.plot_emd, measure=@this.unwrap);
-                        this.plot_regions(@this.plot_emd, measure=@angle);
-                        this.plot_regions(@this.plot_emd, measure=@abs);
-                    end
-                catch ME
-                    handwarning(ME)
-                end
-            end
-        end
-        function this = call_subject_qc(this, s, t)
-            arguments
-                this mlraut.AnalyticSignal
-                s double = 1
-                t double = 1
-            end
-
-            this.malloc();            
-            this.current_task = this.tasks{t};
-            tic
-
-            % BOLD
-            bold_ = this.task_dtseries(); 
-            bold_ = this.build_global_signal_regressed(bold_);
-            this.write_ciftis(bold_, "bold-subgs-"+this.global_signal_regression_);
-             
-            % Physio
-            physio_ = this.task_physio();
-            physio_ = this.build_global_signal_regressed(physio_);
-            this.write_nii(physio_, this.source_physio+"-subgs-"+this.global_signal_regression_);
-
-            % BOLD for Analytic signal
-            psi = this.build_centered(bold_);
-            this.write_ciftis(psi, "centered-bold-subgs-"+this.global_signal_regression_);
-            psi = this.build_rescaled(psi);
-            this.write_ciftis(psi, "rescaled-centered-bold-subgs-"+this.global_signal_regression_);
-            psi = this.build_band_passed(psi);
-            this.write_ciftis(psi, "lp"+this.lp_thresh+"-hp"+this.hp_thresh+"-rescaled-centered-bold-subgs-"+this.global_signal_regression_);
-            psi = hilbert(psi);
-            this.write_ciftis(abs(psi), "abs-psi");
-            this.write_ciftis(angle(psi), "angle-psi");
-
-            % Physio for Analytic signal
-            phi = this.build_centered(physio_);
-            this.write_nii(phi, "centered-"+this.source_physio+"-subgs-"+this.global_signal_regression_);
-            phi = this.build_rescaled(phi);
-            this.write_nii(phi, "rescaled-centered-"+this.source_physio+"-subgs-"+this.global_signal_regression_);
-            phi = this.build_band_passed(phi);
-            this.write_nii(phi, "lp"+this.lp_thresh+"-hp"+this.hp_thresh+"-rescaled-centered-"+this.source_physio+"-subgs-"+this.global_signal_regression_);
-            phi = hilbert(phi);
-            this.write_nii(abs(phi), "abs-phi");
-            this.write_nii(angle(phi), "angle-phi");
-
-            % Analytic signal aufbau
-            as = conj(phi) .* psi;
-            this.write_ciftis(abs(as), "abs-as");
-            this.write_ciftis(angle(as), "angle-as");
-            as = this.build_final_normalization(as); 
-            if ~isempyttext(this.final_normalization)
-                this.write_ciftis(abs(as), "abs-"+this.final_normalization+"-as");
-                this.write_ciftis(angle(as), "angle-"+this.final_normalization+"-as");
-            end
-
-            this.save(s, t);
-
-            toc
-        end        
         
         function dat1 = build_band_passed(this, dat)
             %% Implements butter:  web(fullfile(docroot, 'signal/ref/butter.html?browser=F1help#bucsfmj')) .
@@ -397,6 +206,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 dat1 = double(dat1);
             end
         end
+
         function psi = build_centered(~, psi)
             assert(~isempty(psi))
             if all(psi == 0)
@@ -404,31 +214,24 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             psi = psi - median(psi, 'all', 'omitnan');
         end
+
         function psi = build_centered_and_rescaled(this, psi)
             %% Mimics z-score of |psi(t,x)> using median and mad.
 
             psi = this.build_centered(psi);
             psi = this.build_rescaled(psi);
         end
-        function as = build_final_normalization(this, as)
-            %% provides final normalization by max(abs()) for more interpretable visualization
 
-            switch convertStringsToChars(this.final_normalization)
-                case 'normt'
-                    % allowing fluctuations in xyz
-                    as = as ./ max(abs(as), 1);
-                case 'normxyz'
-                    % allowing fluctuations in t
-                    as = as ./ max(abs(as), 2);
-                case 'normxyzt'
-                    % allowing fluctuations in xyz & t
-                    as = as / max(abs(as), [], "all");
-                otherwise
-                    return
-            end
-        end
         function [gs,beta] = build_global_signal_for(this, sig)
             %% global_signal := median(sig, "space"), then formatted for greyordinates or 4D voxels
+            %  Args:
+            %    this mlraut.AnalyticSignal
+            %    sig double = ones(this.num_frames, 1)            
+
+            arguments
+                this mlraut.AnalyticSignal
+                sig double = ones(this.num_frames, 1)
+            end
 
             % task niigz in 4D, reshaped to 2D 
             niigz = this.task_niigz();
@@ -479,6 +282,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             error("mlraut:TypeError", stackstr())
         end
+
         function psi = build_global_signal_regressed(this, psi)
             if ~this.global_signal_regression
                 return
@@ -489,6 +293,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             psi = psi - this.build_global_signal_for(psi);
         end
+
         function psi = build_rescaled(~, psi)
             assert(~isempty(psi))
             if all(psi == 0)
@@ -498,30 +303,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             d = mad(abs(psi), 1, 'all');  % median abs. dev.
             psi = psi./d;
         end
-        function mat = connectivity(~, bold, seed)
-            bold = real(bold)';  % Nx x Nt
-            seed = real(seed)';  % 1 x Nt
-            Nx = size(bold, 1);
-            mat = nan(Nx, 1);  % Nx x 1
-            for pos = 1:Nx
-                R = corrcoef(bold(pos, :), seed);
-                mat(pos) = R(1, 2);
-            end
-        end
-        function obj = identity(~, obj)
-        end
-        function this = malloc(this)
 
-            % accumulate for statistics on serialized AnalyticSignal
-            this.bold_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
-            this.physio_signal_ = complex(nan(this.num_frames, 1));   
-            this.analytic_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
-
-            this.HCP_signals_.cbm = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.ctx = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.str = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.thal = complex(nan(this.num_frames,this.num_nets));
-        end
         function b = omit_late_frames(this, b)
             %% Keep frames 1:this.max_frames, following use of trim_frames() to remove this.num_frames_to_trim
             %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
@@ -545,104 +327,194 @@ classdef AnalyticSignal < handle & mlraut.HCP
             error("mlraut:TypeError", stackstr())
         end
 
-        %% PLOTTING
+        %% plotting
+
+        function fit_power_law(this, opts)
+            %% "In matlab, how best should I examine the power spectrum of a time-series for power law behavior?" 
+            %  https://claude.ai/chat/7c0ba283-3bc7-4938-9dec-8acd7bd25e7a
+            %  Args:
+            %    this mlraut.AnalyticSignal
+            %    opts.t double = []
+            %    opts.x double = []
+            %    opts.title = stackstr(use_spaces=true)
+
+            arguments
+                this mlraut.AnalyticSignal
+                opts.t double = []
+                opts.x double = []
+                opts.title = stackstr(use_spaces=true)
+            end
+            if isempty(opts.t)
+                tf = this.num_frames*this.tr;
+                opts.t = 0:this.tr:tf;
+            end
+            t = opts.t;
+            if isempty(opts.x)
+                opts.x = this.build_global_signal_for();
+            end
+            x = opts.x;
+
+            % Compute the Fourier transform
+            N = length(x);
+            X = fft(x);
+
+            % Compute the power spectrum
+            P = abs(X).^2 / N;
+
+            % Compute the corresponding frequencies
+            fs = 1 / (t(2) - t(1));  % Sampling frequency
+            f = (0:N-1)*(fs/N);      % Frequency range
+
+            % Use only the first half of the spectrum (it's symmetric)
+            P = P(1:floor(N/2)+1);
+            f = f(1:floor(N/2)+1);
+
+            % Plot the power spectrum on a log-log scale
+            figure;
+            loglog(f, P);
+            xlabel('Frequency (Hz)');
+            ylabel('Power');
+            title(opts.title);
+            grid on;
+
+            % Optional: Fit a power law
+            % Select a range for fitting (adjust as needed)
+            fit_range = f > this.hp_thresh & f < this.lp_thresh;
+
+            % Perform linear regression on log-log data
+            p = polyfit(log10(f(fit_range)), log10(P(fit_range)), 1);
+
+            % Add the fit line to the plot
+            hold on;
+            loglog(f(fit_range), 10.^(polyval(p, log10(f(fit_range)))), 'r--', 'LineWidth', 2);
+            legend('times-series', sprintf('power law exponent = %.2f', p(1)), Location="southeast");
+
+            % Display the slope (which is the power law exponent)
+            fprintf('Power law exponent: %.2f\n', p(1));
+        end
+
+        function plot3(this, opts)
+            arguments
+                this mlraut.AnalyticSignal
+                opts.t double = []
+                opts.z double = []
+                opts.num_frames double = []
+                opts.title = stackstr(use_spaces=true)
+            end
+            if isempty(opts.num_frames)
+                opts.num_frames = this.num_frames;  % ceil(300/this.tr);
+            end
+            if isempty(opts.t)
+                tf = (opts.num_frames - 1)*this.tr;
+                opts.t = 0:this.tr:tf;
+            end
+            t = opts.t;
+            if isempty(opts.z)
+
+                % select cortical default mode
+                ctx = this.average_network_signal(this.task_dtseries(), network_type="cortical");
+                select_rsn = contains(mlraut.NetworkData.NETWORKS_YEO_NAMES, "default mode");
+                bold_ = ctx(:, select_rsn);
+
+                % aufbau Hilbert transform
+                bold_ = ...
+                    hilbert( ...
+                    this.build_band_passed( ...
+                    this.build_centered_and_rescaled( ...
+                    this.build_global_signal_regressed(bold_))));
+                bold_ = ...                    
+                    this.build_final_normalization( ...
+                        bold_(1:opts.num_frames, :));
+
+                opts.z = bold_;
+            end
+            z = opts.z;
+
+            % Create the 3D figure
+            figure('Position', [100, 100, 1200, 500]);
+
+            % 3D Line Plot
+            subplot(1, 2, 1);
+            plot3(t, real(z), imag(z));
+            xlabel('time / s');
+            ylabel('real');
+            zlabel('imag');
+            title("");
+            grid on;
+
+            % Stretch the time axis
+            %%current_aspect = pbaspect;
+            pbaspect([4 1 1]);  % Stretch time axis (x-axis) by a factor of 3
+
+            % Add a 2D projection onto the complex plane
+            subplot(1, 2, 2);
+            scatter(real(z), imag(z), [], t, '.');
+            xlabel('real');
+            ylabel('imag');
+            title("");
+            axis equal;
+            colorbar;
+            colormap('cividis');
+            c = colorbar;
+            c.Label.String = 'time / s';
+
+            % Adjust the layout
+            sgtitle(opts.title);
+        end
 
         function plot_emd(this, varargin)
             this.plotting_.plot_emd(varargin{:});
         end
+
         function h1 = plot_global_physio(this, varargin)
             this.plotting_.plot_global_physio(varargin{:});
         end
+
         function plot_regions(this, varargin)
             this.plotting_.plot_regions(varargin{:});
         end
+
         function [h1,h3] = plot_networks(this, varargin)
             [h1,h3] = this.plotting_.plot_networks(varargin{:});
         end
+
         function [h,h1,h2] = plot_radar(this, varargin)
             [h,h1,h2] = this.plotting_.plot_radar(varargin{:});
         end
+
         function [h,h1] = plot_timeseries_qc(this, varargin)
             [h,h1] = this.plotting_.plot_timeseries_qc(varargin{:});
         end
         
-        %%
+        %% helpers for BOLD
 
-        function save(this, s, t)
-
-            % reduce size of saved            
-            this_subset.do_only_resting = this.do_only_resting;
-            this_subset.do_only_task = this.do_only_task;
-            this_subset.do_save = this.do_save;
-            this_subset.do_save_ciftis = this.do_save_ciftis;
-            this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
-            this_subset.do_save_dynamic = this.do_save_dynamic;
-            this_subset.force_band = this.force_band;
-            this_subset.final_normalization = this.final_normalization;
-            this_subset.roi = this.roi;
-            this_subset.source_physio = this.source_physio;
-            this_subset.global_signal = this.global_signal;
-            this_subset.global_signal_regression = this.global_signal_regression;
-            this_subset.hp_thresh = this.hp_thresh;
-            this_subset.lp_thresh = this.lp_thresh;
-            this_subset.num_nets = this.num_nets;
-            this_subset.num_sub = this.num_sub;
-            this_subset.num_tasks = this.num_tasks;
-            this_subset.scale_to_hcp = this.scale_to_hcp;
-            this_subset.tags = this.tags;
-            this_subset.analytic_signal = this.analytic_signal;
-            % this_subset.bold_signal = this.bold_signal;
-            this_subset.HCP_signals = this.HCP_signals;
-            this_subset.physio_signal = this.physio_signal;
-            this_subset.max_frames = this.max_frames;
-            this_subset.current_subject = this.current_subject;
-            this_subset.current_task = this.current_task;
-            this_subset.subjects = this.subjects;
-            this_subset.tasks = this.tasks;
-            % this_subset.bold_data = this.bold_data;
-            % this_subset.cohort_data = this.cohort_data;
-            % this_subset.cifti_last = this.cifti_last;
-            this_subset.Fs = this.Fs;
-            this_subset.num_frames = this.num_frames;
-            this_subset.num_frames_ori = this.num_frames_ori;
-            this_subset.num_frames_to_trim = this.num_frames_to_trim;
-            this_subset.num_nodes = this.num_nodes;
-            this_subset.out_dir = this.out_dir;
-            this_subset.root_dir = this.root_dir;
-            this_subset.task_dir = this.task_dir;
-            this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
-            this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
-            this_subset.task_signal_reference_fqfn = this.task_signal_reference_fqfn;
-            this_subset.t1w_fqfn = this.t1w_fqfn;
-            this_subset.tr = this.tr;
-            this_subset.waves_dir = this.waves_dir;
-            this_subset.wmparc_fqfn = this.wmparc_fqfn;
-            this_subset.workbench_dir = this.workbench_dir;
-
-            the_tags_ = this.tags;
-            the_out_dir_ = this.out_dir;
-            
-            try
-                save(fullfile(the_out_dir_, ...
-                    sprintf("sub-%s_ses-%s_%s.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), the_tags_)), ...
-                    'this_subset');
-            catch ME
-                handwarning(ME)
-            end
-        end
-        function mat = task_dtseries(this, varargin)
+        function mat = task_dtseries(this, sub, task, opts)
             %  Args:
             %      this mlraut.AnalyticSignal
-            %      sub {mustBeTextScalar} = this.current_subject
-            %      task {mustBeTextScalar} = this.current_task
+            %      opts.max_frames double = Inf
+            %      opts.subjects cell {mustBeText} = {}
+            %      opts.tasks cell {mustBeText} = {}
+            %      opts.network_type {mustBeText} = ""
             %  Returns:
             %      mat (numeric):  time x grayordinate from BOLDData
 
-            mat = task_dtseries@mlraut.HCP(this, varargin{:});
+            arguments
+                this mlraut.AnalyticSignal
+                sub {mustBeTextScalar} = this.current_subject
+                task {mustBeTextScalar} = this.current_task
+                opts.network_type {mustBeText} = ""
+            end
+
+            mat = task_dtseries@mlraut.HCP(this, sub, task);
             mat = this.trim_frames(mat);
             mat = this.omit_late_frames(mat);
             mat = single(mat);
+
+            if ~isemptytext(opts.network_type)
+                mat = this.average_network_signal(mat, network_type=opts.network_type);
+            end
         end
+
         function ic = task_niigz(this)
             ic = task_niigz@mlraut.HCP(this);
             ic = this.trim_frames(ic);
@@ -650,6 +522,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             ic.ensureSingle();
             ic.fileprefix = stackstr(use_dashes=true);
         end
+
         function physio = task_physio(this, opts)
             %  Returns:
             %      physio numeric Nt x Nx
@@ -686,6 +559,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             physio = single(physio);
             assert(~isempty(physio))
         end
+
         function ic = task_signal_mask(this)
             % if ~isempty(this.task_signal_mask_)
             %     ic = this.task_signal_mask_;
@@ -697,9 +571,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             
             ic1 = mlfourd.ImagingContext2(this.wmparc_fqfn);
             ic1 = ic1.binarized();
-            ic1 = ic1.blurred(6);
-            ic1 = ic1.thresh(0.1);
-            ic1 = ic1.binarized();
+            % ic1 = ic1.blurred(6);
+            % ic1 = ic1.thresh(0.1);
+            % ic1 = ic1.binarized();
             if ~isempty(getenv("DEBUG"))
                 ic1.view_qc(ic);
             end
@@ -711,10 +585,14 @@ classdef AnalyticSignal < handle & mlraut.HCP
             ic.ensureSingle();
             this.task_signal_mask_ = ic;
         end
+
         function ic = task_signal_reference(this)
             ic = task_signal_reference@mlraut.HCP(this);
             ic.ensureSingle();
         end
+
+        %% misc. helpers
+
         function tseries = trim_frames(this, tseries)
             nt = this.num_frames_to_trim + 1;
             if isnumeric(tseries)
@@ -732,17 +610,21 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             error("mlraut:TypeError", stackstr())
         end
+
         function u = unwrap(~, psi)
             u = unwrap(angle(psi));
         end
-        function write_cifti(this, varargin)
-            this.cifti_.write_cifti(varargin{:});
+
+        function c = write_cifti(this, varargin)
+            c = this.cifti_.write_cifti(varargin{:});
         end
-        function write_ciftis(this, varargin)
-            this.cifti_.write_ciftis(varargin{:});
+
+        function [c,c1] = write_ciftis(this, varargin)
+            [c,c1] = this.cifti_.write_ciftis(varargin{:});
         end
-        function write_nii(this, varargin)
-            this.cifti_.write_nii(varargin{:});
+
+        function ic = write_nii(this, varargin)
+            ic = this.cifti_.write_nii(varargin{:});
         end
 
         function this = AnalyticSignal(opts)
@@ -794,7 +676,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.lp_thresh {mustBeScalarOrEmpty} = []
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
-                opts.plot_range double = 1:572
+                opts.plot_range double = 1:417
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV"
@@ -830,11 +712,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.cohort_data_.out_dir = opts.out_dir;
             this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
-            this.tags_ = opts.tags;
+            this.tags_user_ = opts.tags;
 
             this.build_roi(opts.roi);
-
-            this.debugging_ = struct();
         end
     end
 
@@ -842,21 +722,18 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
     properties (Access = protected)
         cifti_
-        debugging_
         hp_thresh_
         lp_thresh_
         plotting_
         scale_to_hcp_
-        tags_
+        tags_user_
         task_signal_mask_
 
-        analytic_signal_
         bold_signal_
         global_signal_
         global_signal_beta_
-        HCP_signals_
-        physio_signal_
         global_signal_regression_
+        physio_signal_
     end
 
     methods (Access = protected)

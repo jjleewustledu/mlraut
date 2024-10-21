@@ -16,7 +16,7 @@ classdef Lee2024 < handle
             end
 
             out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCPAging';
-            %out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignal';
+            %out_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP';
             cd(out_dir);
 
             g = glob(fullfile(out_dir, 'HCA*', sprintf('%s*_avgt.dscalar.nii', metric_lbl)));

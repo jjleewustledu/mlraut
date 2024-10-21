@@ -39,12 +39,12 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             end
 
             if contains(computer, "MAC")
-                g = "/Volumes/PrecunealSSD2/AnalyticSignal";
+                g = "/Volumes/PrecunealSSD2/AnalyticSignalHCP";
                 assert(isfolder(g));
                 this.out_dir_ = g;
                 return
             end
-            g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignal");
+            g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP");
             assert(isfolder(g));
             this.out_dir_ = g;
         end

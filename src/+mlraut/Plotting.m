@@ -12,7 +12,7 @@ classdef Plotting < handle & mlsystem.IHandle
     end
 
     properties (Dependent)
-        ANAT_LIST
+        region_list
         do_save
         Fs
         HCP_signals
@@ -22,7 +22,6 @@ classdef Plotting < handle & mlsystem.IHandle
         num_frames
         out_dir
         physio_signal
-        RSN_NAMES
         sub
         subjects
         tags
@@ -32,8 +31,8 @@ classdef Plotting < handle & mlsystem.IHandle
     end
 
     methods %% GET
-        function g = get.ANAT_LIST(this)
-            g = this.ias_.ANAT_LIST;
+        function g = get.region_list(this)
+            g = this.ias_.region_list;
         end
         function g = get.do_save(this)
             g = this.ias_.do_save;
@@ -61,9 +60,6 @@ classdef Plotting < handle & mlsystem.IHandle
         end
         function g = get.physio_signal(this)
             g = this.ias_.physio_signal;
-        end
-        function g = get.RSN_NAMES(this)
-            g = this.ias_.RSN_NAMES;
         end
         function g = get.sub(this)
             g = this.ias_.current_subject;
@@ -111,10 +107,10 @@ classdef Plotting < handle & mlsystem.IHandle
 
             % emd
             if ~this.do_plot_emd % which automates many plots
-                for k = 1:9
+                for k = 1:length(this.region_list)
                     emd(opts.measure(signals(:,k)), SiftMaxIterations=256)
                     set(gcf, Position=[0 0 2880*0.618 2880*0.618]);
-                    title(sprintf('EMD %s, showing 3 IMFs, RSN %s\n', char(opts.measure), this.RSN_NAMES{k}), FontSize=14)
+                    title(sprintf('EMD %s, showing 3 IMFs, RSN %s\n', char(opts.measure), this.region_list{k}), FontSize=14)
                 end
             end
 
@@ -122,20 +118,20 @@ classdef Plotting < handle & mlsystem.IHandle
             h2 = figure;
             h2.Position = [0 0 2880 2880*0.618];
             tiledlayout(3,3);
-            for k = 1:9
+            for k = 1:length(this.region_list)
                 nexttile
                 hht(emd(opts.measure(signals(:,k))), this.Fs, FrequencyLimits=Flim); % MaxNumIMF=5
-                title(sprintf('Hilbert Spectrum, opts.measure, %s', char(opts.measure), this.RSN_NAMES{k}))
+                title(sprintf('Hilbert Spectrum, opts.measure, %s', char(opts.measure), this.region_list{k}))
             end
 
             % fsst
             h3 = figure;
             h3.Position = [0 0 2880 2880*0.618];
             tiledlayout(3,3);
-            for k = 1:9
+            for k = 1:length(this.region_list)
                 nexttile
                 fsst(opts.measure(signals(:,k)), this.Fs, 'yaxis')
-                title(sprintf('Fourier synchrosqueezed transform, %s, %s', char(opts.measure), this.RSN_NAMES{k}))
+                title(sprintf('Fourier synchrosqueezed transform, %s, %s', char(opts.measure), this.region_list{k}))
             end
 
             this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.region));
@@ -173,7 +169,7 @@ classdef Plotting < handle & mlsystem.IHandle
                 opts.measure function_handle
             end
 
-            for anat = this.ANAT_LIST
+            for anat = this.region_list
                 opts.region = anat{1};
                 funh(measure=opts.measure, region=opts.region);
             end
@@ -215,7 +211,7 @@ classdef Plotting < handle & mlsystem.IHandle
             plot(secs_(opts.plot_range), meas6_(opts.plot_range), '--', LineWidth=2); % frontoparietal
             meas7_ = opts.measure(signals(:, 7));
             plot(secs_(opts.plot_range), meas7_(opts.plot_range), '--', LineWidth=2); % default mode
-            legend(this.RSN_NAMES(1:7), FontSize=18)
+            legend(this.region_list(1:7), FontSize=18)
             xlabel('time/s', FontSize=24)
             ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.region), FontSize=24, Interpreter="none")
             title(sprintf('Yeo RSNs, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
@@ -231,7 +227,7 @@ classdef Plotting < handle & mlsystem.IHandle
             % 9 is instrinsic (task-)
             meas9_ = opts.measure(signals(:, 9));
             plot(secs_(opts.plot_range), meas9_(opts.plot_range), '--', LineWidth=2);
-            legend(this.RSN_NAMES(8:9), FontSize=18)
+            legend(this.region_list(8:9), FontSize=18)
             xlabel('time/s', FontSize=24)
             ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.region), FontSize=24, Interpreter="none")
             title(sprintf('Task +/-, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
@@ -264,7 +260,7 @@ classdef Plotting < handle & mlsystem.IHandle
             end
             plot(signals(:, 6), '.', MarkerSize=8)
             plot(signals(:, 7), '.', MarkerSize=8)
-            legend([this.RSN_NAMES(1:3) this.RSN_NAMES(6:7)], FontSize=18)
+            legend([this.region_list(1:3) this.region_list(6:7)], FontSize=18)
             xlabel(sprintf('real(%s_signals)', opts.region), FontSize=24, Interpreter="none")
             ylabel(sprintf('imag(%s_signals)', opts.region), FontSize=24, Interpreter="none")
             hold off
@@ -347,7 +343,7 @@ classdef Plotting < handle & mlsystem.IHandle
             %      opts.plot_range {mustBeInteger} = 1:572 (1:158 for GBM)
 
             arguments
-                ias mlraut.AnalyticSignal
+                ias mlraut.AnalyticSignal {mustBeNonempty}
                 opts.do_plot_emd logical = false
                 opts.plot_range {mustBeInteger} = 1:572
             end

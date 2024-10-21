@@ -17,8 +17,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.assertEqual(1,1);
         end
         function test_ctor(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
+            as = mlraut.AnalyticSignalHCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
             this.verifyEqual(as.num_nets, 9);
             this.verifyFalse(isemptytext(as.current_subject));
             this.verifyFalse(isemptytext(as.current_task));
@@ -45,7 +44,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(as.num_frames_ori, 1200);
             this.verifyEqual(as.num_frames_to_trim, 4);
             this.verifyEqual(as.num_nodes, 91282);
-            this.verifyTrue(contains(as.out_dir, "AnalyticSignal"));
+            this.verifyTrue(contains(as.out_dir, "AnalyticSignalHCP"));
             this.verifyTrue(contains(as.root_dir, "HCP_1200"));
             this.verifyTrue(contains(as.task_dir, fullfile("Results", "rfMRI_REST1_RL")));
             this.verifyTrue(contains(as.task_dtseries_fqfn, "Atlas_MSMAll_hp2000_clean"));
@@ -59,8 +58,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             disp(as)
         end
         function test_ctor_7T(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal(subjects={'995174'}, tasks={'rfMRI_REST_7T_PA'});
+            as = mlraut.AnalyticSignalHCP(subjects={'995174'}, tasks={'rfMRI_REST_7T_PA'});
             disp(as)
         end
         function test_analytic_bold(this)
@@ -85,26 +83,26 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         end
 
         function test_call(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=true, ...
-                do_save_ciftis=true, ...
-                tags=stackstr(use_dashes=true));
+            as = this.testObj;
+            as.do_plot_emd = true;
+            as.do_plot_networks = true;
+            as.do_save = true;
+            as.do_save_ciftis = true;
+            as.do_save_ciftis_of_diffs = true;
+            as.do_save_dynamic = true;
+
             call(as);
             disp(as)
 
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_dphysio(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
             for p = ["iFV" "RV", "HRV"]
-                as = mlraut.AnalyticSignal( ...
+                as = mlraut.AnalyticSignalHCP( ...
                     subjects={'995174'}, ...
                     tasks={'rfMRI_REST1_RL'}, ...
-                    do_save=true, ...
-                    do_save_ciftis=true, ...
+                    do_save=false, ...
+                    do_save_ciftis=false, ...
                     force_band=false, ...
                     tags=stackstr(use_dashes=true), ...
                     source_physio=p(1));
@@ -115,23 +113,22 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_roi_from_wmparc_indices(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
-                do_save=true, ...
-                do_save_ciftis=true, ...
+                do_save=false, ...
+                do_save_ciftis=false, ...
                 force_band=false, ...
                 tags=stackstr(use_dashes=true)+"-deepwhite", ...
                 source_physio="ROI", ...
                 roi=[5001, 5002]);
             call(as);
             disp(as)
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
-                do_save=true, ...
-                do_save_ciftis=true, ...
+                do_save=false, ...
+                do_save_ciftis=false, ...
                 force_band=false, ...
                 tags=stackstr(use_dashes=true)+"-csf", ...
                 source_physio="ROI", ...
@@ -142,8 +139,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_no_physio(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
                 do_save=true, ...
@@ -157,8 +153,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_all_tasks(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={}, ...
                 do_save=true, ...
@@ -171,8 +166,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_7T(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_7T_PA'}, ...
                 do_save=true, ...
@@ -186,8 +180,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_qc(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
                 do_save=true, ...
@@ -204,8 +197,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         function test_average_network_signals(this)
             %% candidate supplemental figure, with concat runs
 
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
                 do_save=false, ...
@@ -237,33 +229,40 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             end
         end
         function test_task_dtseries(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true));
 
-            bold = as.task_dtseries();
-            gs = as.build_global_signal_for(bold);
+            % parameterize testing
+            NETWORKS_YEO_NAMES = ...
+                {'visual', 'somatomotor', 'dorsal attention', 'ventral attention', 'limbic', ...
+                'frontoparietal', 'default mode', ...
+                'task+', 'task-'};
+            select_rsn = 'default mode';
+            select_network_type = "cortical";
+            selection = sprintf("%s, %s", select_network_type, select_rsn);
+
+            as = this.testObj;
+            as.tags_user=stackstr(use_dashes=true);
+            as.source_physio = "none";
+
+            bold_net_type = as.task_dtseries(network_type=select_network_type);
+            bold_rsn = bold_net_type(:, contains(NETWORKS_YEO_NAMES, select_rsn));
+            gs = as.build_global_signal_for(bold_rsn);
 
             figure; plot(gs); title("gs");
-            figure; plot(bold(:, 600)); title("bold(:, 600)");
-            figure; plot(bold(:, 600) - gs); title("bold(:, 600) - gs");
-            figure; histogram(bold); title("histogram(bold)");
+            figure; plot(bold_rsn); title("bold(:, " + selection + ")");
+            figure; plot(bold_rsn - gs); title("bold(:, " + selection + ") - gs");
+
             figure; histogram(gs); title("histogram(gs)");
-            figure; histogram(bold - gs); title("histogram(bold - gs)")
+            figure; histogram(bold_rsn); title("histogram(bold(:, " + selection + "))");
+            figure; histogram(bold_rsn - gs); title("histogram(bold(:, " + selection + ") - gs)");
+
+            as.fit_power_law(x=gs,title="test_task_dtseries:  gs");
+            as.fit_power_law(x=bold_rsn,title="test_task_dtseries:  bold(:, " + selection + ")");
+            as.fit_power_law(x=(bold_rsn - gs),title="test_task_dtseries:  bold(:, " + selection + ") - gs");
         end
         function test_physio_HRV(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true), ...
-                source_physio='HRV');
+            as = this.testObj;
+            as.tags_user=stackstr(use_dashes=true);
+            as.source_physio = "none";
 
             bold = as.task_niigz();
             HRV = mlraut.PhysioHRV(as, bold);
@@ -272,64 +271,62 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
+
             figure; histogram(physio); title("histogram(physio)");
             figure; histogram(gs); title("histogram(gs)");
+
+            as.fit_power_law(x=physio,title="test_physio_HRV:  physio");
+            as.fit_power_law(x=gs,title="test_physio_HRV:  gs");
         end
         function test_physio_iFV(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true), ...
-                source_physio='iFV');
+            as = this.testObj;
+            as.tags_user=stackstr(use_dashes=true);
+            as.source_physio = "iFV";
 
             bold = as.task_niigz();
             iFV = mlraut.IFourthVentricle(as, bold);
             iFV.wmparc.view_qc(iFV.ifv_mask);
             physio = iFV.call();   
             gs = as.build_global_signal_for(physio);
-
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
             figure; plot(physio - gs); title("physio - gs");
+
             figure; histogram(physio); title("histogram(physio)");
             figure; histogram(gs); title("histogram(gs)");
             figure; histogram(physio - gs); title("histogram(physio - gs)");
+
+            as.fit_power_law(x=physio,title="test_physio_iFV: physio");
+            as.fit_power_law(x=gs,title="test_physio_iFV:  gs");
+            as.fit_power_law(x=(physio - gs),title="test_physio_iFV:  physio - gs");
         end
         function test_physio_ROI(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true), ...close a
-                source_physio='ROI');
+            as = this.testObj;
+            as.tags_user=stackstr(use_dashes=true);
+            as.source_physio = "ROI";
 
             bold = as.task_niigz();
             Roi = mlraut.PhysioRoi(as, bold, from_wmparc_indices=[1 4 5 24 43 44]);  % csf
-            Roi.wmparc.view();
+            Roi.wmparc.view_qc(Roi.roi_mask);
             physio = Roi.call();
             gs = as.build_global_signal_for(physio);
 
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
             figure; plot(physio - gs); title("physio - gs");
+
             figure; histogram(physio); title("histogram(physio)");
             figure; histogram(gs); title("histogram(gs)");
             figure; histogram(physio - gs); title("histogram(physio - gs)");
+
+            as.fit_power_law(x=physio,title="test_physio_ROI: physio");
+            as.fit_power_law(x=gs,title="test_physio_ROI:  gs");
+            as.fit_power_law(x=(physio - gs),title="test_physio_ROI:  physio - gs");
         end
         function test_physio_RV(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true), ...
-                source_physio='RV');
+            as = this.testObj;
+            as.tags_user=stackstr(use_dashes=true);
+            as.source_physio = "RV";
 
             bold = as.task_niigz();
             RV = mlraut.PhysioRV(as, bold);
@@ -338,12 +335,15 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
+
             figure; histogram(physio); title("histogram(physio)");
             figure; histogram(gs); title("histogram(gs)");
+
+            as.fit_power_law(x=physio,title="test_physio_RV:  physio");
+            as.fit_power_law(x=gs,title="test_physio_RV:  gs");
         end
         function test_task_signal_mask(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignal( ...
+            as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
                 do_save=false, ...
@@ -374,6 +374,101 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             % Elapsed time is 327.790908 seconds.
         end
+
+        function test_fit_power_law(this)
+            as = mlraut.AnalyticSignalHCP( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=false, ...
+                force_band=true, ...
+                tags=stackstr(use_dashes=true), ...
+                source_physio='none');
+
+            as.fit_power_law();
+        end
+
+        function test_power_spectrum_analysis(this)
+            %% https://claude.ai/chat/7c0ba283-3bc7-4938-9dec-8acd7bd25e7a
+
+            % Generate sample data (replace this with your actual time series)
+            t = 0:0.72:(1200*0.72);
+            x = randn(size(t));  % Random noise (you'd use your actual data here)
+
+            % Compute the Fourier transform
+            N = length(x);
+            X = fft(x);
+
+            % Compute the power spectrum
+            P = abs(X).^2 / N;
+
+            % Compute the corresponding frequencies
+            fs = 1 / (t(2) - t(1));  % Sampling frequency
+            f = (0:N-1)*(fs/N);      % Frequency range
+
+            % Use only the first half of the spectrum (it's symmetric)
+            P = P(1:floor(N/2)+1);
+            f = f(1:floor(N/2)+1);
+
+            % Plot the power spectrum on a log-log scale
+            figure;
+            loglog(f, P);
+            xlabel('Frequency (Hz)');
+            ylabel('Power');
+            title('Power Spectrum');
+            grid on;
+
+            % Optional: Fit a power law
+            % Select a range for fitting (adjust as needed)
+            fit_range = f > 0.01 & f < 0.05;
+
+            % Perform linear regression on log-log data
+            p = polyfit(log10(f(fit_range)), log10(P(fit_range)), 1);
+
+            % Add the fit line to the plot
+            hold on;
+            loglog(f(fit_range), 10.^(polyval(p, log10(f(fit_range)))), 'r--', 'LineWidth', 2);
+            legend('Data', sprintf('Fit: slope = %.2f', p(1)));
+
+            % Display the slope (which is the power law exponent)
+            fprintf('Power law exponent: %.2f\n', p(1));
+        end
+
+        function test_complex_time_series_vis(this)
+            %% https://claude.ai/chat/7c0ba283-3bc7-4938-9dec-8acd7bd25e7a
+
+            % Generate a complex oscillatory time series
+            t = linspace(0, 10, 1000);
+            f1 = 1.0;
+            f2 = 2.0;
+            z = exp(1i * 2 * pi * f1 * t) + 0.5 * exp(1i * 2 * pi * f2 * t);
+
+            % Create the 3D figure
+            figure('Position', [100, 100, 1200, 500]);
+
+            % 3D Line Plot
+            subplot(1, 2, 1);
+            plot3(t, real(z), imag(z));
+            xlabel('Time');
+            ylabel('Real Part');
+            zlabel('Imaginary Part');
+            title('Complex Time Series: 3D View');
+            grid on;
+
+            % Add a 2D projection onto the complex plane
+            subplot(1, 2, 2);
+            scatter(real(z), imag(z), [], t, 'filled');
+            xlabel('Real Part');
+            ylabel('Imaginary Part');
+            title('Complex Time Series: Complex Plane Projection');
+            axis equal;
+            colorbar;
+            colormap('jet');
+            c = colorbar;
+            c.Label.String = 'Time';
+
+            % Adjust the layout
+            sgtitle('Complex Oscillatory Time Series Visualization');
+        end
     end
     
     methods (TestClassSetup)
@@ -383,7 +478,15 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
     
     methods (TestMethodSetup)
         function setupAnalyticSignalTest(this)
-            this.testObj = this.testObj_;
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            this.testObj = mlraut.AnalyticSignalHCP( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_save=false, ...
+                force_band=false, ...
+                hp_thresh=0.005, ...
+                lp_thresh=0.1, ...
+                tags=stackstr(use_dashes=true));
             this.addTeardown(@this.cleanTestMethod)
         end
     end

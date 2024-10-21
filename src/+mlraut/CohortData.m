@@ -69,7 +69,7 @@ classdef CohortData < handle & mlsystem.IHandle
             switch class(ihcp)
                 case 'mlraut.HCP'
                     this = mlraut.HCPYoungAdultData(ihcp);
-                case {'mlraut.AnalyticSignal', 'mlraut.AnalyticSignalPar'}
+                case {'mlraut.AnalyticSignalHCP', 'mlraut.AnalyticSignalHCPPar'}
                     this = mlraut.HCPYoungAdultData(ihcp);
                 case 'mlraut.AnalyticSignalYoungAdult'
                     this = mlraut.HCPYoungAdultData(ihcp);

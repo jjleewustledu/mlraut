@@ -1,4 +1,4 @@
-classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
+classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
     %% line1
     %  line2
     %  
@@ -43,7 +43,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
 
     methods
         function this = AnalyticSignalGBM(varargin)
-            this = this@mlraut.AnalyticSignal(varargin{:});
+            this = this@mlraut.AnalyticSignalHCP(varargin{:});
 
             this.current_subject = this.subjects{1};
             %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
@@ -130,7 +130,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
         function this = call_subject(this, s)
 
             arguments
-                this mlraut.AnalyticSignal
+                this mlraut.AnalyticSignalGBM
                 s double
             end
 

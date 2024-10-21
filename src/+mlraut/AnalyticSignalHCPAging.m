@@ -1,4 +1,4 @@
-classdef AnalyticSignalHCPAging < handle & mlraut.AnalyticSignal
+classdef AnalyticSignalHCPAging < handle & mlraut.AnalyticSignalHCP
     %% line1
     %  line2
     %  
@@ -7,7 +7,7 @@ classdef AnalyticSignalHCPAging < handle & mlraut.AnalyticSignal
     
     methods
         function this = AnalyticSignalHCPAging(varargin)
-            this = this@mlraut.AnalyticSignal(varargin{:});
+            this = this@mlraut.AnalyticSignalHCP(varargin{:});
         end
     end
     
