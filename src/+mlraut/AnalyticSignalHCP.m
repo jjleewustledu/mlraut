@@ -106,9 +106,9 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 s double
             end
 
-            this.malloc();
             for t = 1:this.num_tasks     
                 try
+                    this.malloc();
                     this.current_task = this.tasks{t};
 
                     % BOLD
@@ -227,9 +227,9 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 s double
             end
 
-            this.malloc();
             for t = 1:this.num_tasks     
                 try
+                    this.malloc();
                     this.current_task = this.tasks{t};
 
                     % BOLD
@@ -427,9 +427,10 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
         function save(this, s, t)
 
-            % reduce size of saved            
-            this_subset.do_only_resting = this.do_only_resting;
-            this_subset.do_only_task = this.do_only_task;
+            % reduce size of saved        
+            this_subset.do_7T = this.do_7T;
+            this_subset.do_resting = this.do_resting;
+            this_subset.do_task = this.do_task;
             this_subset.do_save = this.do_save;
             this_subset.do_save_ciftis = this.do_save_ciftis;
             this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;

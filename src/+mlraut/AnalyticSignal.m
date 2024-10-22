@@ -9,8 +9,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
     
 
     properties
-        do_only_resting
-        do_only_task
         do_plot_emd
         do_plot_global_physio
         do_plot_networks
@@ -393,7 +391,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             hold on;
             loglog(f(fit_range), 10.^(polyval(p, log10(f(fit_range)))), 'm--', 'LineWidth', 2);
             legend('BOLD', sprintf('power law exponent = %.2f', p(1)), Location="southeast");
-            fontsize(scale=1.5)
+            fontsize(scale=2)
 
             % Display the slope (which is the power law exponent)
             fprintf('Power law exponent: %.2f\n', p(1));
@@ -405,7 +403,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.t double = []
                 opts.z double = []
                 opts.num_frames double = []
-                opts.title = stackstr(use_spaces=true)
+                opts.title = ""
             end
             if isempty(opts.num_frames)
                 opts.num_frames = this.num_frames;  % ceil(300/this.tr);
@@ -436,26 +434,24 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             z = opts.z;
 
-            % Create the 3D figure
-            figure('Position', [100, 100, 1800, 600]);
-
             % 3D Line Plot
-            tlo = tiledlayout(1,3);
-            nexttile(1, [1, 2]);
+            figure('Position', [100, 100, 1200, 600]);
             civ = cividis;
             plot3(t, real(z), imag(z), LineWidth=2, Color=civ(1,:));
             xlabel('time / s');
             ylabel('Re \psi(t)');
             zlabel('Im \psi(t)');
-            title("");
+            title(opts.title);
             grid on;
+            fontsize(scale=2)
+            title(opts.title);
 
             % Stretch the time axis
             %%current_aspect = pbaspect;
             pbaspect([4 1 1]);  % Stretch time axis (x-axis) by a factor of 3
 
             % Add a 2D projection onto the complex plane
-            nexttile;
+            figure;
             scatter(real(z), imag(z), [], t, 'filled', 'o', MarkerFaceAlpha=0.618);
             xlabel('Re \psi(t)');
             ylabel('Im \psi(t)');
@@ -465,10 +461,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             colormap('cividis');
             c = colorbar;
             c.Label.String = 'time / s';
-
-            % Adjust the layout
-            fontsize(scale=1.5)
-            title(tlo, opts.title);
+            fontsize(scale=2)
+            title(opts.title);
         end
 
         function plot_emd(this, varargin)
@@ -636,11 +630,14 @@ classdef AnalyticSignal < handle & mlraut.HCP
             ic = this.cifti_.write_nii(varargin{:});
         end
 
+        %%
+
         function this = AnalyticSignal(opts)
             %% ANALYTICSIGNAL 
             %  Args:
-            %      opts.do_only_resting logical = true
-            %      opts.do_only_tast logical = false
+            %      opts.do_7T logical = false
+            %      opts.do_resting logical = true
+            %      opts.do_task logical = false
             %      opts.do_plot_global_physio logical = true
             %      opts.do_plot_networks logical = true
             %      opts.do_plot_radar logical = true
@@ -668,8 +665,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.tasks cell {mustBeText} = {}
             
             arguments
-                opts.do_only_resting logical = true
-                opts.do_only_task logical = false
+                opts.do_7T logical = false
+                opts.do_resting logical = true
+                opts.do_task logical = false
                 opts.do_plot_emd logical = false
                 opts.do_plot_global_physio logical = false
                 opts.do_plot_networks logical = false
@@ -701,8 +699,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.cifti_ = mlraut.Cifti(this);
             this.plotting_ = mlraut.Plotting(this, plot_range=opts.plot_range);
 
-            this.do_only_resting = opts.do_only_resting;
-            this.do_only_task = opts.do_only_task;
+            this.do_7T = opts.do_7T;
+            this.do_resting = opts.do_resting;
+            this.do_task = opts.do_task;
             this.do_plot_emd = opts.do_plot_emd;
             this.do_plot_global_physio = opts.do_plot_global_physio;
             this.do_plot_networks = opts.do_plot_networks;

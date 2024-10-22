@@ -93,6 +93,10 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp2000_clean.dtseries.nii"));
                 % rfMRI_REST1_RL_Atlas_hp2000_clean.dtseries.nii
             end
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_MSMAll.dtseries.nii"));
+                % rfMRI_REST1_RL_Atlas_hp2000_clean.dtseries.nii
+            end
             assert(~isemptytext(mg), stackstr())
             g = mg(end);
         end

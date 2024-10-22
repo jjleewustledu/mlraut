@@ -7,7 +7,10 @@ classdef HCP < handle & mlsystem.IHandle
     %  Developed on Matlab 9.13.0.2105380 (R2022b) Update 2 for MACI64.  Copyright 2022 John J. Lee.
     
 
-    properties        
+    properties 
+        do_7T
+        do_resting
+        do_task       
         max_frames = Inf  % max(num_frames) to enforce, used by omit_late_frames()
     end
 
@@ -102,9 +105,22 @@ classdef HCP < handle & mlsystem.IHandle
                 g = this.tasks_;
                 return
             end
-            this.tasks_ = cellfun(@basename, glob(fullfile(tasks_dir, '*')), UniformOutput=false);
-            this.tasks_ = this.tasks_(~contains(this.tasks_, '7T'));
-            this.tasks_ = this.tasks_(~contains(this.tasks_, 'tfMRI'));
+            this.tasks_ = {};
+            if this.do_resting
+                this.tasks_ = [ ...
+                    this.tasks_; ...
+                    cellfun(@basename, glob(fullfile(tasks_dir, 'rfMRI*')), UniformOutput=false)];
+            end
+            if this.do_task
+                this.tasks_ = [ ...
+                    this.tasks_; ...
+                    cellfun(@basename, glob(fullfile(tasks_dir, 'tfMRI*')), UniformOutput=false)];
+            end
+            if this.do_7T
+                this.tasks_ = this.tasks_(contains(this.tasks_, '7T'));
+            else
+                this.tasks_ = this.tasks_(~contains(this.tasks_, '7T'));
+            end
             g = this.tasks_;
         end
 
