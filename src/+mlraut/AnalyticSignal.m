@@ -672,7 +672,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_save_ciftis_of_diffs logical = true: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
-            %      opts.force_band logical = true: force bandpass to [0.01 0.1] Hz
+            %      opts.force_band logical = true: force bandpass to Nyquist limits of available data
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05.
