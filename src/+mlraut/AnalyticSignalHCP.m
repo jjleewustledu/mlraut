@@ -262,20 +262,14 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         hilbert(bold_));
 
                     % Store physio signals
-                    if ~all(physio_ == 0)
-                        this.physio_signal_ = ...
-                            this.build_final_normalization( ...
-                            hilbert(physio_));
+                    this.physio_signal_ = ...
+                        this.build_final_normalization( ...
+                        hilbert(physio_));
 
-                        % Store analytic signals
-                        % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                        this.analytic_signal_ = ...
-                            this.build_final_normalization( ...
-                            conj(hilbert(physio_)).*hilbert(bold_));
-                    else
-                        this.physio_signal_ = physio_;
-                        this.analytic_signal_ = this.bold_signal_;
-                    end
+                    % Store analytic signals
+                    this.analytic_signal_ = ...
+                        this.build_final_normalization( ...
+                            hilbert(physio_)./hilbert(bold_));
 
                     % Averages for networks
                     this.average_network_signals(this.analytic_signal_);
