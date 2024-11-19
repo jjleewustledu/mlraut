@@ -28,9 +28,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         anatomy_list
         global_signal
         global_signal_regression  % logical
-        hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz -> dimensionless
+        hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
         json
-        lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz -> dimensionless
+        lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz
         rsn_list
         scale_to_hcp  % adjust norm by time of scanning
         tags  % for filenames
@@ -54,7 +54,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.hp_thresh(this)
             N = this.num_frames - 2*this.num_frames_to_trim;
-            Nyquist = 2/N; % Nyquist limited
+            Nyquist = (this.Fs/2)*(1/N); % Nyquist limited Hz
             if this.force_band
                 g = max(0.01, Nyquist);
                 return
@@ -74,7 +74,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function g = get.lp_thresh(this)
-            Nyquist = 1/2; % Nyquist limited
+            Nyquist = this.Fs/2; % Nyquist limited Hz
             if this.force_band
                 g = min(0.1, Nyquist);
                 return
