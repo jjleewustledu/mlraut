@@ -551,6 +551,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.roi = this.roi
                 opts.flipLR logical = false
                 opts.source_physio {mustBeText} = this.source_physio
+                opts.reference {mustBeNumeric} = []
             end
 
             bold = this.task_niigz();
