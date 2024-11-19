@@ -223,6 +223,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 end
             end
         end
+        
         function j = jsonread(this)
             j = jsonread(this.cohort_data_.json_fqfn);
         end
