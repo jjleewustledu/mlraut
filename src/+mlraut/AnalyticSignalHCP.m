@@ -234,22 +234,24 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
                     % BOLD
                     try
+                        bold_gsr_ = ...
+                            this.build_global_signal_regressed(this.task_dtseries());
                         bold_ = ...
                             this.build_band_passed( ...
-                            this.build_centered_and_rescaled( ...
-                            this.build_global_signal_regressed(this.task_dtseries())));
+                            this.build_centered_and_rescaled(bold_gsr_));
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                         handwarning(ME)
                         continue
                     end
 
-                    % Physio
+                    % physio
                     try
                         physio_ = ...
                             this.build_band_passed( ...
                             this.build_centered_and_rescaled( ...
-                            this.build_global_signal_regressed(this.task_physio())));
+                            this.build_global_signal_regressed( ...
+                                this.task_physio(reference=bold_gsr_)), reference=bold_gsr_));
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
                         handwarning(ME)

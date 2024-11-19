@@ -136,16 +136,18 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
 
             this.build_conc();
 
-            this.malloc();
             for t = 1:this.num_tasks
                 try
+                    this.malloc();
                     this.current_task = this.tasks{t};
 
                     % BOLD
                     try
-                        [bold_, isleft] = this.task_dtseries_gbm();
-                        bold_ = this.build_global_signal_regressed(bold_);
-                        bold_ = hilbert(bold_);
+                        bold_gsr_ = ...
+                            this.build_global_signal_regressed(his.task_dtseries_gbm());
+                        bold_ = ...
+                            this.build_band_passed( ...
+                            this.build_centered_and_rescaled(bold_gsr_));
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                         handwarning(ME)
@@ -154,9 +156,11 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
 
                     % Physio
                     try
-                        physio_ = this.task_physio();
-                        physio_ = this.build_global_signal_regressed(physio_);
-                        physio_ = hilbert(physio_);
+                        physio_ = ...
+                            this.build_band_passed( ...
+                            this.build_centered_and_rescaled( ...
+                            this.build_global_signal_regressed( ...
+                                this.task_physio(reference=bold_gsr_)), reference=bold_gsr_));
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
                         handwarning(ME)
