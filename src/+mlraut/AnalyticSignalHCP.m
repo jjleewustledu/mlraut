@@ -51,15 +51,16 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
         end
         
         function as = build_final_normalization(this, as)
-            %% provides final normalization by max(abs()) for more interpretable visualization at group level
+            %% provides final normalization by max(abs()) for more interpretable visualization at group level;
+            %  as ~ Nt x Nxyz
 
             switch convertStringsToChars(this.final_normalization)
                 case 'normt'
                     % allowing fluctuations in xyz
-                    as = as ./ max(abs(as), 1);
+                    as = as ./ max(abs(as), [], 1);
                 case 'normxyz'
                     % allowing fluctuations in t
-                    as = as ./ max(abs(as), 2);
+                    as = as ./ max(abs(as), [], 2);
                 case 'normxyzt'
                     % allowing fluctuations in xyz & t
                     as = as / max(abs(as), [], "all");
@@ -89,11 +90,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         this.out_dir = proposed_dir;
                         ensuredir(proposed_dir);
                     end
-                    if opts.do_qc
-                        this.call_subject_qc(s);
-                    else
-                        this.call_subject_late_hilbert(s);
-                    end
+                    this.call_subject(s);
                 catch ME
                     handexcept(ME)
                 end
