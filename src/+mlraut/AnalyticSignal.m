@@ -226,11 +226,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi - median(psi, 'all', 'omitnan');
         end
 
-        function psi = build_centered_and_rescaled(this, psi)
+        function psi = build_centered_and_rescaled(this, psi, varargin)
             %% Mimics z-score of |psi(t,x)> using median and mad.
 
             psi = this.build_centered(psi);
-            psi = this.build_rescaled(psi);
+            psi = this.build_rescaled(psi, varargin{:});
         end
 
         function [gs,beta] = build_global_signal_for(this, sig)
@@ -305,13 +305,18 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi - this.build_global_signal_for(psi);
         end
 
-        function psi = build_rescaled(~, psi)
-            assert(~isempty(psi))
+        function psi = build_rescaled(this, psi, opts)
+            arguments
+                this mlraut.AnalyticSignal %#ok<INUSA>
+                psi {mustBeNumeric,mustBeNonempty}
+                opts.reference {mustBeNumeric} = psi
+            end
+
             if all(psi == 0)
                 return
             end
-
-            d = mad(abs(psi), 1, 'all');  % median abs. dev.
+            
+            d = mad(abs(opts.reference), 1, 'all');  % median abs. dev.
             psi = psi./d;
         end
 
