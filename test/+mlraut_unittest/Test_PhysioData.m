@@ -43,20 +43,160 @@ classdef Test_PhysioData < matlab.unittest.TestCase
 
         function test_flipLR(this)
         end
+
+        function test_global_signal(this)
+            t = 1;
+            hcp_ = this.hcp;
+            hcp_.malloc();
+            hcp_.current_task = hcp_.tasks{t};
+
+            physio_0 = hcp_.task_physio();
+            figure; 
+            plot(physio_0);
+            hold on
+
+            gs = hcp_.build_global_signal_for(physio_0);
+            plot(gs);
+            
+            physio_1 = hcp_.build_global_signal_regressed(physio_0);
+            plot(physio_1);
+            hold off
+
+            legend(["task_physio()", "build_global_signal_for()", "build_global_signal_regressed()"], ...
+                Interpreter="none");
+        end
+
+        function test_centered(this)
+            t = 1;
+            hcp_ = this.hcp;
+            hcp_.malloc();
+            hcp_.current_task = hcp_.tasks{t};
+
+            physio_0 = hcp_.task_physio();
+            figure; 
+            plot(physio_0);
+            hold on
+
+            physio_1 = ...
+                hcp_.build_centered( ...
+                hcp_.build_global_signal_regressed(physio_0));
+            plot(physio_1);
+            hold off
+
+            legend(["task_physio()", "build_centered()"], ...
+                Interpreter="none");
+        end
+
+        function test_rescaled(this)
+            t = 1;
+            hcp_ = this.hcp;
+            hcp_.malloc();
+            hcp_.current_task = hcp_.tasks{t};
+
+            physio_0 = hcp_.task_physio();
+
+            physio_1 = ...
+                hcp_.build_centered( ...
+                hcp_.build_global_signal_regressed(physio_0));
+            figure; 
+            plot(physio_1);
+            hold on
+
+            physio_2 = ...
+                hcp_.build_rescaled(physio_1);
+            plot(physio_2);
+            hold off
+
+            legend(["build_centered()", "build_rescaled()"], ...
+                Interpreter="none");
+        end
+
+        function test_band_passed(this)
+            t = 1;
+            hcp_ = this.hcp;
+            hcp_.malloc();
+            hcp_.current_task = hcp_.tasks{t};
+
+            physio_0 = hcp_.task_physio();
+
+            physio_1 = ...
+                hcp_.build_centered_and_rescaled( ...
+                hcp_.build_global_signal_regressed(physio_0));
+            figure; 
+            plot(physio_1);
+            hold on
+
+            physio_2 = ...
+                hcp_.build_band_passed(physio_1);
+            plot(physio_2);
+            hold off
+
+            legend(["build_centered_and_rescaled()", "build_band_passed()"], ...
+                Interpreter="none");
+        end
+
+        function test_analytic_signal(this)
+            %% see also mlraut.AnalyticSignalHCP.call_subject_late_hilbert()
+
+            t = 1;
+            hcp_ = this.hcp;
+            hcp_.malloc();
+            hcp_.current_task = hcp_.tasks{t};
+
+            % BOLD
+            try
+                bold_ = ...
+                    hcp_.build_band_passed( ...
+                    hcp_.build_centered_and_rescaled( ...
+                    hcp_.build_global_signal_regressed(hcp_.task_dtseries())));
+                bold_ = bold_(:, 91000);
+            catch ME
+                disp([hcp_.current_subject ' ' hcp_.current_task ' BOLD missing or defective:']);
+                handerror(ME)
+            end
+            hcp_.plot3(z=hilbert(bold_));
+
+            % physio
+            try
+                physio_ = ...
+                    hcp_.build_band_passed( ...
+                    hcp_.build_centered_and_rescaled( ...
+                    hcp_.build_global_signal_regressed(hcp_.task_physio())));
+            catch ME
+                disp([hcp_.current_subject ' ' hcp_.current_task ' physio missing or defective:']);
+                handerror(ME)
+            end
+            hcp_.plot3(z=hilbert(physio_));
+
+            as_ = conj(hilbert(physio_)).*hilbert(bold_);
+            hcp_.plot3(z=as_);
+
+        end
     end
     
     methods (TestClassSetup)
         function setupPhysioData(this)
-            import mlraut.*
-            this.hcp = mlraut.HCP( ...
-                subjects={'995174'}, tasks={'rfMRI_REST1_7T_PA'});
-            %this.testObj_ = PhysioData();
         end
     end
     
     methods (TestMethodSetup)
         function setupPhysioDataTest(this)
-            this.testObj = this.testObj_;
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            this.hcp = mlraut.AnalyticSignalHCP( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_7T=false, ...
+                do_resting=true, ...
+                do_task=false, ...
+                do_save=false, ...
+                do_save_dynamic=false, ...
+                do_save_ciftis=false, ...
+                force_band=false, ...
+                hp_thresh=0.005, ...
+                lp_thresh=0.1, ...
+                global_signal_regression=true, ...
+                source_physio="iFV", ...
+                tags=stackstr(use_dashes=true));
             this.addTeardown(@this.cleanTestMethod)
         end
     end

@@ -20,7 +20,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         force_band  % force bandpass to [0.01 0.1] Hz
         final_normalization
-        roi
         source_physio
     end
 
@@ -38,6 +37,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         bold_signal
         physio_signal
+        roi
+        source_physio_is_ROI
     end
 
     methods %% GET, SET
@@ -142,6 +143,14 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.physio_signal(this)
             g = this.physio_signal_;
+        end
+
+        function g = get.roi(this)
+            g = this.roi_;
+        end
+
+        function g = get.source_physio_is_ROI(this)
+            g = ~contains(this.source_physio, ["RV", "HRV", "no-physio", "nophys", "none"]);
         end
     end
     
@@ -544,20 +553,31 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 case 'RV'
                     RV = mlraut.PhysioRV(this, bold);
                     physio = RV.call();
+                    physio = physio./mad(abs(physio), 1, "all");
+                    physio = physio.*mad(abs(opts.reference), 1, "all");
+                    assert(~isfinite(physio), "likely that opts.reference is faulty")  
                 case 'HRV'
                     HRV = mlraut.PhysioHRV(this, bold);
                     physio = HRV.call();
+                    physio = physio./mad(abs(physio), 1, "all");
+                    physio = physio.*mad(abs(opts.reference), 1, "all");
+                    assert(~isfinite(physio), "likely that opts.reference is faulty")
                 case 'iFV'
                     iFV = mlraut.IFourthVentricle(this, bold);
                     physio = iFV.call();
                 case 'ROI'
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=opts.roi, flipLR=opts.flipLR);
-                    physio = pROI.call();
+                    physio = pROI.call();                
                 case {'no-physio', 'nophys', 'none'}
-                    physio = zeros(size(bold, ndims(bold)), 1);
-                otherwise
-                    error("mlraut:ValueError", stackstr())
+                    physio = ones(size(bold, ndims(bold)), 1);
+                otherwise  % other wmparc regions
+                    wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
+                    n = wmparc.label_to_num(convertStringsToChars(this.source_physio));
+                    assert(n ~= 0, stackstr())
+                    pROI = mlraut.PhysioRoi(this, bold, ...
+                        from_wmparc_indices=n, flipLR=opts.flipLR);
+                    physio = pROI.call();                    
             end
             physio = single(physio);
             assert(~isempty(physio))
@@ -742,6 +762,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         global_signal_beta_
         global_signal_regression_
         physio_signal_
+        roi_
     end
 
     methods (Access = protected)
@@ -770,20 +791,20 @@ classdef AnalyticSignal < handle & mlraut.HCP
             
             this.source_physio = "ROI";
             if isa(roi, "mlfourd.ImagingContext2")
-                this.roi = copy(roi);
+                this.roi_ = copy(roi);
                 return
             end
             if istext(roi) && isfile(roi)
-                this.roi = mlfourd.ImagingContext2(roi);
+                this.roi_ = mlfourd.ImagingContext2(roi);
                 return
             end
             if isnumeric(roi) && ismatrix(roi)
                 pr = mlraut.PhysioRoi(this, this.task_niigz, from_wmparc_indices=roi);
-                this.roi = pr.roi_mask;
+                this.roi_ = pr.roi_mask;
                 return
             end
             if isnumeric(roi) && ~ismatrix(roi)
-                this.roi = mlfourd.ImagingContext2(roi);
+                this.roi_ = mlfourd.ImagingContext2(roi);
                 return
             end
             error("mlraut:ValueError", stackstr())

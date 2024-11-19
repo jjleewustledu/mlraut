@@ -299,7 +299,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         function test_physio_HRV(this)
             as = this.testObj;
             as.tags_user=stackstr(use_dashes=true);
-            as.source_physio = "none";
+            as.source_physio = "HRV";
 
             bold = as.task_niigz();
             HRV = mlraut.PhysioHRV(as, bold);
