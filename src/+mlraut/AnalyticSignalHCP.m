@@ -150,7 +150,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                     % Store analytic signals
                     this.analytic_signal_ = ...
                         this.build_final_normalization( ...
-                            hilbert(physio_)./hilbert(bold_));
+                            hilbert(bold_)./hilbert(physio_));
 
                     % Averages for networks
                     this.average_network_signals(this.analytic_signal_);

@@ -144,7 +144,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                     % BOLD
                     try
                         bold_gsr_ = ...
-                            this.build_global_signal_regressed(his.task_dtseries_gbm());
+                            this.build_global_signal_regressed(this.task_dtseries_gbm());
                         bold_ = ...
                             this.build_band_passed( ...
                             this.build_centered_and_rescaled(bold_gsr_));
@@ -180,7 +180,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                     % Store analytic signals
                     this.analytic_signal_ = ...
                         this.build_final_normalization( ...
-                            hilbert(physio_)./hilbert(bold_));
+                            hilbert(bold_)./hilbert(physio_));
                     
                     % Averages for networks
                     this.average_network_signals(this.analytic_signal_);
