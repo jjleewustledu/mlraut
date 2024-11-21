@@ -21,6 +21,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
+            as.do_save_ciftis_of_diffs = true;
             as.source_physio="none";
             
             disp(as)            
@@ -31,6 +32,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
+            as.do_save_ciftis_of_diffs = true;
             as.source_physio="iFV";
             
             disp(as)            
@@ -56,12 +58,32 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             disp(as)            
             call(as);
         end
-        function test_call_CSF(this)
+        function test_call_csf(this)
             as = this.testObj;
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
-            as.source_physio="CSF";
+            as.source_physio="csf";
+            
+            disp(as)            
+            call(as);
+        end
+        function test_call_precuneus(this)
+            as = this.testObj;
+            as.do_save=true;
+            as.do_save_dynamic=true;
+            as.do_save_ciftis=true;
+            as.source_physio="precuneus";
+            
+            disp(as)            
+            call(as);
+        end
+        function test_call_hippocampus(this)
+            as = this.testObj;
+            as.do_save=true;
+            as.do_save_dynamic=true;
+            as.do_save_ciftis=true;
+            as.source_physio="hippocampus";
             
             disp(as)            
             call(as);
@@ -87,7 +109,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
                 do_save_dynamic=false, ...
                 do_save_ciftis=false, ...
                 force_band=false, ...
-                hp_thresh=0.005, ...
+                hp_thresh=0.01, ...
                 lp_thresh=0.1, ...
                 global_signal_regression=true, ...
                 tags=stackstr(use_dashes=true));

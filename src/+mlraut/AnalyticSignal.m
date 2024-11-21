@@ -571,13 +571,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     physio = RV.call();
                     physio = physio./mad(abs(physio), 1, "all");
                     physio = physio.*mad(abs(opts.reference), 1, "all");
-                    assert(~isfinite(physio), "likely that opts.reference is faulty")  
+                    assert(all(isfinite(physio)), "likely that opts.reference is faulty")  
                 case 'HRV'
                     HRV = mlraut.PhysioHRV(this, bold);
                     physio = HRV.call();
                     physio = physio./mad(abs(physio), 1, "all");
                     physio = physio.*mad(abs(opts.reference), 1, "all");
-                    assert(~isfinite(physio), "likely that opts.reference is faulty")
+                    assert(all(isfinite(physio)), "likely that opts.reference is faulty")  
                 case 'iFV'
                     iFV = mlraut.IFourthVentricle(this, bold);
                     physio = iFV.call();
