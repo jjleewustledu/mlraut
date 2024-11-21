@@ -198,9 +198,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %  See also web(fullfile(docroot, 'signal/ug/practical-introduction-to-digital-filtering.html')) .
             %  Returns:
             %      dat1 same num. type as dat
+            %      dat1 ~ ones() if dat ~ zeros() to accomodate no no physio
 
             if all(dat == 0)
-                dat1 = dat;
+                dat1 = ones(size(dat));
                 return
             end
             if isempty(this.lp_thresh) && isempty(this.hp_thresh)
