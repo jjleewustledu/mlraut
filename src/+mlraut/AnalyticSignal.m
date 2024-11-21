@@ -295,8 +295,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
             error("mlraut:TypeError", stackstr())
         end
 
-        function psi = build_global_signal_regressed(this, psi)
+        function psi = build_global_signal_regressed(this, psi, opts)
+            arguments
+                this mlraut.AnalyticSignal
+                psi {mustBeNumeric,mustBeNonempty}
+                opts.is_physio logical = false
+            end
+
             if ~this.global_signal_regression
+                return
+            end
+            if opts.is_physio && ~this.source_physio_is_ROI
                 return
             end
             if all(psi == 0)
@@ -578,10 +587,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     physio = pROI.call();                
                 case {'no-physio', 'nophys', 'none'}
                     physio = ones(size(bold, ndims(bold)), 1);
+                    physio = physio.*mad(abs(opts.reference), 1, "all");
+                    assert(all(isfinite(physio)), "likely that opts.reference is faulty")
                 otherwise  % other wmparc regions
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
                     n = wmparc.label_to_num(convertStringsToChars(this.source_physio));
-                    assert(n ~= 0, stackstr())
+                    assert(~all(n == 0), stackstr())
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_wmparc_indices=n, flipLR=opts.flipLR);
                     physio = pROI.call();                    
