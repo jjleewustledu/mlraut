@@ -23,6 +23,7 @@ classdef HCP < handle & mlsystem.IHandle
         bold_data
         cohort_data
         cifti_last  % configures cifti historically
+        extended_task_dir  % supports HCPAging/rfMRIExtended/fmriresults01/HCA*
         Fs  % BOLD sampling rate (Hz)
         num_frames
         num_frames_ori  % set by BOLDData.task_dtseries()
@@ -136,6 +137,9 @@ classdef HCP < handle & mlsystem.IHandle
         function     set.cifti_last(this, s)
             assert(isstruct(s));
             this.cifti_last_ = s;
+        end
+        function g = get.extended_task_dir(this)
+            g = this.cohort_data_.extended_task_dir;
         end
         function g = get.Fs(this)
             g = 1/this.tr;

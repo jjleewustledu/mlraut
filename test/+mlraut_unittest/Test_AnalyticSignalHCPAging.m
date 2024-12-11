@@ -16,26 +16,63 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
-        function test_ctor(this)            
-            cd('/Volumes/PrecunealSSD2/HCPAging/HCPAgingRec/fmriresults01');
-            as = mlraut.AnalyticSignalHCPAging(subjects={'HCA9992517_V1_MR'}, tasks={'fMRI_CONCAT_ALL'});
-            disp(as)
-        end
-        function test_call(this)
-            tic
-            % cd('/Volumes/PrecunealSSD2/HCPAging/HCPAgingRec/fmriresults01');
-            as = mlraut.AnalyticSignalHCPAging( ...
-                subjects={'HCA9992517_V1_MR'}, ...
-                tasks={'fMRI_CONCAT_ALL'}, ...
-                do_save=true, ...
-                do_save_ciftis=true, ...
-                tags=stackstr(use_dashes=true));
-            call(as)
-            toc
-            disp(as)
+        function test_call_physio(this)
+
+            for phys = {'iFV'}  % {'HRV' 'RV'}
+                as = this.testObj;
+                as.do_save=true;
+                as.do_save_dynamic=true;
+                as.do_save_ciftis=true;
+                as.source_physio=phys{1};
+                as.out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalHCPAging';
+
+                disp(as)
+                call(as)
+            end
 
             % Elapsed time is 273 seconds on twistor.  Peak memory is 64 GB.  Files saved < 8 GB.
             % Elapsed time is ~791 seconds on vglab2.
+        end
+        function test_call_wmparc(this)
+
+            % wmparc = 'precuneus';
+            % wmparc = 'posteriorcingulate';
+            % wmparc = 'hippocampus';
+            % wmparc = 'entorhinal';
+            % wmparc = 'medialorbitofrontal';
+            % wmparc = 'insula';
+            % wmparc = 'cuneus';
+            % wmparc = 'thalamus';
+            % wmparc = 'caudate';
+            % wmparc = 'putamen';
+            % wmparc = 'pallidum';
+            % wmparc = 'cerebellum';
+            % wmparc = 'brainstem';
+            % wmparc = 'brainstem+';
+            % wmparc = 'csf';
+            % wmparc = 'centrumsemiovale';
+            % wmparc = 'corpuscallosum';
+
+            wmparcs = { ...
+                'precuneus' 'posteriorcingulate' 'hippocampus' 'entorhinal' 'medialorbitofrontal' ...
+                'insula' ...
+                'cuneus' ...
+                'thalamus' 'caudate' 'putamen' 'pallidum' 'cerebellum' ...
+                'brainstem' 'brainstem+' 'csf' 'centrumsemiovale' 'corpuscallosum'};
+
+            for w = wmparcs
+                wmp = w{1};
+
+                as = this.testObj;
+                as.do_save=true;
+                as.do_save_dynamic=true;
+                as.do_save_ciftis=true;
+                as.source_physio=wmp;
+                as.out_dir = sprintf('/Volumes/PrecunealSSD2/AnalyticSignalHCPAging/physio_%s', wmp);
+
+                disp(as)
+                call(as);
+            end
         end
     end
     
@@ -46,7 +83,22 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
     
     methods (TestMethodSetup)
         function setupAnalyticSignalHCPAgingTest(this)
-            this.testObj = this.testObj_;
+            cd('/Volumes/PrecunealSSD2/HCPAging/HCPAgingRec/fmriresults01');
+            this.testObj = mlraut.AnalyticSignalHCPAging( ...
+                subjects={'HCA9992517_V1_MR'}, ...
+                tasks={'fMRI_CONCAT_ALL'}, ...
+                do_7T=false, ...
+                do_resting=true, ...
+                do_task=false, ...
+                do_save=false, ...
+                do_save_dynamic=false, ...
+                do_save_ciftis=false, ...
+                final_normalization="normxyzt", ...
+                force_band=false, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                global_signal_regression=true, ...
+                tags=stackstr(use_dashes=true));
             this.addTeardown(@this.cleanTestMethod)
         end
     end

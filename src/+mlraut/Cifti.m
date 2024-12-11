@@ -119,6 +119,7 @@ classdef Cifti < handle & mlsystem.IHandle
             end
 
             try
+                cdata = this.ihcp_.build_final_normalization(cdata);
                 if opts.do_save_dynamic
                     this.write_cifti(cdata, fp); % mlraut.HCP
                 end

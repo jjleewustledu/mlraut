@@ -21,7 +21,6 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
-            as.do_save_ciftis_of_diffs = true;
             as.source_physio="none";
             
             disp(as)            
@@ -32,7 +31,6 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
-            as.do_save_ciftis_of_diffs = true;
             as.source_physio="iFV";
             
             disp(as)            
@@ -58,35 +56,47 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             disp(as)            
             call(as);
         end
-        function test_call_csf(this)
-            as = this.testObj;
-            as.do_save=true;
-            as.do_save_dynamic=true;
-            as.do_save_ciftis=true;
-            as.source_physio="csf";
-            
-            disp(as)            
-            call(as);
-        end
-        function test_call_precuneus(this)
-            as = this.testObj;
-            as.do_save=true;
-            as.do_save_dynamic=true;
-            as.do_save_ciftis=true;
-            as.source_physio="precuneus";
-            
-            disp(as)            
-            call(as);
-        end
-        function test_call_hippocampus(this)
-            as = this.testObj;
-            as.do_save=true;
-            as.do_save_dynamic=true;
-            as.do_save_ciftis=true;
-            as.source_physio="hippocampus";
-            
-            disp(as)            
-            call(as);
+        function test_call_wmparc(this)
+
+            % wmparc = 'precuneus';
+            % wmparc = 'posteriorcingulate';
+            % wmparc = 'hippocampus';
+            % wmparc = 'entorhinal';
+            % wmparc = 'medialorbitofrontal';
+            % wmparc = 'insula';
+            % wmparc = 'cuneus';
+            % wmparc = 'thalamus';
+            % wmparc = 'caudate';
+            % wmparc = 'putamen';
+            % wmparc = 'pallidum';
+            % wmparc = 'cerebellum';
+            % wmparc = 'ponsvermis';
+            % wmparc = 'brainstem';
+            % wmparc = 'brainstem+';
+            % wmparc = 'csf';
+            % wmparc = 'centrumsemiovale';
+            % wmparc = 'corpuscallosum';
+
+            wmparcs = { ...
+                'cuneus' 'corpuscallosum'};
+                % 'precuneus' 'posteriorcingulate' 'hippocampus' 'entorhinal' 'medialorbitofrontal' ...
+                % 'insula' ...
+                % 'thalamus' 'caudate' 'putamen' 'pallidum' 'cerebellum' ...
+                % 'ponsvermis' 'brainstem' 'brainstem+' 'csf' 'centrumsemiovale'};
+
+            for w = wmparcs
+                wmparc = w{1};
+
+                as = this.testObj;
+                as.do_save=true;
+                as.do_save_dynamic=true;
+                as.do_save_ciftis=true;
+                as.source_physio=wmparc;
+                as.out_dir = sprintf('/Volumes/PrecunealSSD2/AnalyticSignalHCP/physio_%s', wmparc);
+
+                disp(as)
+                call(as);
+            end
         end
     end
     
@@ -108,6 +118,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
                 do_save=false, ...
                 do_save_dynamic=false, ...
                 do_save_ciftis=false, ...
+                final_normalization="normxyzt", ...
                 force_band=false, ...
                 hp_thresh=0.01, ...
                 lp_thresh=0.1, ...

@@ -116,7 +116,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isempty(this.hp_thresh) 
                 g = g + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
             end
-            if ~isemptytext(this.final_normalization)
+            if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
                 g = g + "-" + this.final_normalization;
             end
             if ~isemptytext(this.source_physio)
@@ -238,6 +238,25 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             psi = this.build_centered(psi, varargin{:});
             psi = this.build_rescaled(psi, varargin{:});
+        end
+        
+        function as = build_final_normalization(this, as)
+            %% provides final normalization by max(abs()) for more interpretable visualization at group level;
+            %  as ~ Nt x Nxyz
+
+            switch convertStringsToChars(this.final_normalization)
+                case 'normt'
+                    % allowing fluctuations in xyz, equalize t
+                    as = as ./ max(abs(as), [], 1);
+                case 'normxyz'
+                    % allowing fluctuations in t, equalize xyz
+                    as = as ./ max(abs(as), [], 2);
+                case 'normxyzt'
+                    % allowing fluctuations in xyz & t
+                    as = as / max(abs(as), [], "all");
+                otherwise
+                    return
+            end
         end
 
         function [gs,beta] = build_global_signal_for(this, sig)
@@ -723,8 +742,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.final_normalization {mustBeTextScalar} = "normxyzt"
                 opts.force_band logical = true
                 opts.global_signal_regression logical = true
-                opts.hp_thresh {mustBeScalarOrEmpty} = []
-                opts.lp_thresh {mustBeScalarOrEmpty} = []
+                opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
+                opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
                 opts.plot_range double = 1:417
