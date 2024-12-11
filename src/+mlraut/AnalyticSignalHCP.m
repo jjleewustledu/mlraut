@@ -156,8 +156,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                             sprintf('connectivity_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
 
                         % (T,X,Y,Z) in Pi
-                        ksi = hilbert(bold_);
-                        eta = hilbert(physio_);
+                        ksi = this.bold_signal_;
+                        eta = this.physio_signal_;
                         this.write_ciftis( ...
                             (ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2), ...
                             sprintf('T_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...

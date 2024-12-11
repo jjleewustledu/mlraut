@@ -116,10 +116,13 @@ classdef Cifti < handle & mlsystem.IHandle
                 fp {mustBeTextScalar}
                 opts.do_save_dynamic logical = false
                 opts.averaging_method function_handle = @median
+                opts.do_final_normalization logical = true
             end
 
             try
-                cdata = this.ihcp_.build_final_normalization(cdata);
+                if opts.do_final_normalization
+                    cdata = this.ihcp_.build_final_normalization(cdata);
+                end
                 if opts.do_save_dynamic
                     this.write_cifti(cdata, fp); % mlraut.HCP
                 end

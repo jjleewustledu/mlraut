@@ -18,7 +18,7 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
         end
         function test_call_physio(this)
 
-            for phys = {'iFV'}  % {'HRV' 'RV'}
+            for phys = {'iFV' 'HRV' 'RV'}
                 as = this.testObj;
                 as.do_save=true;
                 as.do_save_dynamic=true;

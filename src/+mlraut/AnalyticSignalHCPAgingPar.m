@@ -20,7 +20,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 global_signal_regression=true, ...
                 tags="AnalyticSignalHCPAgingPar-median-twistor");
 
-            mats = glob(fullfile(this.out_dir, 'HCA*_MR/sub-*_ses-*AnalyticSignal*.mat'));
+            mats = glob(fullfile(this.out_dir, 'HCA*_MR/sub-*_ses-*AnalyticSignalHCPAging*.mat'));
             n = length(mats);
             nx = this.num_nodes;
 
@@ -33,12 +33,20 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 % tic
                 ld = load(mat{1});
                 this_subset = ld.this_subset;
-                ksi = this_subset.analytic_signal.*this_subset.physio_signal;
+                try
+                    ksi = this_subset.bold_signal;
+                catch ME
+                    if strcmp(ME.identifier, 'MATLAB:nonExistentField')
+                        ksi = this_subset.analytic_signal.*this_subset.physio_signal;  % overly normalized in this_subset
+                    else
+                        rethrow(ME)
+                    end
+                end
                 eta = this_subset.physio_signal;
-                X = median((ksi.*conj(eta) + eta.*conj(ksi))/sqrt(2), 1);
-                Y = median((ksi.*conj(eta) - eta.*conj(ksi))/sqrt(2i), 1);
-                Z = median((ksi.*conj(ksi) - eta.*conj(eta))/sqrt(2), 1);
-                T = median((ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2), 1);
+                X = median(this.build_final_normalization((ksi.*conj(eta) + eta.*conj(ksi))/sqrt(2)), 1);
+                Y = median(this.build_final_normalization((ksi.*conj(eta) - eta.*conj(ksi))/sqrt(2i)), 1);
+                Z = median(this.build_final_normalization((ksi.*conj(ksi) - eta.*conj(eta))/sqrt(2)), 1);
+                T = median(this.build_final_normalization((ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2)), 1);
 
                 X_ = X_ + X/n;
                 Y_ = Y_ + Y/n;
@@ -49,18 +57,23 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
             this.write_ciftis( ...
                 X_, sprintf('X_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
                 do_save_dynamic=false);
             this.write_ciftis( ...
                 Y_, sprintf('Y_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
                 do_save_dynamic=false);
             this.write_ciftis( ...
                 Z_, sprintf('Z_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
                 do_save_dynamic=false);
             this.write_ciftis( ...
                 T_, sprintf('T_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
                 do_save_dynamic=false);
             this.write_ciftis( ...
                 T_+Z_, sprintf('T+Z_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
                 do_save_dynamic=false);
         end
 
