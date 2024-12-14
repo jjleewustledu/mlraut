@@ -20,7 +20,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 global_signal_regression=true, ...
                 tags="AnalyticSignalHCPPar-median-twistor");
 
-            mats = glob(fullfile(this.out_dir, '*/sub-*_ses-*AnalyticSignalHCP*.mat'));
+            mats = asrow(glob(fullfile(this.out_dir, '*/sub-*_ses-*AnalyticSignalHCP*.mat')));
             n = length(mats);
             nx = this.num_nodes;
 
@@ -78,6 +78,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
         end
 
         function parcall(cores, opts)
+            %% 33 GiB memory needed per instance of this running on a single process
+
             arguments
                 cores {mustBeScalarOrEmpty} = 8
                 opts.N_sub {mustBeScalarOrEmpty} = 1113
@@ -101,9 +103,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             %parfor (idxg = 1:2, 2)
             parfor (idxg = 1:leng, cores)
                 try
-                    if isfolder(fullfile(out_dir, g(idxg)))
-                        continue
-                    end
+                    % if isfolder(fullfile(out_dir, g{idxg}))
+                    %     continue
+                    % end
                     this = mlraut.AnalyticSignalHCPPar( ...
                         subjects=g(idxg), ...  
                         do_7T=false, ...

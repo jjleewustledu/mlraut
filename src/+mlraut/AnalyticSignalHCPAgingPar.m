@@ -20,40 +20,59 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 global_signal_regression=true, ...
                 tags="AnalyticSignalHCPAgingPar-median-twistor");
 
-            mats = glob(fullfile(this.out_dir, 'HCA*_MR/sub-*_ses-*AnalyticSignalHCPAging*.mat'));
+            mats = asrow(glob(fullfile(this.out_dir, 'HCA*_MR/sub-*_ses-*AnalyticSignalHCPAging*.mat')));
             n = length(mats);
             nx = this.num_nodes;
+            nfail = 0;
 
             X_ = zeros(1, nx);
             Y_ = zeros(1, nx);
             Z_ = zeros(1, nx);
             T_ = zeros(1, nx);
 
+            fprintf(stackstr() + "\n");
             for mat = mats
-                % tic
-                ld = load(mat{1});
-                this_subset = ld.this_subset;
                 try
-                    ksi = this_subset.bold_signal;
-                catch ME
-                    if strcmp(ME.identifier, 'MATLAB:nonExistentField')
-                        ksi = this_subset.analytic_signal.*this_subset.physio_signal;  % overly normalized in this_subset
-                    else
-                        rethrow(ME)
+                    tic
+                    fprintf("loading %s\n", mat{1});
+                    ld = load(mat{1});
+                    this_subset = ld.this_subset;
+                    try
+                        ksi = this_subset.bold_signal;
+                    catch ME
+                        if strcmp(ME.identifier, 'MATLAB:nonExistentField')
+                            ksi = this_subset.analytic_signal.*this_subset.physio_signal;  % overly normalized in this_subset
+                        else
+                            rethrow(ME)
+                        end
                     end
-                end
-                eta = this_subset.physio_signal;
-                X = median(this.build_final_normalization((ksi.*conj(eta) + eta.*conj(ksi))/sqrt(2)), 1);
-                Y = median(this.build_final_normalization((ksi.*conj(eta) - eta.*conj(ksi))/sqrt(2i)), 1);
-                Z = median(this.build_final_normalization((ksi.*conj(ksi) - eta.*conj(eta))/sqrt(2)), 1);
-                T = median(this.build_final_normalization((ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2)), 1);
+                    eta = this_subset.physio_signal;
+                    X = median(this.build_final_normalization((ksi.*conj(eta) + eta.*conj(ksi))/sqrt(2)), 1);
+                    Y = median(this.build_final_normalization((ksi.*conj(eta) - eta.*conj(ksi))/sqrt(2i)), 1);
+                    Z = median(this.build_final_normalization((ksi.*conj(ksi) - eta.*conj(eta))/sqrt(2)), 1);
+                    T = median(this.build_final_normalization((ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2)), 1);
 
-                X_ = X_ + X/n;
-                Y_ = Y_ + Y/n;
-                Z_ = Z_ + Z/n;
-                T_ = T_ + T/n;
-                % toc
+                    X_ = X_ + X/n;
+                    Y_ = Y_ + Y/n;
+                    Z_ = Z_ + Z/n;
+                    T_ = T_ + T/n;
+                    toc
+                catch ME
+                    handwarning(ME)
+                    nfail = nfail + 1;
+                end
             end
+            
+            if nfail > 0
+                assert(nfail < n)
+                X_ = X_*(n/(n - nfail));
+                Y_ = Y_*(n/(n - nfail));
+                Z_ = Z_*(n/(n - nfail));
+                T_ = T_*(n/(n - nfail));
+            end
+
+            this.out_dir = fullfile(getenv('HOME'), 'Singularity', 'AnalyticSignalHCPAging_zfs');
+            ensuredir(this.out_dir);
 
             this.write_ciftis( ...
                 X_, sprintf('X_as_sub-all_ses-all_%s', this.tags), ...
