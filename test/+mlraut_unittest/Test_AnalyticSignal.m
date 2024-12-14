@@ -595,6 +595,22 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             popd(pwd0);
         end
+        function test_mix_physio(this)
+            p_0 = sin(0:0.1:2*pi);
+            p_1 = 0.01*cos(0:0.2:4*pi);
+
+            figure
+            hold on
+            for f = 0:.1:1
+                this.testObj.frac_ext_physio = f;
+                p = this.testObj.mix_physio(p_0, p_1);
+                if f == 0.5
+                    plot(p, LineWidth=3)
+                else
+                    plot(p)
+                end
+            end
+        end
     end
     
     methods (TestClassSetup)

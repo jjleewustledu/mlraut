@@ -355,6 +355,28 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi./d;
         end
 
+        function p = mix_physio(this, p_0, p_1)
+            %% mix phyio signals:  p := (1 - f)*p_0 + f*p_1, f ~ this.frac_ext_physio, by power
+
+            f = this.frac_ext_physio;
+            if f < eps
+                p = p_0;
+                return
+            end
+            if f > 1 - eps
+                p = p_1;
+                return
+            end
+
+            n_0 = norm(p_0, Inf);
+            n_1 = norm(p_1, Inf);
+
+            g_0 = 1/n_1 + 2*(1 - 1/n_1)*f;
+            g_1 = 2 - 1/n_1 - 2*(1 - 1/n_0)*f;
+
+            p = (1 - f)*g_0*n_1*p_0 + f*g_1*n_0*p_1;
+        end
+
         function b = omit_late_frames(this, b)
             %% Keep frames 1:this.max_frames, following use of trim_frames() to remove this.num_frames_to_trim
             %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
@@ -575,9 +597,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             ic.fileprefix = stackstr(use_dashes=true);
         end
 
-        function physio = task_physio(this, opts)
+        function [physio,physio_0] = task_physio(this, opts)
             %  Returns:
-            %      physio numeric Nt x Nx
+            %      physio numeric Nt x 1
+            %      physio_0 numeric Nt x 1
             %  Throws:
             %      mlraut:ValueError if this.source_physio not supported
 
@@ -589,6 +612,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.reference {mustBeNumeric} = []
             end
 
+            physio_0 = [];
             bold = this.task_niigz();
             switch convertStringsToChars(this.source_physio)
                 case 'RV'
@@ -607,20 +631,32 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     iFV = mlraut.IFourthVentricle(this, bold);
                     physio = iFV.call();
                 case 'ROI'
+                    iFV = mlraut.IFourthVentricle(this, bold);
+                    physio_0 = iFV.call();
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=opts.roi, flipLR=opts.flipLR);
-                    physio = pROI.call();                
+                    physio_1 = pROI.call();
+
+                    physio_0 = this.build_centered(physio_0);
+                    physio_1 = this.build_centered(physio_1);
+                    physio = this.mix_physio(physio_0, physio_1);  % superposition of physio signals
                 case {'no-physio', 'nophys', 'none'}
                     physio = ones(size(bold, ndims(bold)), 1);
                     physio = physio.*mad(abs(opts.reference), 1, "all");
                     assert(all(isfinite(physio)), "likely that opts.reference is faulty")
                 otherwise  % other wmparc regions
+                    iFV = mlraut.IFourthVentricle(this, bold);
+                    physio_0 = iFV.call();
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
                     n = wmparc.label_to_num(convertStringsToChars(this.source_physio));
                     assert(~all(n == 0), stackstr())
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_wmparc_indices=n, flipLR=opts.flipLR);
-                    physio = pROI.call();                    
+                    physio_1 = pROI.call();
+
+                    physio_0 = this.build_centered(physio_0);
+                    physio_1 = this.build_centered(physio_1);
+                    physio = this.mix_physio(physio_0, physio_1);  % superposition of physio signals
             end
             physio = single(physio);
             assert(~isempty(physio))
@@ -704,12 +740,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_global_physio logical = true
             %      opts.do_plot_networks logical = true
             %      opts.do_plot_radar logical = true
-            %      opts.do_save logical = true: save fully populated this to mlraut_AnalyticSignal.mat
+            %      opts.do_save logical = true : save fully populated this to mlraut_AnalyticSignal.mat
             %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
             %      opts.do_save_ciftis_of_diffs logical = true: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
             %      opts.force_band logical = true: force bandpass to Nyquist limits of available data
+            %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05.
@@ -740,7 +777,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
                 opts.final_normalization {mustBeTextScalar} = "normxyzt"
-                opts.force_band logical = true
+                opts.force_band logical = false
+                opts.frac_ext_physio double = 0.5
                 opts.global_signal_regression logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
@@ -775,6 +813,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_save_dynamic = opts.do_save_dynamic;
 
             this.force_band = opts.force_band;
+            this.frac_ext_physio = opts.frac_ext_physio;
             this.global_signal_regression_ = opts.global_signal_regression;
             this.hp_thresh_ = opts.hp_thresh;
             this.lp_thresh_ = opts.lp_thresh;
