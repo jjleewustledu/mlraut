@@ -22,10 +22,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
         final_normalization
         frac_ext_physio  % fraction of external physio power
         source_physio
+        v_physio  % velocity of physio signal, m/s
     end
 
     properties (Dependent)
         anatomy_list
+        digital_filter
         global_signal
         global_signal_regression  % logical
         hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
@@ -45,6 +47,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
     methods %% GET, SET
         function g = get.anatomy_list(this)
             g = {'cbm', 'ctx', 'str', 'thal'};
+        end
+        function g = get.digital_filter(this)
+            g = this.digital_filter_;
+
         end
         function g = get.global_signal(this)
             g = this.global_signal_;
@@ -193,13 +199,46 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             error("mlraut:ValueError", stackstr())
         end
-        
+
         function dat1 = build_band_passed(this, dat)
-            %% Implements butter:  web(fullfile(docroot, 'signal/ref/butter.html?browser=F1help#bucsfmj')) .
+            %% Implements designfilt, caching results
+
+            if isempty(this.digital_filter_)
+                if isempty(this.lp_thresh)
+                    this.digital_filter_ = designfilt("highpassiir", ...
+                        FilterOrder=20, ...
+                        HalfPowerFrequency=this.hp_thresh, ...
+                        SampleRate=this.Fs);
+                elseif isempty(this.hp_thresh)
+                    this.digital_filter_ = designfilt("lowpassiir", ...
+                        FilterOrder=20, ...
+                        HalfPowerFrequency=this.lp_thresh, ...
+                        SampleRate=this.Fs);
+                else
+                    this.digital_filter_ = designfilt("bandpassiir", ...
+                        FilterOrder=20, ...
+                        HalfPowerFrequency1=this.hp_thresh, HalfPowerFrequency2=this.lp_thresh, ...
+                        SampleRate=this.Fs);
+                end
+            end
+
+            dat1 = filtfilt(this.digital_filter_, double(dat));  % zero-phase digital filtering; https://www.mathworks.com/help/releases/R2024b/signal/ref/filtfilt.html
+            if isa(dat, 'single')
+                dat1 = single(dat1);
+            end
+            if isa(dat, 'double')
+                dat1 = double(dat1);
+            end
+        end
+        
+        function dat1 = build_band_passed_butter(this, dat)
+            %% Implements butter:  web(fullfile(docroot, 'signal/ref/butter.html?browser=F1help#bucsfmj')) 
+            %  with configuration matched to Ryan's.  
             %  See also web(fullfile(docroot, 'signal/ug/practical-introduction-to-digital-filtering.html')) .
             %  Returns:
             %      dat1 same num. type as dat
             %      dat1 ~ ones() if dat ~ zeros() to accomodate no no physio
+            %      sos, for visualization with `freqz(sos,[],this.Fs)`
 
             if all(dat == 0)
                 dat1 = ones(size(dat));
@@ -211,6 +250,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             [z,p,k] = butter(2, [this.hp_thresh, this.lp_thresh - eps('single')]/(this.Fs/2)); % digital Wn in [0, 1]
             [sos,g] = zp2sos(z, p, k);
+            this.digital_filter_ = sos;
             dat1 = filtfilt(sos, g, double(dat));
             if isa(dat, 'single')
                 dat1 = single(dat1);
@@ -769,6 +809,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                      used with this.task_physio()
             %      opts.scale_to_hcp {mustBeScalar,mustBePositive} = 1: scaling factor
             %      opts.source_physio {mustBeTextScalar} = 'iFV'
+            %      opts.v_physio double = 150
             %      opts.global_signal_regression logical = true
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
@@ -798,6 +839,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV"
+                opts.v_physio double = 150
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}
@@ -832,6 +874,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.cohort_data_.out_dir = opts.out_dir;
             this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
+            this.v_physio = opts.v_physio;
             this.tags_user_ = opts.tags;
 
             this.build_roi(opts.roi);
@@ -842,6 +885,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
     properties (Access = protected)
         cifti_
+        digital_filter_
         hp_thresh_
         lp_thresh_
         plotting_

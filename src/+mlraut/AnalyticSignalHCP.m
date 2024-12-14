@@ -247,7 +247,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
         function save(this, s, t)
 
-            % reduce size of saved        
+            % reduce size of saved     
+            this_subset.digital_filter = this.digital_filter;
             this_subset.do_7T = this.do_7T;
             this_subset.do_resting = this.do_resting;
             this_subset.do_task = this.do_task;
