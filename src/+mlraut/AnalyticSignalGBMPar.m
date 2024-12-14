@@ -24,7 +24,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 global_signal_regression=true, ...
                 tags="AnalyticSignalGBMPar-median-twistor");
 
-            mats = glob(fullfile(this.out_dir, physio, '*', 'sub-*_ses-*AnalyticSignalGBM*.mat'));
+            mats = asrow(glob(fullfile(this.out_dir, physio, '*', 'sub-*_ses-*AnalyticSignalGBM*.mat')));
             n = length(mats);
             nx = this.num_nodes;
 
