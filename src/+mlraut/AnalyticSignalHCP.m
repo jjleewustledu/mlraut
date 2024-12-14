@@ -83,7 +83,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             %% Hilbert transform is applied after most other operations
 
             arguments
-                this mlraut.AnalyticSignalHCP
+                this %  mlraut.AnalyticSignalHCP; avoid down-casting
                 s double
             end
 

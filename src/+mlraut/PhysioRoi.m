@@ -59,6 +59,7 @@ classdef PhysioRoi < handle & mlraut.PhysioData
             wmp = mlfourd.ImagingContext2(this.ihcp_.wmparc_fqfn);
             ic = ones(wmp);
         end
+
         function bold = call(this)
             %% Performs exactly one flipLR as needed.
 
@@ -70,6 +71,7 @@ classdef PhysioRoi < handle & mlraut.PhysioData
             ic = fMRI.volumeAveraged(this.roi_mask);
             bold = ascol(ic.nifti.img);
         end
+
         function view_qc(this)
             %% Performs exactly one flipLR as needed.
             %  QC by comparison to task_signal_reference.

@@ -11,7 +11,7 @@ classdef HCP < handle & mlsystem.IHandle
         do_7T
         do_resting
         do_task       
-        max_frames = Inf  % max(num_frames) to enforce, used by omit_late_frames()
+        max_frames  % max(num_frames) to enforce, used by omit_late_frames()
     end
 
     properties (Dependent)
