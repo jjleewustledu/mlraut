@@ -78,7 +78,7 @@ classdef BOLDData < handle & mlsystem.IHandle
             s = struct("timesMid", ascol(0:tr:T));
             ifc.addJsonMetadata(s);
             ic = mlfourd.ImagingContext2(ifc);
-            this.task_niigz_ = copy(ic);
+            % this.task_niigz_ = copy(ic);  % caching is risky if BOLDData is re-used for multiple tasks per sub
         end
         function ic = task_signal_reference(this)
             % if ~isempty(this.task_signal_reference_)
@@ -108,6 +108,8 @@ classdef BOLDData < handle & mlsystem.IHandle
     methods (Access = protected)
         function that = copyElement(this)
             that = copyElement@matlab.mixin.Copyable(this);
+            if ~isempty(this.task_dtseries_)
+                that.task_dtseries_ = copy(this.task_dtseries_); end
             if ~isempty(this.task_niigz_)
                 that.task_niigz_ = copy(this.task_niigz_); end
             if ~isempty(this.task_signal_reference_)
