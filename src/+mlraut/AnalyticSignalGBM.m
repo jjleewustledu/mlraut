@@ -126,6 +126,35 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 cifti_write(c1, strrep(c, '_avgt.dscalar.nii', '_shifted_avgt.dscalar.nii'));
             end
         end
+
+        function this = call(this, opts)
+            %% CALL all subjects
+
+            arguments
+                this mlraut.AnalyticSignalHCP
+                opts.do_qc logical = false
+            end
+
+            % exclude subjects
+            %this.subjects = this.subjects(~contains(this.subjects, '_7T'));
+            %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
+
+            out_dir_ = this.out_dir;
+            for s = 1:this.num_sub
+                try
+                    this.current_subject = this.subjects{s};
+                    if ~contains(out_dir_, this.current_subject)
+                        proposed_dir = fullfile(out_dir_, this.current_subject);
+                        this.out_dir = proposed_dir;
+                        ensuredir(proposed_dir);
+                    end
+                    this.build_conc();  % new for AnalyticSignalGBM
+                    this.call_subject(s);
+                catch ME
+                    handexcept(ME)
+                end
+            end
+        end
         
         function this = call_subject(this, s)
 
@@ -144,7 +173,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                     % BOLD
                     try
                         bold_gsr_ = ...
-                            this.build_global_signal_regressed(this.task_dtseries_gbm());
+                            this.build_global_signal_regressed(this.task_dtseries());
                         bold_ = ...
                             this.build_band_passed( ...
                             this.build_centered_and_rescaled(bold_gsr_));
@@ -248,7 +277,8 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
         function j = jsonread(this)
             j = jsonread(this.cohort_data_.json_fqfn);
         end
-        function [bold,isleft] = task_dtseries_gbm(this, sub, task)
+
+        function [bold,isleft] = task_dtseries(this, sub, task)
             %  Args:
             %      subj (text)
             %      task (text)
@@ -274,16 +304,31 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 case "alllesion"
                     bold = this.task_dtseries_alllesion(sub, task);
                 otherwise
-                    bold = this.task_dtseries(sub, task);
+                    bold = this.task_dtseries_simple(sub, task);
             end
         end
+
+        function bold = task_dtseries_alllesion(this, sub, task)
+            isleft = contains(this.json.location, "left");
+            isright = contains(this.json.location, "right");
+            if isleft
+                bold = this.task_dtseries_1hemi(sub, task, 'L');
+                return
+            end
+            if isright
+                bold = this.task_dtseries_1hemi(sub, task, 'R');
+                return
+            end
+            bold = this.task_dtseries_simple(sub, task); % bilateral
+        end
+
         function bold = task_dtseries_1hemi(this, sub, task, hemi)
             %% duplicates selected hemi to contralateral hemi
             %  Args:
             %      subj (text)
             %      task (text)
             %      hemi char % in {'l', 'L', 'r', 'R', ''}; selecting 'L' copies 'L' ordinates to 'R' ordinates;
-            %                                               selecting '' returns this.task_dtseries().
+            %                                               selecting '' returns this.task_dtseries_simple().
             %  Returns:
             %      BOLD (numeric):  time x grayordinate
 
@@ -294,7 +339,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 hemi char = ''
             end
 
-            bold = this.task_dtseries(sub, task);
+            bold = this.task_dtseries_simple(sub, task);
             assert(size(bold, 2) == this.num_nodes, stackstr())
             l_ordinates = 1:29706;
             r_ordinates = 29707:59412;
@@ -306,6 +351,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 otherwise
             end
         end
+
         function bold = task_dtseries_flipLR(this, sub, task)
             %  Args:
             %      subj (text)
@@ -319,7 +365,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 task {mustBeTextScalar} = this.current_task
             end
 
-            bold = this.task_dtseries(sub, task);
+            bold = this.task_dtseries_simple(sub, task);
             assert(size(bold, 2) == this.num_nodes, stackstr())
             l_ordinates = 1:29706;
             r_ordinates = 29707:59412;
@@ -327,14 +373,16 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             bold(:, l_ordinates) = bold(:, r_ordinates);
             bold(:, r_ordinates) = buff;
         end
+
         function [bold,isleft] = task_dtseries_lesionR(this, sub, task)
             isleft = contains(this.json.location, "left");
             if isleft
                 bold = this.task_dtseries_flipLR(sub, task);
                 return
             end
-            bold = this.task_dtseries(sub, task); % right & bilateral
+            bold = this.task_dtseries_simple(sub, task); % right & bilateral
         end
+
         function bold = task_dtseries_nolesion(this, sub, task)
             isleft = contains(this.json.location, "left");
             isright = contains(this.json.location, "right");
@@ -352,19 +400,11 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 throw(ME);
             end
         end
-        function bold = task_dtseries_alllesion(this, sub, task)
-            isleft = contains(this.json.location, "left");
-            isright = contains(this.json.location, "right");
-            if isleft
-                bold = this.task_dtseries_1hemi(sub, task, 'L');
-                return
-            end
-            if isright
-                bold = this.task_dtseries_1hemi(sub, task, 'R');
-                return
-            end
-            bold = this.task_dtseries(sub, task); % bilateral
+
+        function mat = task_dtseries_simple(this, varargin)
+            mat = task_dtseries_simple@mlraut.AnalyticSignal(this, varargin{:});
         end
+
         function ic = task_signal_mask(this)
             ic = this.task_signal_reference();
             ic = ic.blurred(7).thresh(100).binarized();
@@ -438,6 +478,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             end            
             popd(pwd0);
         end
+
         function prepare_tumor_segs()
             SUBS = mlraut.AnalyticSignalGBM.SUBS;
             pwd0 = pushd(fullfile("/data/nil-bluearc/shimony/jjlee/Kiyun/rsFC_PreProc"));
@@ -525,6 +566,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             end
             popd(pwd0);
         end
+
         function serialcall(opts)
             arguments
                 opts.config_hemispheres {mustBeTextScalar} = "" % "lesionR" "nolesion" "alllesion" ""

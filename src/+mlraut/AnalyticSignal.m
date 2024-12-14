@@ -563,7 +563,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
         
         %% helpers for BOLD
 
-        function mat = task_dtseries(this, sub, task, opts)
+        function mat = task_dtseries(this, varargin)
+            %% supports interface 
+
+            mat = this.task_dtseries_simple(varargin{:});
+        end
+
+        function mat = task_dtseries_simple(this, sub, task, opts)
             %  Args:
             %      this mlraut.AnalyticSignal
             %      opts.max_frames double = Inf
@@ -580,7 +586,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.network_type {mustBeText} = ""
             end
 
-            mat = task_dtseries@mlraut.HCP(this, sub, task);
+            this.current_subject = sub;
+            this.current_task = task;
+
+            mat = this.bold_data_.task_dtseries();
             mat = this.trim_frames(mat);
             mat = this.omit_late_frames(mat);
             mat = single(mat);

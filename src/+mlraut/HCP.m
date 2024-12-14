@@ -218,7 +218,14 @@ classdef HCP < handle & mlsystem.IHandle
             bound = min(this.max_frames, size(b, 1));
             b = b(1:bound, :);
         end
-        function mat = task_dtseries(this, sub, task)
+
+        function mat = task_dtseries(this, varargin)
+            %% supports interface
+
+            mat = this.task_dtseries_simple(varargin{:});
+        end
+
+        function mat = task_dtseries_simple(this, sub, task)
             %  Args:
             %      this mlraut.HCP
             %      sub {mustBeTextScalar} = this.current_subject
@@ -236,9 +243,11 @@ classdef HCP < handle & mlsystem.IHandle
 
             mat = this.bold_data_.task_dtseries();
         end
+
         function ic = task_niigz(this)
             ic = this.bold_data_.task_niigz();
         end
+
         function ic = task_signal_reference(this)
             ic = this.bold_data_.task_signal_reference();
         end
@@ -313,6 +322,7 @@ classdef HCP < handle & mlsystem.IHandle
             mask = this.mask_fs_parcel(sub, parc);
             bold = mean(bold(:, mask), 2, 'omitnan');
         end
+
         function m = mask_fs_parcel(this, sub, parc)
             % this mlraut.HCP
             % sub {mustBeTextScalar} = this.current_subject
