@@ -20,6 +20,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         force_band  % force bandpass to [0.01 0.1] Hz
         final_normalization
+        frac_ext_physio  % fraction of external physio power
         source_physio
     end
 
