@@ -16,6 +16,7 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         json_fqfn
         out_dir
         root_dir
+        stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn    
@@ -73,6 +74,11 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 return
             end
             error("mlraut:NotImplementedError", stackstr());
+        end
+        function g = get.stats_fqfn(this)
+            mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_stats.dscalar.nii"));
+            % rfMRI_REST1_7T_PA_Atlas_stats.dscalar.nii, rfMRI_REST1_RL_Atlas_stats.dscalar.nii
+            g = mg(end);
         end
         function g = get.task_dtseries_fqfn(this)
             if this.is_7T
@@ -152,6 +158,40 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
     methods
         function this = HCPYoungAdultData(varargin)
             this = this@mlraut.CohortData(varargin{:});
+        end
+
+        function g = surf_gii_fqfn(this, hemis)
+            arguments
+                this mlraut.HCPYoungAdultData
+                hemis {mustBeTextScalar} = "L"
+            end
+
+            if startsWith(hemis, "L", IgnoreCase=true)
+                hemis = "L";
+            elseif startsWith(hemis, "R", IgnoreCase=true)
+                hemis = "R";
+            end
+
+            if this.is_7T
+                mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".midthickness_MSMall.164k_fs_LR.surf.gii"));
+                % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+                if isemptytext(mg)
+                    mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".midthickness.164k_fs_LR.surf.gii"));
+                    % 995174.L.midthickness.164k_fs_LR.surf.gii
+                end
+                assert(~isemptytext(mg), stackstr())
+                g = mg(end);
+                return
+            end
+
+            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".midthickness_MSMall.32k_fs_LR.surf.gii"));
+            % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".midthickness.32k_fs_LR.surf.gii"));
+                % 995174.L.midthickness.164k_fs_LR.surf.gii
+            end
+            assert(~isemptytext(mg), stackstr())
+            g = mg(end);
         end
     end
 

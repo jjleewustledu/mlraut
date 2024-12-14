@@ -14,6 +14,7 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
         json_fqfn
         out_dir
         root_dir
+        stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn   
@@ -54,6 +55,9 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
             g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalGBM", "analytic_signal", "dockerout", "ciftify");
             assert(isfolder(g))
             % /home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify
+        end
+        function g = get.stats_fqfn(this)
+            g = this.task_dtseries_fqfn;
         end
         function g = get.task_dtseries_fqfn(this)
             mg = mglob(fullfile(this.task_dir, sprintf("%s*_Atlas_s0.dtseries.nii", this.task)));

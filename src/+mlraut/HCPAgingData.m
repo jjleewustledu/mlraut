@@ -18,6 +18,7 @@ classdef HCPAgingData < handle & mlraut.CohortData
         json_fqfn
         out_dir
         root_dir
+        stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn  
@@ -93,6 +94,16 @@ classdef HCPAgingData < handle & mlraut.CohortData
                 return
             end
             error("mlraut:NotImplementedError", stackstr());
+        end
+        function g = get.stats_fqfn(this)
+            mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_MSMAll_mean.dscalar.nii"));
+            % rfMRI_REST1_AP_Atlas_MSMAll_mean.dscalar.nii
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_mean.dscalar.nii"));
+                % rfMRI_REST1_AP_Atlas_mean.dscalar.nii
+            end
+            assert(~isemptytext(mg), stackstr())
+            g = mg(1);
         end
         function g = get.task_dtseries_fqfn(this)
             mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_MSMAll_hp0_clean.dtseries.nii"));

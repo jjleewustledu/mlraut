@@ -22,6 +22,7 @@ classdef HCP < handle & mlsystem.IHandle
 
         bold_data
         cohort_data
+        
         cifti_last  % configures cifti historically
         extended_task_dir  % supports HCPAging/rfMRIExtended/fmriresults01/HCA*
         Fs  % BOLD sampling rate (Hz)
@@ -31,6 +32,7 @@ classdef HCP < handle & mlsystem.IHandle
         num_nodes  % set by BOLDData
         out_dir
         root_dir  % HCP data directory
+        stats_fqfn
         task_dir  % e.g., subject/MNINonlinear/Results/rfMRI_REST1_RL
         task_dtseries_fqfn
         task_niigz_fqfn
@@ -165,6 +167,9 @@ classdef HCP < handle & mlsystem.IHandle
         end
         function g = get.root_dir(this)
             g = this.cohort_data_.root_dir;
+        end
+        function g = get.stats_fqfn(this)
+            g = this.cohort_data_.stats_fqfn;
         end
         function g = get.task_dir(this)
             g = this.cohort_data_.task_dir;
