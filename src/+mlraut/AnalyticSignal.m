@@ -19,6 +19,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_save_dynamic
 
         force_band  % force bandpass to [0.01 0.1] Hz
+        force_legacy_butter  
         final_normalization
         frac_ext_physio  % fraction of external physio power
         source_physio
@@ -71,7 +72,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 g = max(this.hp_thresh_, Nyquist);
                 return
             end
-            g = Nyquist; 
+            g = this.hp_thresh_; 
         end
 
         function g = get.json(this)
@@ -82,7 +83,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function g = get.lp_thresh(this)
-            Nyquist = this.Fs/2; % Nyquist limited Hz
+            Nyquist = this.Fs/2 - 1e-6; % Nyquist limited Hz
             if this.force_band
                 g = min(0.1, Nyquist);
                 return
@@ -91,7 +92,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 g = min(this.lp_thresh_, Nyquist);
                 return
             end
-            g = Nyquist;
+            g = this.lp_thresh_;
         end     
 
         function g = get.rsn_list(~)
@@ -820,6 +821,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
             %      opts.force_band logical = true: force bandpass to Nyquist limits of available data
+            %      opts.force_legacy_butter logical = false: 
             %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
@@ -853,6 +855,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_save_dynamic logical = false
                 opts.final_normalization {mustBeTextScalar} = "normxyzt"
                 opts.force_band logical = false
+                opts.force_legacy_butter logical = false
                 opts.frac_ext_physio double = 0.5
                 opts.global_signal_regression logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
@@ -889,6 +892,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_save_dynamic = opts.do_save_dynamic;
 
             this.force_band = opts.force_band;
+            this.force_legacy_butter = opts.force_legacy_butter;
             this.frac_ext_physio = opts.frac_ext_physio;
             this.global_signal_regression_ = opts.global_signal_regression;
             this.hp_thresh_ = opts.hp_thresh;
