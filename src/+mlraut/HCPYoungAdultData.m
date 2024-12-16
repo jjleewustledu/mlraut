@@ -173,10 +173,10 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             end
 
             if this.is_7T
-                mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".midthickness_MSMall.164k_fs_LR.surf.gii"));
+                mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere_MSMall.164k_fs_LR.surf.gii"));
                 % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
                 if isemptytext(mg)
-                    mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".midthickness.164k_fs_LR.surf.gii"));
+                    mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere.164k_fs_LR.surf.gii"));
                     % 995174.L.midthickness.164k_fs_LR.surf.gii
                 end
                 assert(~isemptytext(mg), stackstr())
@@ -184,10 +184,10 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 return
             end
 
-            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".midthickness_MSMall.32k_fs_LR.surf.gii"));
+            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere_MSMall.32k_fs_LR.surf.gii"));
             % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
             if isemptytext(mg)
-                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".midthickness.32k_fs_LR.surf.gii"));
+                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere.32k_fs_LR.surf.gii"));
                 % 995174.L.midthickness.164k_fs_LR.surf.gii
             end
             assert(~isemptytext(mg), stackstr())

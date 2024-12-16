@@ -152,6 +152,40 @@ classdef HCPAgingData < handle & mlraut.CohortData
         function this = HCPAgingData(varargin)
             this = this@mlraut.CohortData(varargin{:});
         end
+
+        function g = surf_gii_fqfn(this, hemis)
+            arguments
+                this mlraut.HCPAgingData
+                hemis {mustBeTextScalar} = "L"
+            end
+
+            if startsWith(hemis, "L", IgnoreCase=true)
+                hemis = "L";
+            elseif startsWith(hemis, "R", IgnoreCase=true)
+                hemis = "R";
+            end
+
+            if this.is_7T
+                mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere_MSMall.164k_fs_LR.surf.gii"));
+                % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+                if isemptytext(mg)
+                    mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere.164k_fs_LR.surf.gii"));
+                    % 995174.L.midthickness.164k_fs_LR.surf.gii
+                end
+                assert(~isemptytext(mg), stackstr())
+                g = mg(end);
+                return
+            end
+
+            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere_MSMall.32k_fs_LR.surf.gii"));
+            % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere.32k_fs_LR.surf.gii"));
+                % 995174.L.midthickness.164k_fs_LR.surf.gii
+            end
+            assert(~isemptytext(mg), stackstr())
+            g = mg(end);
+        end
     end
 
     %% PROTECTED
