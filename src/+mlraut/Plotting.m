@@ -200,7 +200,12 @@ classdef Plotting < handle & mlsystem.IHandle
             end
             secs_ = this.tr * (0:this.num_frames-1);
 
-            % plot Yeo's 7 RSNs
+            meas_label = char(opts.measure);
+            meas_label = strrep(meas_label, "@(varargin)", "");
+            meas_label = strrep(meas_label, "(varargin{:})", "");
+
+            %% plot Yeo's 7 RSNs
+
             h1 = figure;
             h1.Position = [0 0 2880 2880*0.618];
             hold on
@@ -209,18 +214,20 @@ classdef Plotting < handle & mlsystem.IHandle
                 meas_ = real(opts.measure(ksi(:, k), eta(:, k)));
                 plot(secs_(opts.plot_range), meas_(opts.plot_range));
             end
-            % RSNs 6-7 are instrinsic
+            % RSNs 6-7 are intrinsic
             meas6_ = real(opts.measure(ksi(:, 6), eta(:, 6)));
             plot(secs_(opts.plot_range), meas6_(opts.plot_range), '--', LineWidth=2); % frontoparietal
             meas7_ = real(opts.measure(ksi(:, 7), eta(:, 7)));
             plot(secs_(opts.plot_range), meas7_(opts.plot_range), '--', LineWidth=2); % default mode
-            legend(this.rsn_list(1:7), FontSize=18)
-            xlabel('time/s', FontSize=24)
-            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.anatomy), FontSize=24, Interpreter="none")
-            title(sprintf('Yeo RSNs, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
+            legend(this.rsn_list(1:7))
+            xlabel('time/s')
+            ylabel(sprintf('%s(%s_signals)', meas_label, opts.anatomy), Interpreter="none")
+            title(sprintf('Yeo RSNs, sub-%s, %s ', this.sub, this.task), Interpreter="none")
+            fontsize(scale=2)
             hold off
 
-            % plot task+, task- RSNs
+            %% plot task+, task- RSNs
+
             h3 = figure;
             h3.Position = [0 0 2880 2880*0.618];
             hold on
@@ -230,10 +237,11 @@ classdef Plotting < handle & mlsystem.IHandle
             % 9 is instrinsic (task-)
             meas9_ = real(opts.measure(ksi(:, 9), eta(:, 9)));
             plot(secs_(opts.plot_range), meas9_(opts.plot_range), '--', LineWidth=2);
-            legend(this.rsn_list(8:9), FontSize=18)
-            xlabel('time/s', FontSize=24)
-            ylabel(sprintf('%s(%s_signals)', char(opts.measure), opts.anatomy), FontSize=24, Interpreter="none")
-            title(sprintf('Task +/-, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
+            legend(this.rsn_list(8:9))
+            xlabel('time/s')
+            ylabel(sprintf('%s(%s_signals)', meas_label, opts.anatomy), Interpreter="none")
+            title(sprintf('Task +/-, sub-%s, %s ', this.sub, this.task), Interpreter="none")
+            fontsize(scale=2)
             hold off
 
             this.saveFigures(sprintf('%s_%s_', char(opts.measure), opts.anatomy));
@@ -335,7 +343,7 @@ classdef Plotting < handle & mlsystem.IHandle
         end
         function saveFigures(this, label, varargin)
             label = strrep(label, "@(varargin)", "");
-            label = strrep(label, "(varargin{/})", "");
+            label = strrep(label, "(varargin{:})", "");
             saveFigures(this.out_dir, ...
                 closeFigure=true, ...
                 prefix=sprintf('%s_%s%s_%s_%s', stackstr(3, use_dashes=true), label, this.tags, this.sub, this.task));

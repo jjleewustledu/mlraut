@@ -21,6 +21,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
+            as.do_plot_networks=true;
             as.source_physio="none";
             
             disp(as)            
@@ -31,6 +32,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
+            as.do_plot_networks=true;
             as.source_physio="iFV";
             
             disp(as)            
@@ -41,6 +43,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
+            as.do_plot_networks=true;
             as.source_physio="HRV";
             
             disp(as)            
@@ -51,6 +54,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save=true;
             as.do_save_dynamic=true;
             as.do_save_ciftis=true;
+            as.do_plot_networks=true;
             as.source_physio="RV";
             
             disp(as)            
@@ -122,6 +126,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
                 force_band=false, ...
                 hp_thresh=0.01, ...
                 lp_thresh=0.1, ...
+                v_physio=0.5, ...
                 global_signal_regression=true, ...
                 tags=stackstr(use_dashes=true));
             this.addTeardown(@this.cleanTestMethod)
