@@ -669,7 +669,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             ic.fileprefix = stackstr(use_dashes=true);
         end
 
-        function [physio,physio_0] = task_physio(this, opts)
+        function [physio,physio_vec] = task_physio(this, opts)
             %  Returns:
             %      physio numeric Nt x 1
             %      physio_0 numeric Nt x 1
@@ -684,52 +684,72 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.reference {mustBeNumeric} = []
             end
 
-            physio_0 = [];
             bold = this.task_niigz();
             switch convertStringsToChars(this.source_physio)
                 case 'RV'
                     RV = mlraut.PhysioRV(this, bold);
-                    physio = RV.call();
-                    physio = physio./mad(abs(physio), 1, "all");
-                    physio = physio.*mad(abs(opts.reference), 1, "all");
-                    assert(all(isfinite(physio)), "likely that opts.reference is faulty")  
+                    physio_vec = RV.call();
+                    physio_vec = this.build_centered_and_rescaled(physio_vec);
+                    physio = ones(size(opts.reference)).*physio_vec;
+                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
                 case 'HRV'
                     HRV = mlraut.PhysioHRV(this, bold);
-                    physio = HRV.call();
-                    physio = physio./mad(abs(physio), 1, "all");
-                    physio = physio.*mad(abs(opts.reference), 1, "all");
-                    assert(all(isfinite(physio)), "likely that opts.reference is faulty")  
-                case 'iFV'
+                    physio_vec = HRV.call();
+                    physio_vec = this.build_centered_and_rescaled(physio_vec);
+                    physio = ones(size(opts.reference)).*physio_vec;
+                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
+                case 'iFV'  % propagated
                     iFV = mlraut.IFourthVentricle(this, bold);
-                    physio = iFV.call();
-                case 'ROI'
+                    ifv_pos = this.twistors_.center_of_mass_position(iFV.ifv_mask);
+                    physio_vec = iFV.call();
+                    physio = this.build_centered_and_rescaled(physio_vec);
+                    physio = this.twistors_.propagate_physio( ...
+                        opts.reference, physio, ...
+                        physio_pos=ifv_pos, ...
+                        v=0.5);
+                    assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
+                case 'ROI'  % propagated, superposed with iFV
                     iFV = mlraut.IFourthVentricle(this, bold);
+                    ifv_pos = this.twistors_.center_of_mass_position(iFV.ifv_mask);
                     physio_0 = iFV.call();
+                    physio_0 = this.build_centered_and_rescaled(physio_0);
+                    physio_0 = this.twistors_.propagate_physio( ...
+                        opts.reference, physio_0, ...
+                        physio_pos=ifv_pos, ...
+                        v=0.5);
+
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=opts.roi, flipLR=opts.flipLR);
-                    physio_1 = pROI.call();
+                    proi_pos = this.twistors_.center_of_mass_position(pROI.roi_mask);
+                    physio_vec = pROI.call();
+                    physio_1 = this.build_centered_and_rescaled(physio_vec);
+                    physio_1 = this.twistors_.propagate_physio( ...
+                        opts.reference, physio_1, ...
+                        physio_pos=proi_pos, ...
+                        v=this.v_physio);
 
-                    physio_0 = this.build_centered(physio_0);
-                    physio_1 = this.build_centered(physio_1);
                     physio = this.mix_physio(physio_0, physio_1);  % superposition of physio signals
+                    assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
                 case {'no-physio', 'nophys', 'none'}
-                    physio = ones(size(bold, ndims(bold)), 1);
-                    physio = physio.*mad(abs(opts.reference), 1, "all");
-                    assert(all(isfinite(physio)), "likely that opts.reference is faulty")
-                otherwise  % other wmparc regions
-                    iFV = mlraut.IFourthVentricle(this, bold);
-                    physio_0 = iFV.call();
+                    physio_vec = ones(size(opts.reference, 1), 1);
+                    physio = ones(size(opts.reference)).*physio_vec;
+                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
+                otherwise  % other wmparc regions, propagated
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
                     n = wmparc.label_to_num(convertStringsToChars(this.source_physio));
                     assert(~all(n == 0), stackstr())
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_wmparc_indices=n, flipLR=opts.flipLR);
-                    physio_1 = pROI.call();
-
-                    physio_0 = this.build_centered(physio_0);
-                    physio_1 = this.build_centered(physio_1);
-                    physio = this.mix_physio(physio_0, physio_1);  % superposition of physio signals
+                    proi_pos = this.twistors_.center_of_mass_position(pROI.roi_mask);
+                    physio_vec = pROI.call();
+                    physio = this.build_centered_and_rescaled(physio_vec);
+                    physio = this.twistors_.propagate_physio( ...
+                        opts.reference, physio, ...
+                        physio_pos=proi_pos, ...
+                        v=this.v_physio);
+                    assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
             end
+            physio_vec = single(physio_vec);
             physio = single(physio);
             assert(~isempty(physio))
         end
@@ -927,6 +947,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.tags_user_ = opts.tags;
 
             this.build_roi(opts.roi);
+
+            this.twistors_ = mlraut.Twistors(this);
         end
     end
 
@@ -948,6 +970,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         global_signal_regression_
         physio_signal_
         roi_
+        twistors_
     end
 
     methods (Access = protected)
@@ -959,6 +982,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 that.plotting_ = copy(this.plotting_); end
             if ~isempty(this.task_signal_mask_)
                 that.task_signal_mask_ = copy(this.task_signal_mask_); end
+            if ~isempty(this.roi_)
+                that.roi_ = copy(this.roi_); end
+            if ~isempty(this.twistors_)
+                that.twistors_ = copy(this.twistors_); end
         end
     end
 
