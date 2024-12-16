@@ -301,13 +301,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
             switch convertStringsToChars(this.final_normalization)
                 case 'normt'
                     % allowing fluctuations in xyz, equalize t
-                    as = as ./ max(abs(as), [], 1);
+                    as = as ./ this.build_norm(as, dim=1);
                 case 'normxyz'
                     % allowing fluctuations in t, equalize xyz
-                    as = as ./ max(abs(as), [], 2);
+                    as = as ./ this.build_norm(as, dim=2);
                 case 'normxyzt'
                     % allowing fluctuations in xyz & t
-                    as = as / max(abs(as), [], "all");
+                    as = as / this.build_norm(as, dim="all");
                 otherwise
                     return
             end
@@ -394,9 +394,18 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi - this.build_global_signal_for(psi);
         end
 
+        function n = build_norm(this, psi, opts)
+            arguments
+                this mlraut.AnalyticSignal
+                psi {mustBeNumeric}
+                opts.dim = "all" 
+            end
+            n = mad(abs(psi), 1, opts.dim);  % median abs. dev.
+        end
+
         function psi = build_rescaled(this, psi, opts)
             arguments
-                this mlraut.AnalyticSignal %#ok<INUSA>
+                this mlraut.AnalyticSignal 
                 psi {mustBeNumeric,mustBeNonempty}
                 opts.reference {mustBeNumeric} = psi
             end
@@ -405,12 +414,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
             
-            d = mad(abs(opts.reference), 1, 'all');  % median abs. dev.
+            d = this.build_norm(opts.reference);
             psi = psi./d;
         end
 
         function p = mix_physio(this, p_0, p_1)
-            %% mix phyio signals:  p := (1 - f)*p_0 + f*p_1, f ~ this.frac_ext_physio, by power
+            %% mix phyio signals:  p := (1 - f)*p_0 + f*p_1, f ~ this.frac_ext_physio, weighted by norms
 
             f = this.frac_ext_physio;
             if f < eps
@@ -422,13 +431,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
 
-            n_0 = norm(p_0, Inf);
-            n_1 = norm(p_1, Inf);
+            n_0 = this.build_norm(p_0);  % scalars
+            n_1 = this.build_norm(p_1);
 
-            g_0 = 1/n_1 + 2*(1 - 1/n_1)*f;
-            g_1 = 2 - 1/n_1 - 2*(1 - 1/n_0)*f;
+            g_0 = 1/n_1 + 2*(1 - 1/n_1)*f;  % scalars
+            g_1 = 2 - 1/n_0 - 2*(1 - 1/n_0)*f;
 
-            p = (1 - f)*g_0*n_1*p_0 + f*g_1*n_0*p_1;
+            p = (1 - f)*g_0*n_1*p_0 + f*g_1*n_0*p_1;  % mat -> mat
         end
 
         function b = omit_late_frames(this, b)
