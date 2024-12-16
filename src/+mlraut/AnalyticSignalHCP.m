@@ -37,16 +37,21 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
     end
     
     methods
-        function psis = average_network_signals(this, psi)
+        function psis = average_network_signals(this, ksi, eta)
             arguments
                 this mlraut.AnalyticSignalHCP
-                psi {mustBeNumeric}
+                ksi {mustBeNumeric}
+                eta {mustBeNumeric}
             end
 
-            this.HCP_signals_.cbm = this.average_network_signal(psi, network_type="cerebellar");
-            this.HCP_signals_.ctx = this.average_network_signal(psi, network_type="cortical");
-            this.HCP_signals_.str = this.average_network_signal(psi, network_type="striatal");
-            this.HCP_signals_.thal = this.average_network_signal(psi, network_type="thalamic");
+            this.HCP_signals_.cbm.ksi = this.average_network_signal(ksi, network_type="cerebellar");
+            this.HCP_signals_.cbm.eta = this.average_network_signal(eta, network_type="cerebellar");
+            this.HCP_signals_.ctx.ksi = this.average_network_signal(ksi, network_type="cortical");
+            this.HCP_signals_.ctx.eta = this.average_network_signal(eta, network_type="cortical");
+            this.HCP_signals_.str.ksi = this.average_network_signal(ksi, network_type="striatal");
+            this.HCP_signals_.str.eta = this.average_network_signal(eta, network_type="striatal");
+            this.HCP_signals_.thal.ksi = this.average_network_signal(ksi, network_type="thalamic");
+            this.HCP_signals_.thal.eta = this.average_network_signal(eta, network_type="thalamic");
             psis = this.HCP_signals;
         end
 
@@ -199,10 +204,10 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         this.plot_global_physio(measure=@real);
                     end
                     if this.do_plot_networks
-                        this.plot_regions(@this.plot_networks, measure=@this.unwrap);
-                        this.plot_regions(@this.plot_networks, measure=@angle);
-                        this.plot_regions(@this.plot_networks, measure=@abs);
-                        this.plot_regions(@this.plot_networks, measure=@real);
+                        this.plot_regions(@this.plot_networks, measure=@this.X);
+                        this.plot_regions(@this.plot_networks, measure=@this.Y);
+                        this.plot_regions(@this.plot_networks, measure=@this.Z);
+                        this.plot_regions(@this.plot_networks, measure=@this.T);
                     end
                     if this.do_plot_radar
                         this.plot_regions(@this.plot_radar, measure=@this.identity);
@@ -236,13 +241,16 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
             % accumulate for statistics on serialized AnalyticSignalHCP
             this.bold_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
-            this.physio_signal_ = complex(nan(this.num_frames, 1));              
-            this.analytic_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
+            this.physio_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest       
 
-            this.HCP_signals_.cbm = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.ctx = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.str = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.thal = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.cbm.ksi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.cbm.eta = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.ctx.ksi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.ctx.eta = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.str.ksi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.str.eta = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.thal.ksi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.thal.eta = complex(nan(this.num_frames,this.num_nets));
         end
 
         function save(this, s, t)

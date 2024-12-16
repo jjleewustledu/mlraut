@@ -182,21 +182,19 @@ classdef Plotting < handle & mlsystem.IHandle
         function [h1,h3] = plot_networks(this, opts)
             %  Args:
             %      this mlraut.Plotting           
-            %      opts.measure function_handle = @abs
+            %      opts.measure function_handle = @this.ias_.X
             %      opts.anatomy {mustBeTextScalar} = 'ctx'
             %      opts.plot_range {mustBeInteger} = 150:300
 
             arguments
                 this mlraut.Plotting           
-                opts.measure function_handle = @abs
+                opts.measure function_handle = @this.ias_.X
                 opts.anatomy {mustBeTextScalar} = 'ctx'
                 opts.plot_range {mustBeInteger} = []
             end
             assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
-            signals = this.HCP_signals.(lower(opts.anatomy));
-            if isreal(signals) && ~strcmp(char(opts.measure), char(@real))
-                return
-            end
+            ksi = this.HCP_signals.(lower(opts.anatomy)).ksi;
+            eta = this.HCP_signals.(lower(opts.anatomy)).eta;
             if isempty(opts.plot_range)
                 opts.plot_range = this.plot_range;
             end
@@ -208,13 +206,13 @@ classdef Plotting < handle & mlsystem.IHandle
             hold on
             % RSNs 1-5 are extrinsic
             for k = 1:5
-                meas_ = opts.measure(signals(:, k));
+                meas_ = real(opts.measure(ksi(:, k), eta(:, k)));
                 plot(secs_(opts.plot_range), meas_(opts.plot_range));
             end
             % RSNs 6-7 are instrinsic
-            meas6_ = opts.measure(signals(:, 6));
+            meas6_ = real(opts.measure(ksi(:, 6), eta(:, 6)));
             plot(secs_(opts.plot_range), meas6_(opts.plot_range), '--', LineWidth=2); % frontoparietal
-            meas7_ = opts.measure(signals(:, 7));
+            meas7_ = real(opts.measure(ksi(:, 7), eta(:, 7)));
             plot(secs_(opts.plot_range), meas7_(opts.plot_range), '--', LineWidth=2); % default mode
             legend(this.rsn_list(1:7), FontSize=18)
             xlabel('time/s', FontSize=24)
@@ -227,10 +225,10 @@ classdef Plotting < handle & mlsystem.IHandle
             h3.Position = [0 0 2880 2880*0.618];
             hold on
             % 8 is extrinsic (task+)
-            meas8_ = opts.measure(signals(:, 8));
+            meas8_ = real(opts.measure(ksi(:, 8), eta(:, 8)));
             plot(secs_(opts.plot_range), meas8_(opts.plot_range));
             % 9 is instrinsic (task-)
-            meas9_ = opts.measure(signals(:, 9));
+            meas9_ = real(opts.measure(ksi(:, 9), eta(:, 9)));
             plot(secs_(opts.plot_range), meas9_(opts.plot_range), '--', LineWidth=2);
             legend(this.rsn_list(8:9), FontSize=18)
             xlabel('time/s', FontSize=24)
@@ -238,7 +236,7 @@ classdef Plotting < handle & mlsystem.IHandle
             title(sprintf('Task +/-, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
             hold off
 
-            this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.anatomy));
+            this.saveFigures(sprintf('%s_%s_', char(opts.measure), opts.anatomy));
         end
         function [h,h1,h2] = plot_radar(this, opts)
             %  Args:
@@ -336,6 +334,8 @@ classdef Plotting < handle & mlsystem.IHandle
             title(sprintf("%s: %s: log %s", stackstr(3), stackstr(2), opts.ylabel), Interpreter="none");
         end
         function saveFigures(this, label, varargin)
+            label = strrep(label, "@(varargin)", "");
+            label = strrep(label, "(varargin{/})", "");
             saveFigures(this.out_dir, ...
                 closeFigure=true, ...
                 prefix=sprintf('%s_%s%s_%s_%s', stackstr(3, use_dashes=true), label, this.tags, this.sub, this.task));

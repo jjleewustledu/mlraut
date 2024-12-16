@@ -745,6 +745,30 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         %% misc. helpers
 
+        function psi = X(~, ksi, eta)
+            %% of twistor
+
+            psi = (ksi.*conj(eta) + eta.*conj(ksi))/sqrt(2);
+        end
+
+        function psi = Y(~, ksi, eta)
+            %% of twistor
+
+            psi = (ksi.*conj(eta) - eta.*conj(ksi))/sqrt(2i);
+        end
+
+        function psi = Z(~, ksi, eta)
+            %% of twistor
+
+            psi = (ksi.*conj(ksi) - eta.*conj(eta))/sqrt(2);
+        end
+
+        function psi = T(~, ksi, eta)
+            %% of twistor
+
+            psi = (ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2);
+        end
+
         function tseries = trim_frames(this, tseries)
             nt = this.num_frames_to_trim + 1;
             if isnumeric(tseries)
