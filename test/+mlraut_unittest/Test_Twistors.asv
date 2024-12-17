@@ -1,0 +1,105 @@
+classdef Test_Twistors < matlab.unittest.TestCase
+    %% line1
+    %  line2
+    %  
+    %  Created 11-Dec-2024 22:23:24 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/test/+mlraut_unittest.
+    %  Developed on Matlab 24.2.0.2773142 (R2024b) Update 2 for MACA64.  Copyright 2024 John J. Lee.
+    
+    properties
+        testObj
+    end
+    
+    methods (Test)
+        function test_afun(this)
+            import mlraut.*
+            this.assumeEqual(1,1);
+            this.verifyEqual(1,1);
+            this.assertEqual(1,1);
+        end
+
+        function test_center_of_mass_position(this)
+            pth = fullfile(getenv("HOME"), "Local", "atlas");
+            roi = mlfourd.ImagingContext2(fullfile(pth, "MNI152_T1_2mm_brain_mask.nii.gz"));
+            [pos,v] = this.testObj.center_of_mass_position(roi);
+            fprintf("pos -> %g\n", pos)
+            fprintf("indicers -> %g\n", v)
+            roi.view()
+        end
+
+        function test_grayordinate_positions(this)
+            pos = this.testObj.grayordinate_positions();
+            x = pos(1, :);
+            y = pos(2, :);
+            z = pos(3, :);
+            figure; scatter3(x, y, z, 'filled')
+            axis equal; grid on;
+        end
+
+        function test_propagate_physio(this)
+            this.testObj.build_conc();
+            this.testObj.malloc();
+            this.testObj.current_task = this.testObj.tasks{t};
+
+            bold_gsr_ = ...
+                this.testObj.build_global_signal_regressed(this.testObj.task_dtseries_gbm());
+            bold_ = ...
+                this.testObj.build_band_passed( ...
+                this.testObj.build_centered_and_rescaled(bold_gsr_));
+
+            physio_gsr_ = ...
+                this.testObj.build_global_signal_regressed(this.testObj.task_physio(reference=bold_gsr_), is_physio=true);
+            physio_ = ...
+                this.testObj.build_band_passed( ...
+                this.build_centered_and_rescaled(physio_gsr_, reference=bold_gsr_));
+
+            physio_signal = [];
+            propagated = this.testObj.propagate_physio(bold_signal, physio_signal);
+
+            this.testObj.write_ciftis( ...
+                abs(propagated), ...
+                sprintf('propagated_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                do_save_dynamic=this.do_save_dynamic);
+        end
+    end
+    
+    methods (TestClassSetup)
+        function setupTwistors(this)
+            import mlraut.*
+            this.ihcp_ = mlraut.AnalyticSignalHCP( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_7T=false, ...
+                do_resting=true, ...
+                do_task=false, ...
+                do_save=false, ...
+                do_save_dynamic=false, ...
+                do_save_ciftis=false, ...
+                final_normalization="normxyzt", ...
+                force_band=false, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                global_signal_regression=true, ...
+                tags=stackstr(use_dashes=true));
+            this.testObj_ = Twistors(this.ihcp_);
+        end
+    end
+    
+    methods (TestMethodSetup)
+        function setupTwistorsTest(this)
+            this.testObj = this.testObj_;
+            this.addTeardown(@this.cleanTestMethod)
+        end
+    end
+    
+    properties (Access = private)
+        testObj_
+        ihcp_
+    end
+    
+    methods (Access = private)
+        function cleanTestMethod(this)
+        end
+    end
+    
+    %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
+end

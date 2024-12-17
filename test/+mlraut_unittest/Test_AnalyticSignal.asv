@@ -605,7 +605,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
                 this.testObj.frac_ext_physio = f;
                 p = this.testObj.mix_physio(p_0, p_1);
                 if f == 0.5
-                    plot(p, LineWidth=3)
+                    plot(p, LineWidth=)
                 else
                     plot(p)
                 end
