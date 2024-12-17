@@ -230,73 +230,85 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this.bold_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
             this.physio_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest       
 
-            this.HCP_signals_.cbm.ksi = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.cbm.eta = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.ctx.ksi = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.ctx.eta = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.str.ksi = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.str.eta = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.thal.ksi = complex(nan(this.num_frames,this.num_nets));
-            this.HCP_signals_.thal.eta = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.cbm.psi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.cbm.phi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.ctx.psi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.ctx.phi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.str.psi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.str.phi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.thal.psi = complex(nan(this.num_frames,this.num_nets));
+            this.HCP_signals_.thal.phi = complex(nan(this.num_frames,this.num_nets));
         end
 
         function save(this, s, t)
 
-            % reduce size of saved     
-            this_subset.digital_filter = this.digital_filter;
-            this_subset.do_7T = this.do_7T;
-            this_subset.do_resting = this.do_resting;
-            this_subset.do_task = this.do_task;
-            this_subset.do_save = this.do_save;
-            this_subset.do_save_ciftis = this.do_save_ciftis;
-            this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
-            this_subset.do_save_dynamic = this.do_save_dynamic;
-            this_subset.force_band = this.force_band;
-            this_subset.final_normalization = this.final_normalization;
-            this_subset.roi = this.roi;
-            this_subset.source_physio = this.source_physio;
-            this_subset.global_signal = this.global_signal;
-            this_subset.global_signal_regression = this.global_signal_regression;
-            this_subset.hp_thresh = this.hp_thresh;
-            this_subset.lp_thresh = this.lp_thresh;
-            this_subset.num_nets = this.num_nets;
-            this_subset.num_sub = this.num_sub;
-            this_subset.num_tasks = this.num_tasks;
-            this_subset.scale_to_hcp = this.scale_to_hcp;
-            this_subset.tags = this.tags;
-            % this_subset.analytic_signal = this.analytic_signal;
-            this_subset.bold_signal = this.bold_signal;
-            this_subset.HCP_signals = this.HCP_signals;
-            this_subset.physio_signal = this.physio_signal;
-            this_subset.max_frames = this.max_frames;
-            this_subset.current_subject = this.current_subject;
-            this_subset.current_task = this.current_task;
-            this_subset.subjects = this.subjects;
-            this_subset.tasks = this.tasks;
-            % this_subset.bold_data = this.bold_data;
-            % this_subset.cohort_data = this.cohort_data;
-            % this_subset.cifti_last = this.cifti_last;
-            this_subset.Fs = this.Fs;
-            this_subset.num_frames = this.num_frames;
-            this_subset.num_frames_ori = this.num_frames_ori;
-            this_subset.num_frames_to_trim = this.num_frames_to_trim;
-            this_subset.num_nodes = this.num_nodes;
-            this_subset.out_dir = this.out_dir;
-            this_subset.root_dir = this.root_dir;
-            this_subset.task_dir = this.task_dir;
-            this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
-            this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
-            this_subset.task_signal_reference_fqfn = this.task_signal_reference_fqfn;
-            this_subset.t1w_fqfn = this.t1w_fqfn;
-            this_subset.tr = this.tr;
-            this_subset.waves_dir = this.waves_dir;
-            this_subset.wmparc_fqfn = this.wmparc_fqfn;
-            this_subset.workbench_dir = this.workbench_dir;
-            
+            if this.do_save_subset
+
+                %% reduce size of saved
+
+                this_subset.digital_filter = this.digital_filter;
+                this_subset.do_7T = this.do_7T;
+                this_subset.do_resting = this.do_resting;
+                this_subset.do_task = this.do_task;
+                this_subset.do_save = this.do_save;
+                this_subset.do_save_ciftis = this.do_save_ciftis;
+                this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
+                this_subset.do_save_dynamic = this.do_save_dynamic;
+                this_subset.force_band = this.force_band;
+                this_subset.final_normalization = this.final_normalization;
+                this_subset.roi = this.roi;
+                this_subset.source_physio = this.source_physio;
+                this_subset.global_signal = this.global_signal;
+                this_subset.global_signal_regression = this.global_signal_regression;
+                this_subset.hp_thresh = this.hp_thresh;
+                this_subset.lp_thresh = this.lp_thresh;
+                this_subset.num_nets = this.num_nets;
+                this_subset.num_sub = this.num_sub;
+                this_subset.num_tasks = this.num_tasks;
+                this_subset.scale_to_hcp = this.scale_to_hcp;
+                this_subset.tags = this.tags;
+                this_subset.bold_signal = this.bold_signal;
+                this_subset.HCP_signals = this.HCP_signals;
+                this_subset.physio_signal = this.physio_signal;
+                this_subset.comparator = this.comparator;
+                this_subset.max_frames = this.max_frames;
+                this_subset.current_subject = this.current_subject;
+                this_subset.current_task = this.current_task;
+                this_subset.subjects = this.subjects;
+                this_subset.tasks = this.tasks;
+                % this_subset.bold_data = this.bold_data;
+                % this_subset.cohort_data = this.cohort_data;
+                % this_subset.cifti_last = this.cifti_last;
+                this_subset.Fs = this.Fs;
+                this_subset.num_frames = this.num_frames;
+                this_subset.num_frames_ori = this.num_frames_ori;
+                this_subset.num_frames_to_trim = this.num_frames_to_trim;
+                this_subset.num_nodes = this.num_nodes;
+                this_subset.out_dir = this.out_dir;
+                this_subset.root_dir = this.root_dir;
+                this_subset.task_dir = this.task_dir;
+                this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
+                this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
+                this_subset.task_signal_reference_fqfn = this.task_signal_reference_fqfn;
+                this_subset.t1w_fqfn = this.t1w_fqfn;
+                this_subset.tr = this.tr;
+                this_subset.waves_dir = this.waves_dir;
+                this_subset.wmparc_fqfn = this.wmparc_fqfn;
+                this_subset.workbench_dir = this.workbench_dir;
+                try
+                    save(fullfile(this.out_dir, ...
+                        sprintf("sub-%s_ses-%s_%s_subset.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), this.tags)), ...
+                        'this_subset');
+                catch ME
+                    handwarning(ME)
+                end
+                return
+            end
+
             try
                 save(fullfile(this.out_dir, ...
                     sprintf("sub-%s_ses-%s_%s.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), this.tags)), ...
-                    'this_subset');
+                    'this');
             catch ME
                 handwarning(ME)
             end

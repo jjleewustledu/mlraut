@@ -14,6 +14,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_networks
         do_plot_radar
         do_save
+        do_save_subset
         do_save_ciftis
         do_save_ciftis_of_diffs
         do_save_dynamic
@@ -857,6 +858,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_networks logical = true
             %      opts.do_plot_radar logical = true
             %      opts.do_save logical = true : save fully populated this to mlraut_AnalyticSignal.mat
+            %      opts.do_save_subset logical = false : save only subset of this to decrease storage
             %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
             %      opts.do_save_ciftis_of_diffs logical = true: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
@@ -891,6 +893,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_networks logical = false
                 opts.do_plot_radar logical = false
                 opts.do_save logical = false
+                opts.do_save_subset logical = false
                 opts.do_save_ciftis logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
@@ -903,11 +906,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
-                opts.plot_range double = 1:417
+                opts.plot_range double = []
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV"
-                opts.v_physio double = 150
+                opts.v_physio double = 0.1
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}
@@ -928,6 +931,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_networks = opts.do_plot_networks;
             this.do_plot_radar = opts.do_plot_radar;
             this.do_save = opts.do_save;
+            this.do_save_subset = opts.do_save_subset;
             this.do_save_ciftis = opts.do_save_ciftis;
             this.do_save_ciftis_of_diffs = opts.do_save_ciftis_of_diffs;
             this.do_save_dynamic = opts.do_save_dynamic;
