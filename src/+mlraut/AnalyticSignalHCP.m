@@ -160,8 +160,11 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                             sprintf('connectivity_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
 
                         % (T,X,Y,Z) in omega
-                        ksi = this.bold_signal_;
-                        eta = this.physio_signal_;
+                        psi = this.bold_signal_;
+                        phi = this.physio_signal_;
+                        parts = abs(this.physio_angle) <= pi/2;  % unbiased
+                        % parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
+                        % cortical X(psi, phi) >= 0, region 9 ~ task-, biased but informative
                         this.write_ciftis( ...
                             this.T(ksi, eta), ...
                             sprintf('T_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...

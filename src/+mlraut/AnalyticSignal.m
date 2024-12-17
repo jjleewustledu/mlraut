@@ -41,9 +41,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
         tags_user
 
         bold_signal
+        physio_angle
         physio_signal
         roi
         source_physio_is_ROI
+        source_physio_is_none
     end
 
     methods %% GET, SET
@@ -151,6 +153,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
             g = this.bold_signal_;
         end
 
+        function g = get.physio_angle(this)
+            if isempty(this.physio_signal)
+                g = [];
+                return
+            end
+            if isempty(this.physio_angle_)
+               this.physio_angle_ = angle(mean(this.physio_signal, 2));
+            end
+            g = this.physio_angle_;
+        end
+
         function g = get.physio_signal(this)
             g = this.physio_signal_;
         end
@@ -162,16 +175,15 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function g = get.source_physio_is_ROI(this)
             g = ~contains(this.source_physio, ["RV", "HRV", "no-physio", "nophys", "none"]);
         end
+
+        function g = get.source_physio_is_none(this)
+            g = contains(this.source_physio, ["no-physio", "nophys", "none"]);
+        end
     end
     
     methods
 
         %% helpers for buillding
-
-        function a = angle(~, as)
-            a = unwrap(angle(as)); % [-pi pi] -> [-inf inf]
-            a = mod(a, 2*pi); % [-inf inf] -> [0 2*pi]
-        end
 
         function psi = average_network_signal(this, psi, opts)
             arguments
@@ -972,6 +984,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         global_signal_
         global_signal_beta_
         global_signal_regression_
+        physio_angle_
         physio_signal_
         roi_
         twistors_
