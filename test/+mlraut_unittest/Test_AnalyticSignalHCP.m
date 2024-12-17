@@ -37,6 +37,14 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             
             disp(as)            
             call(as);
+
+            % qc
+            zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
+            as.plot3(z=zeta)  % re(psi) vaguely resemble ECG :-)
+            as.plot3(z=mean(as.bold_signal, 2))
+            as.plot3(z=as.HCP_signals.ctx.psi(:,9))  % ctx, task-
+            as.plot3(z=as.HCP_signals.ctx.phi(:,9))  % ctx, task-
+            figure; imagesc(angle(as.physio_signal));
         end
         function test_call_HRV(this)
             as = this.testObj;
@@ -82,11 +90,11 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             % wmparc = 'corpuscallosum';
 
             wmparcs = { ...
-                'cuneus' 'corpuscallosum'};
-                % 'precuneus' 'posteriorcingulate' 'hippocampus' 'entorhinal' 'medialorbitofrontal' ...
-                % 'insula' ...
-                % 'thalamus' 'caudate' 'putamen' 'pallidum' 'cerebellum' ...
-                % 'ponsvermis' 'brainstem' 'brainstem+' 'csf' 'centrumsemiovale'};
+                'cuneus' 'corpuscallosum' ...
+                'precuneus' 'posteriorcingulate' 'hippocampus' 'entorhinal' 'medialorbitofrontal' ...
+                'insula' ...
+                'thalamus' 'caudate' 'putamen' 'pallidum' 'cerebellum' ...
+                'ponsvermis' 'brainstem' 'brainstem+' 'csf' 'centrumsemiovale'};
 
             for w = wmparcs
                 wmparc = w{1};

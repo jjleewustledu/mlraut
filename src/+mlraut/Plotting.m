@@ -207,6 +207,7 @@ classdef Plotting < handle & mlsystem.IHandle
             meas_label = char(opts.measure);
             meas_label = strrep(meas_label, "@(varargin)", "");
             meas_label = strrep(meas_label, "(varargin{:})", "");
+            meas_label = strrep(meas_label, "this.", "");
 
             %% plot Yeo's 7 RSNs
 
@@ -348,6 +349,7 @@ classdef Plotting < handle & mlsystem.IHandle
         function saveFigures(this, label, varargin)
             label = strrep(label, "@(varargin)", "");
             label = strrep(label, "(varargin{:})", "");
+            label = strrep(label, "this.", "");
             saveFigures(this.out_dir, ...
                 closeFigure=true, ...
                 prefix=sprintf('%s_%s%s_%s_%s', stackstr(3, use_dashes=true), label, this.tags, this.sub, this.task));
@@ -362,12 +364,16 @@ classdef Plotting < handle & mlsystem.IHandle
             arguments
                 ias mlraut.AnalyticSignal {mustBeNonempty}
                 opts.do_plot_emd logical = false
-                opts.plot_range {mustBeInteger} = 1:572
+                opts.plot_range {mustBeInteger} = []
             end
 
             this.ias_ = ias;
             this.do_plot_emd = opts.do_plot_emd;
-            this.plot_range = opts.plot_range;
+            if isempty(opts.plot_range)
+                this.plot_range = 1:(this.ias_.num_frames + this.ias_.num_frames_to_trim);
+            else
+                this.plot_range = opts.plot_range;
+            end
         end
     end
 
