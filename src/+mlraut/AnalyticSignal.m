@@ -122,6 +122,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
 
             g = "proc";
+            if ~isempty(this.v_physio)
+                g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
+            end
             if ~isempty(this.lp_thresh)
                 g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
             end
@@ -297,11 +300,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
 
-            psi = psi - median(opts.reference, 'all', 'omitnan');
+            psi = psi - mean(opts.reference, 'all', 'omitnan');
         end
 
         function psi = build_centered_and_rescaled(this, psi, varargin)
-            %% Mimics z-score of |psi(t,x)> using median and mad.
+            %% Mimics z-score of |psi(t,x)> using mean and mad.
 
             psi = this.build_centered(psi, varargin{:});
             psi = this.build_rescaled(psi, varargin{:});
@@ -327,7 +330,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function [gs,beta] = build_global_signal_for(this, sig)
-            %% global_signal := median(sig, "space"), then formatted for greyordinates or 4D voxels
+            %% global_signal := mean(sig, "space"), then formatted for greyordinates or 4D voxels
             %  Args:
             %    this mlraut.AnalyticSignal
             %    sig double = ones(this.num_frames, 1)            
@@ -347,10 +350,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             msk = this.task_signal_mask();
             msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1]);
 
-            % img ~ task niigz masked; then median
+            % img ~ task niigz masked; then mean
             img_g = double(niigz);
             img_g = img_g(logical(msk), :);
-            img_g = median(img_g, 1);
+            img_g = mean(img_g, 1);
 
             % format for greyordinates
             this.global_signal_ = ascol(img_g);
@@ -413,7 +416,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 psi {mustBeNumeric}
                 opts.dim = "all" 
             end
-            n = mad(abs(psi), 1, opts.dim);  % median abs. dev.
+            n = mad(abs(psi), 0, opts.dim);  % mean abs. dev.
         end
 
         function psi = build_rescaled(this, psi, opts)

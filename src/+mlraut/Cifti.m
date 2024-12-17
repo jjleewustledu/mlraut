@@ -114,8 +114,9 @@ classdef Cifti < handle & mlsystem.IHandle
                 this mlraut.Cifti
                 cdata {mustBeNumericOrLogical}
                 fp {mustBeTextScalar}
+                opts.partitions logical = []
                 opts.do_save_dynamic logical = false
-                opts.averaging_method function_handle = @median
+                opts.averaging_method function_handle = @mean
                 opts.do_final_normalization logical = true
             end
 

@@ -60,7 +60,7 @@ classdef NetworkData < handle & mlsystem.IHandle
 
             for n = 1:Nyeo % Yeo's 7x RSNs
                 msk = this.networks_Yeo == n & this.anat_mask;
-                signals(:,n) = median(psi(:,msk), 2, 'omitnan');
+                signals(:,n) = mean(psi(:,msk), 2, 'omitnan');
             end
 
             task_pos = 1 <= this.networks_Yeo & this.networks_Yeo <= 5;
@@ -69,12 +69,12 @@ classdef NetworkData < handle & mlsystem.IHandle
             % task+
             idx = contains(this.NETWORKS_YEO_NAMES, 'task+');
             msk = task_pos & this.anat_mask;
-            signals(:,idx) = median(psi(:,msk), 2, 'omitnan');
+            signals(:,idx) = mean(psi(:,msk), 2, 'omitnan');
 
             % task-
             idx = contains(this.NETWORKS_YEO_NAMES, 'task-');
             msk = task_neg & this.anat_mask;
-            signals(:,idx) = median(psi(:,msk), 2, 'omitnan');
+            signals(:,idx) = mean(psi(:,msk), 2, 'omitnan');
         end
 
         function this = NetworkData(ihcp, psi)

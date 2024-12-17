@@ -18,7 +18,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 hp_thresh=0.01, ...
                 lp_thresh=0.1, ...
                 global_signal_regression=true, ...
-                tags="AnalyticSignalHCPPar-median-twistor");
+                tags="AnalyticSignalHCPPar-mean-twistor");
 
             mats = asrow(glob(fullfile(this.out_dir, '*/sub-*_ses-*AnalyticSignalHCP*.mat')));
             n = length(mats);
@@ -34,19 +34,19 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 ld = load(mat{1});
                 this_subset = ld.this_subset;
                 try
-                    ksi = this_subset.bold_signal;
+                    psi = this_subset.bold_signal;
                 catch ME
                     if strcmp(ME.identifier, 'MATLAB:nonExistentField')
-                        ksi = this_subset.analytic_signal.*this_subset.physio_signal;  % overly normalized in this_subset
+                        psi = this_subset.analytic_signal.*this_subset.physio_signal;  % overly normalized in this_subset
                     else
                         rethrow(ME)
                     end
                 end
-                eta = this_subset.physio_signal;
-                X = median(this.build_final_normalization((ksi.*conj(eta) + eta.*conj(ksi))/sqrt(2)), 1);
-                Y = median(this.build_final_normalization((ksi.*conj(eta) - eta.*conj(ksi))/sqrt(2i)), 1);
-                Z = median(this.build_final_normalization((ksi.*conj(ksi) - eta.*conj(eta))/sqrt(2)), 1);
-                T = median(this.build_final_normalization((ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2)), 1);
+                phi = this_subset.physio_signal;
+                X = mean(this.build_final_normalization((psi.*conj(phi) + phi.*conj(psi))/sqrt(2)), 1);
+                Y = mean(this.build_final_normalization((psi.*conj(phi) - phi.*conj(psi))/sqrt(2i)), 1);
+                Z = mean(this.build_final_normalization((psi.*conj(psi) - phi.*conj(phi))/sqrt(2)), 1);
+                T = mean(this.build_final_normalization((psi.*conj(psi) + phi.*conj(phi))/sqrt(2)), 1);
 
                 X_ = X_ + X/n;
                 Y_ = Y_ + Y/n;
