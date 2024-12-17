@@ -113,7 +113,7 @@ classdef Twistors < handle & mlsystem.IHandle
             % physio_signal = ascol(physio_signal);
             v = 1e3*opts.v;  % mm/s
             
-            if v*this.ihcp_.tr > 5e4  % 50 m/s is lower limit of myelinated conduction velocity
+            if v*this.ihcp_.tr > 0.95*5e4  % 50 m/s is lower limit of myelinated conduction velocity
                 propagated_signal = ones(size(bold_signal)).*physio_signal;
                 return
             end
@@ -139,6 +139,38 @@ classdef Twistors < handle & mlsystem.IHandle
                 propagated_signal(:, selection) = ...
                     this.forward(physio_signal, times, dt=x(selection)/v, unvisited_is_inf=opts.unvisited_is_inf);
             end
+        end
+
+        function psi = X(~, psi, phi)
+            %% of twistor
+
+            psi = (psi.*conj(phi) + phi.*conj(psi))/sqrt(2);
+        end
+
+        function psi = Y(~, psi, phi)
+            %% of twistor
+
+            psi = (psi.*conj(phi) - phi.*conj(psi))/sqrt(2i);
+        end
+
+        function psi = Z(~, psi, phi)
+            %% of twistor
+
+            psi = (psi.*conj(psi) - phi.*conj(phi))/sqrt(2);
+        end
+
+        function psi = T(~, psi, phi)
+            %% of twistor
+
+            psi = (psi.*conj(psi) + phi.*conj(phi))/sqrt(2);
+        end
+
+        function theta = angle(~, psi, phi)
+            theta = angle(psi./phi);
+        end
+
+        function theta = unwrap(this, psi, phi)
+            theta = unwrap(this.angle(psi, phi));
         end
 
         function this = Twistors(ihcp)

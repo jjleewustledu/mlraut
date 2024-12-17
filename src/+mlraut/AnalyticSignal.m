@@ -803,28 +803,28 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         %% misc. helpers
 
-        function psi = X(~, ksi, eta)
-            %% of twistor
-
-            psi = (ksi.*conj(eta) + eta.*conj(ksi))/sqrt(2);
+        function psi = X(this, varargin)
+            psi = this.twistors_.X(varargin{:});
         end
 
-        function psi = Y(~, ksi, eta)
-            %% of twistor
-
-            psi = (ksi.*conj(eta) - eta.*conj(ksi))/sqrt(2i);
+        function psi = Y(this, varargin)
+            psi = this.twistors_.Y(varargin{:});
         end
 
-        function psi = Z(~, ksi, eta)
-            %% of twistor
-
-            psi = (ksi.*conj(ksi) - eta.*conj(eta))/sqrt(2);
+        function psi = Z(this, varargin)
+            psi = this.twistors_.Z(varargin{:});
         end
 
-        function psi = T(~, ksi, eta)
-            %% of twistor
+        function psi = T(this, varargin)
+            psi = this.twistors_.T(varargin{:});
+        end
 
-            psi = (ksi.*conj(ksi) + eta.*conj(eta))/sqrt(2);
+        function psi = angle(this, varargin)
+            psi = this.twistors_.angle(varargin{:});
+        end
+
+        function psi = unwrap(this, varargin)
+            psi = this.twistors_.unwrap(varargin{:});
         end
 
         function tseries = trim_frames(this, tseries)
@@ -843,10 +843,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
             error("mlraut:TypeError", stackstr())
-        end
-
-        function u = unwrap(~, psi)
-            u = unwrap(angle(psi));
         end
 
         function c = write_cifti(this, varargin)
