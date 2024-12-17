@@ -63,7 +63,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function g = get.hp_thresh(this)
-            N = this.num_frames - 2*this.num_frames_to_trim;
+            N = this.num_frames - this.num_frames_to_trim;
             Nyquist = (this.Fs/2)*(1/N); % Nyquist limited Hz
             if this.force_band
                 g = max(0.01, Nyquist);
@@ -814,15 +814,15 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function tseries = trim_frames(this, tseries)
             nt = this.num_frames_to_trim + 1;
             if isnumeric(tseries)
-                tseries = tseries(nt:end-nt+1,:);
+                tseries = tseries(nt:end,:);
                 return
             end
             if isa(tseries, "mlfourd.ImagingContext2")
                 img = double(tseries);
-                img = img(:,:,:,nt:end-nt+1);
+                img = img(:,:,:,nt:end);
                 tseries.selectImagingTool(img=img);
                 j = tseries.json_metadata;
-                j.timesMid = j.timesMid(nt:end-nt+1);
+                j.timesMid = j.timesMid(nt:end);
                 tseries.addJsonMetadata(j);
                 return
             end

@@ -22,7 +22,7 @@ classdef HCP < handle & mlsystem.IHandle
 
         bold_data
         cohort_data
-        
+
         cifti_last  % configures cifti historically
         extended_task_dir  % supports HCPAging/rfMRIExtended/fmriresults01/HCA*
         Fs  % BOLD sampling rate (Hz)
@@ -147,7 +147,7 @@ classdef HCP < handle & mlsystem.IHandle
             g = 1/this.tr;
         end
         function g = get.num_frames(this)
-            trimmed = this.num_frames_ori - 2*this.num_frames_to_trim;
+            trimmed = this.num_frames_ori - this.num_frames_to_trim;
             g = min(trimmed, this.max_frames);
         end
         function g = get.num_frames_ori(this)

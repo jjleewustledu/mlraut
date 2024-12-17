@@ -21,6 +21,7 @@ classdef Plotting < handle & mlsystem.IHandle
         hp_thresh
         lp_thresh
         num_frames
+        num_frames_to_trim
         out_dir
         physio_signal
         sub
@@ -58,6 +59,9 @@ classdef Plotting < handle & mlsystem.IHandle
         end
         function g = get.num_frames(this)
             g = this.ias_.num_frames;
+        end
+        function g = get.num_frames_to_trim(this)
+            g = this.ias_.num_frames_to_trim;
         end
         function g = get.out_dir(this)
             g = this.ias_.out_dir;
