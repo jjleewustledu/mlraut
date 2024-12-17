@@ -13,7 +13,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
         num_sub
         num_tasks
 
-        analytic_signal
+        comparator
         HCP_signals
     end
 
@@ -28,8 +28,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             g = numel(this.tasks);
         end
 
-        function g = get.analytic_signal(this)
-            g = this.analytic_signal_;
+        function g = get.comparator(this)
+            g = this.comparator_;
         end
         function g = get.HCP_signals(this)
             g = this.HCP_signals_;
@@ -145,6 +145,9 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
                     % Averages for networks
                     this.average_network_signals(this.analytic_signal_);
+
+                    % connectivity for comparisons
+                    this.comparator_ = this.connectivity(bold_, physio__);
 
                     % Store reduced analytic signal, real(), imag(), abs(), angle()
                     if this.do_save
@@ -325,7 +328,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
     %% PROTECTED
 
     properties (Access = protected)
-        analytic_signal_
+        comparator_
         HCP_signals_
     end
     
