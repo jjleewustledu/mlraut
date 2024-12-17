@@ -202,7 +202,7 @@ classdef Plotting < handle & mlsystem.IHandle
             if isempty(opts.plot_range)
                 opts.plot_range = this.plot_range;
             end
-            secs_ = this.tr * (0:this.num_frames-1);
+            secs_ = this.tr*((0:this.num_frames-1) + this.num_frames_to_trim);
 
             meas_label = char(opts.measure);
             meas_label = strrep(meas_label, "@(varargin)", "");
