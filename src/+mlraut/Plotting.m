@@ -197,8 +197,8 @@ classdef Plotting < handle & mlsystem.IHandle
                 opts.plot_range {mustBeInteger} = []
             end
             assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
-            ksi = this.HCP_signals.(lower(opts.anatomy)).ksi;
-            eta = this.HCP_signals.(lower(opts.anatomy)).eta;
+            psi = this.HCP_signals.(lower(opts.anatomy)).psi;
+            phi = this.HCP_signals.(lower(opts.anatomy)).phi;
             if isempty(opts.plot_range)
                 opts.plot_range = this.plot_range;
             end
@@ -216,13 +216,13 @@ classdef Plotting < handle & mlsystem.IHandle
             hold on
             % RSNs 1-5 are extrinsic
             for k = 1:5
-                meas_ = real(opts.measure(ksi(:, k), eta(:, k)));
+                meas_ = real(opts.measure(psi(:, k), phi(:, k)));
                 plot(secs_(opts.plot_range), meas_(opts.plot_range));
             end
             % RSNs 6-7 are intrinsic
-            meas6_ = real(opts.measure(ksi(:, 6), eta(:, 6)));
+            meas6_ = real(opts.measure(psi(:, 6), phi(:, 6)));
             plot(secs_(opts.plot_range), meas6_(opts.plot_range), '--', LineWidth=2); % frontoparietal
-            meas7_ = real(opts.measure(ksi(:, 7), eta(:, 7)));
+            meas7_ = real(opts.measure(psi(:, 7), phi(:, 7)));
             plot(secs_(opts.plot_range), meas7_(opts.plot_range), '--', LineWidth=2); % default mode
             legend(this.rsn_list(1:7))
             xlabel('time/s')
@@ -237,10 +237,10 @@ classdef Plotting < handle & mlsystem.IHandle
             h3.Position = [0 0 2880 2880*0.618];
             hold on
             % 8 is extrinsic (task+)
-            meas8_ = real(opts.measure(ksi(:, 8), eta(:, 8)));
+            meas8_ = real(opts.measure(psi(:, 8), phi(:, 8)));
             plot(secs_(opts.plot_range), meas8_(opts.plot_range));
             % 9 is instrinsic (task-)
-            meas9_ = real(opts.measure(ksi(:, 9), eta(:, 9)));
+            meas9_ = real(opts.measure(psi(:, 9), phi(:, 9)));
             plot(secs_(opts.plot_range), meas9_(opts.plot_range), '--', LineWidth=2);
             legend(this.rsn_list(8:9))
             xlabel('time/s')

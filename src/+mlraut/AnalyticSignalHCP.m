@@ -18,7 +18,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
     end
 
     methods %% GET, SET
-        function g = get.num_nets(this)
+        function g = get.num_nets(~)
             g = length(mlraut.NetworkData.NETWORKS_YEO_NAMES);
         end
         function g = get.num_sub(this)
@@ -37,21 +37,21 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
     end
     
     methods
-        function psis = average_network_signals(this, ksi, eta)
+        function psis = average_network_signals(this, psi, phi)
             arguments
                 this mlraut.AnalyticSignalHCP
-                ksi {mustBeNumeric}
-                eta {mustBeNumeric}
+                psi {mustBeNumeric}
+                phi {mustBeNumeric}
             end
 
-            this.HCP_signals_.cbm.ksi = this.average_network_signal(ksi, network_type="cerebellar");
-            this.HCP_signals_.cbm.eta = this.average_network_signal(eta, network_type="cerebellar");
-            this.HCP_signals_.ctx.ksi = this.average_network_signal(ksi, network_type="cortical");
-            this.HCP_signals_.ctx.eta = this.average_network_signal(eta, network_type="cortical");
-            this.HCP_signals_.str.ksi = this.average_network_signal(ksi, network_type="striatal");
-            this.HCP_signals_.str.eta = this.average_network_signal(eta, network_type="striatal");
-            this.HCP_signals_.thal.ksi = this.average_network_signal(ksi, network_type="thalamic");
-            this.HCP_signals_.thal.eta = this.average_network_signal(eta, network_type="thalamic");
+            this.HCP_signals_.cbm.psi = this.average_network_signal(psi, network_type="cerebellar");
+            this.HCP_signals_.cbm.phi = this.average_network_signal(phi, network_type="cerebellar");
+            this.HCP_signals_.ctx.psi = this.average_network_signal(psi, network_type="cortical");
+            this.HCP_signals_.ctx.phi = this.average_network_signal(phi, network_type="cortical");
+            this.HCP_signals_.str.psi = this.average_network_signal(psi, network_type="striatal");
+            this.HCP_signals_.str.phi = this.average_network_signal(phi, network_type="striatal");
+            this.HCP_signals_.thal.psi = this.average_network_signal(psi, network_type="thalamic");
+            this.HCP_signals_.thal.phi = this.average_network_signal(phi, network_type="thalamic");
             psis = this.HCP_signals;
         end
 
@@ -64,7 +64,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
 
             % exclude subjects
-            this.subjects = this.subjects(~contains(this.subjects, '_7T'));
+            this.subjects = this.subjects(~contains(this.subjects, '_7T'));  % 7T studies still listed under tasks
             %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
 
             out_dir_ = this.out_dir;
@@ -113,21 +113,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
                     % physio
                     try
-                        [physio_twist_,physio_vec_] = this.task_physio(reference=bold_gsr_);
-
-                        physio_vec_gsr_ = ...
-                            this.build_global_signal_regressed(physio_vec_, is_physio=true);
-                        physio__ = ...
-                            this.build_rescaled( ...
-                            this.build_band_passed( ...
-                            this.build_centered(physio_vec_gsr_)));
-
-                        physio_twist_gsr_ = ...
-                            this.build_global_signal_regressed(physio_twist_, is_physio=true);
-                        physio_ = ...
-                            this.build_rescaled( ...
-                            this.build_band_passed( ...
-                            this.build_centered(physio_twist_gsr_)));
+                        [physio_,physio__] = this.task_physio(reference=bold_);
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
                         handwarning(ME)
@@ -140,11 +126,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                     % Store physio signals
                     this.physio_signal_ = hilbert(physio_);
 
-                    % Store analytic signals
-                    this.analytic_signal_ = hilbert(bold_)./hilbert(physio_);
-
                     % Averages for networks
-                    this.average_network_signals(this.analytic_signal_);
+                    this.average_network_signals(this.bold_signal_, this.physio_signal_);
 
                     % connectivity for comparisons
                     this.comparator_ = this.connectivity(bold_, physio__);
@@ -165,28 +148,39 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         % (T,X,Y,Z) in omega
                         psi = this.bold_signal_;
                         phi = this.physio_signal_;
-                        parts = abs(this.physio_angle) <= pi/2;  % unbiased
-                        % parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
+                        % parts = this.physio_angle >= 0;  % unbiased, but fails to separate features
+                        parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
                         % cortical X(psi, phi) >= 0, region 9 ~ task-, biased but informative
+                        
                         this.write_ciftis( ...
-                            this.T(ksi, eta), ...
+                            this.T(psi, phi), ...
                             sprintf('T_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            partitions=parts, ...
                             do_save_dynamic=this.do_save_dynamic);
                         this.write_ciftis( ...
-                            this.X(ksi, eta), ...
+                            this.X(psi, phi), ...
                             sprintf('X_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            partitions=parts, ...
                             do_save_dynamic=this.do_save_dynamic);
                         this.write_ciftis( ...
-                            this.Y(ksi, eta), ...
+                            this.Y(psi, phi), ...
                             sprintf('Y_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            partitions=parts, ...
                             do_save_dynamic=this.do_save_dynamic);
                         this.write_ciftis( ...
-                            this.Z(ksi, eta), ...
+                            this.Z(psi, phi), ...
                             sprintf('Z_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            partitions=parts, ...
                             do_save_dynamic=this.do_save_dynamic);
                         this.write_ciftis( ...
-                            this.T(ksi, eta) + this.Z(ksi, eta), ...
-                            sprintf('T+Z_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            this.angle(psi, phi), ...
+                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            partitions=parts, ...
+                            do_save_dynamic=this.do_save_dynamic);  
+                        this.write_ciftis( ...
+                            this.unwrap(psi, phi), ...
+                            sprintf('unwrap_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
+                            partitions=parts, ...
                             do_save_dynamic=this.do_save_dynamic);   
 
                     end
@@ -203,6 +197,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         this.plot_regions(@this.plot_networks, measure=@this.Y);
                         this.plot_regions(@this.plot_networks, measure=@this.Z);
                         this.plot_regions(@this.plot_networks, measure=@this.T);
+                        this.plot_regions(@this.plot_networks, measure=@this.angle);
+                        this.plot_regions(@this.plot_networks, measure=@this.unwrap);
                     end
                     if this.do_plot_radar
                         error("mlraut:NotImplementedError", stackstr())
