@@ -7,8 +7,11 @@ classdef HCP < handle & mlsystem.IHandle
     %  Developed on Matlab 9.13.0.2105380 (R2022b) Update 2 for MACI64.  Copyright 2022 John J. Lee.
     
 
-    properties        
-        max_frames = Inf  % max(num_frames) to enforce, used by omit_late_frames()
+    properties 
+        do_7T
+        do_resting
+        do_task       
+        max_frames  % max(num_frames) to enforce, used by omit_late_frames()
     end
 
     properties (Dependent)
@@ -19,14 +22,17 @@ classdef HCP < handle & mlsystem.IHandle
 
         bold_data
         cohort_data
+
         cifti_last  % configures cifti historically
+        extended_task_dir  % supports HCPAging/rfMRIExtended/fmriresults01/HCA*
         Fs  % BOLD sampling rate (Hz)
         num_frames
         num_frames_ori  % set by BOLDData.task_dtseries()
-        num_frames_to_trim  % used by HCP.task_dtseries, HCP.trim_frames, AnalyticSignal.physio_*(); Ryan used 4
+        num_frames_to_trim  % used by HCP.task_dtseries, HCP.trim_frames, AnalyticSignalHCP.physio_*(); Ryan used 4
         num_nodes  % set by BOLDData
         out_dir
         root_dir  % HCP data directory
+        stats_fqfn
         task_dir  % e.g., subject/MNINonlinear/Results/rfMRI_REST1_RL
         task_dtseries_fqfn
         task_niigz_fqfn
@@ -102,9 +108,22 @@ classdef HCP < handle & mlsystem.IHandle
                 g = this.tasks_;
                 return
             end
-            this.tasks_ = cellfun(@basename, glob(fullfile(tasks_dir, '*')), UniformOutput=false);
-            this.tasks_ = this.tasks_(~contains(this.tasks_, '7T'));
-            this.tasks_ = this.tasks_(~contains(this.tasks_, 'tfMRI'));
+            this.tasks_ = {};
+            if this.do_resting
+                this.tasks_ = [ ...
+                    this.tasks_; ...
+                    cellfun(@basename, glob(fullfile(tasks_dir, 'rfMRI*')), UniformOutput=false)];
+            end
+            if this.do_task
+                this.tasks_ = [ ...
+                    this.tasks_; ...
+                    cellfun(@basename, glob(fullfile(tasks_dir, 'tfMRI*')), UniformOutput=false)];
+            end
+            if this.do_7T
+                this.tasks_ = this.tasks_(contains(this.tasks_, '7T'));
+            else
+                this.tasks_ = this.tasks_(~contains(this.tasks_, '7T'));
+            end
             g = this.tasks_;
         end
 
@@ -121,11 +140,14 @@ classdef HCP < handle & mlsystem.IHandle
             assert(isstruct(s));
             this.cifti_last_ = s;
         end
+        function g = get.extended_task_dir(this)
+            g = this.cohort_data_.extended_task_dir;
+        end
         function g = get.Fs(this)
             g = 1/this.tr;
         end
         function g = get.num_frames(this)
-            trimmed = this.num_frames_ori - 2*this.num_frames_to_trim;
+            trimmed = this.num_frames_ori - this.num_frames_to_trim;
             g = min(trimmed, this.max_frames);
         end
         function g = get.num_frames_ori(this)
@@ -145,6 +167,9 @@ classdef HCP < handle & mlsystem.IHandle
         end
         function g = get.root_dir(this)
             g = this.cohort_data_.root_dir;
+        end
+        function g = get.stats_fqfn(this)
+            g = this.cohort_data_.stats_fqfn;
         end
         function g = get.task_dir(this)
             g = this.cohort_data_.task_dir;
@@ -198,7 +223,14 @@ classdef HCP < handle & mlsystem.IHandle
             bound = min(this.max_frames, size(b, 1));
             b = b(1:bound, :);
         end
-        function mat = task_dtseries(this, sub, task)
+
+        function mat = task_dtseries(this, varargin)
+            %% supports interface
+
+            mat = this.task_dtseries_simple(varargin{:});
+        end
+
+        function mat = task_dtseries_simple(this, sub, task)
             %  Args:
             %      this mlraut.HCP
             %      sub {mustBeTextScalar} = this.current_subject
@@ -216,9 +248,11 @@ classdef HCP < handle & mlsystem.IHandle
 
             mat = this.bold_data_.task_dtseries();
         end
+
         function ic = task_niigz(this)
             ic = this.bold_data_.task_niigz();
         end
+
         function ic = task_signal_reference(this)
             ic = this.bold_data_.task_signal_reference();
         end
@@ -229,6 +263,7 @@ classdef HCP < handle & mlsystem.IHandle
             %      opts.max_frames double = Inf
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tasks cell {mustBeText} = {}
+            %      opts.network {mustBeText} = ""
 
             arguments
                 opts.max_frames double = Inf
@@ -292,6 +327,7 @@ classdef HCP < handle & mlsystem.IHandle
             mask = this.mask_fs_parcel(sub, parc);
             bold = mean(bold(:, mask), 2, 'omitnan');
         end
+
         function m = mask_fs_parcel(this, sub, parc)
             % this mlraut.HCP
             % sub {mustBeTextScalar} = this.current_subject

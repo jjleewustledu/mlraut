@@ -14,6 +14,7 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
         json_fqfn
         out_dir
         root_dir
+        stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn   
@@ -54,6 +55,9 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
             g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalGBM", "analytic_signal", "dockerout", "ciftify");
             assert(isfolder(g))
             % /home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify
+        end
+        function g = get.stats_fqfn(this)
+            g = this.task_dtseries_fqfn;
         end
         function g = get.task_dtseries_fqfn(this)
             mg = mglob(fullfile(this.task_dir, sprintf("%s*_Atlas_s0.dtseries.nii", this.task)));
@@ -99,6 +103,28 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
     methods
         function this = GBMCiftifyData(varargin)            
             this = this@mlraut.CohortData(varargin{:});
+        end
+
+        function g = surf_gii_fqfn(this, hemis)
+            arguments
+                this mlraut.GBMCiftifyData
+                hemis {mustBeTextScalar} = "L"
+            end
+
+            if startsWith(hemis, "L", IgnoreCase=true)
+                hemis = "L";
+            elseif startsWith(hemis, "R", IgnoreCase=true)
+                hemis = "R";
+            end
+
+            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere_MSMall.32k_fs_LR.surf.gii"));
+            % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere.32k_fs_LR.surf.gii"));
+                % 995174.L.midthickness.164k_fs_LR.surf.gii
+            end
+            assert(~isemptytext(mg), stackstr())
+            g = mg(end);
         end
     end
 

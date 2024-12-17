@@ -1,4 +1,4 @@
-classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
+classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
     %% line1
     %  line2
     %  
@@ -43,7 +43,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
 
     methods
         function this = AnalyticSignalGBM(varargin)
-            this = this@mlraut.AnalyticSignal(varargin{:});
+            this = this@mlraut.AnalyticSignalHCP(varargin{:});
 
             this.current_subject = this.subjects{1};
             %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
@@ -126,113 +126,41 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 cifti_write(c1, strrep(c, '_avgt.dscalar.nii', '_shifted_avgt.dscalar.nii'));
             end
         end
-        
-        function this = call_subject(this, s)
+
+        function this = call(this, opts)
+            %% CALL all subjects
 
             arguments
-                this mlraut.AnalyticSignal
-                s double
+                this mlraut.AnalyticSignalHCP
+                opts.do_qc logical = false
             end
 
-            this.build_conc();
+            % exclude subjects
+            %this.subjects = this.subjects(~contains(this.subjects, '_7T'));
+            %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
 
-            this.malloc();
-            for t = 1:this.num_tasks
+            out_dir_ = this.out_dir;
+            for s = 1:this.num_sub
                 try
-                    this.current_task = this.tasks{t};
-
-                    % BOLD
-                    try
-                        [bold_, isleft] = this.task_dtseries_gbm();
-                        bold_ = this.build_global_signal_regressed(bold_);
-                        bold_ = hilbert(bold_);
-                    catch ME
-                        disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
-                        handwarning(ME)
-                        continue
+                    this.current_subject = this.subjects{s};
+                    if ~contains(out_dir_, this.current_subject)
+                        proposed_dir = fullfile(out_dir_, this.current_subject);
+                        this.out_dir = proposed_dir;
+                        ensuredir(proposed_dir);
                     end
-
-                    % Physio
-                    try
-                        physio_ = this.task_physio();
-                        physio_ = this.build_global_signal_regressed(physio_);
-                        physio_ = hilbert(physio_);
-                    catch ME
-                        disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                        handwarning(ME)
-                        continue
-                    end
-
-                    % Store BOLD signals
-                    this.bold_signal_ = ...
-                        this.build_final_normalization( ...
-                        this.build_band_passed( ...
-                        this.build_centered_and_rescaled(bold_)));
-
-                    % Store physio signals
-                    if ~all(physio_ == 0)
-                        this.physio_signal_ = ...
-                            this.build_final_normalization( ...
-                            this.build_band_passed( ...
-                            this.build_centered_and_rescaled(physio_)));
-
-                        % Store analytic signals
-                        % <psi_p|BOLD_operator|psi_p> ~ <psi_p|psi_b>, not unitary
-                        this.analytic_signal_ = ...
-                            this.build_final_normalization( ...
-                            this.build_band_passed( ...
-                                this.build_centered_and_rescaled(conj(physio_)) .* ...
-                                this.build_centered_and_rescaled(bold_)));
-                    else
-                        this.physio_signal_ = physio_;
-                        this.analytic_signal_ = this.bold_signal_;
-                    end
-                    
-                    % Averages for networks
-                    this.average_network_signals(this.analytic_signal_);
-
-                    % Store reduced analytic signal, real(), imag(), abs(), angle()
-                    if this.do_save
-                        % Store reduced analytic signals for all s, t
-                        % grid of data from s, t may be assessed with stats
-                        save(this, s, t);
-                    end
-                    if this.do_save_ciftis
-                        this.write_ciftis( ...
-                            abs(this.analytic_signal_), ...
-                            sprintf('abs_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            angle(this.analytic_signal_), ...
-                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-
-                        % connectivity(this.bold_signal_, this.physio_signal_), with matching normalizations
-                        this.write_cifti( ...
-                            this.connectivity(this.bold_signal_, this.physio_signal_), ...
-                            sprintf('connectivity_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
-                        this.build_angles_gt_0();
-                    end
-                    if this.do_save_ciftis_of_diffs  % analytic_signal_ - bold_signal_
-                        diff_ = this.analytic_signal_ - this.bold_signal_;
-                        this.write_ciftis( ...
-                            abs(diff_), ...
-                            sprintf('abs_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            angle(diff_), ...
-                            sprintf('angle_diff_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            do_save_dynamic=this.do_save_dynamic);
-                    end
+                    this.build_conc();  % new for AnalyticSignalGBM
+                    this.call_subject(s);
                 catch ME
-                    handwarning(ME)
+                    handexcept(ME)
                 end
             end
         end
+        
         function j = jsonread(this)
             j = jsonread(this.cohort_data_.json_fqfn);
         end
-        function [bold,isleft] = task_dtseries_gbm(this, sub, task)
+
+        function [bold,isleft] = task_dtseries(this, sub, task)
             %  Args:
             %      subj (text)
             %      task (text)
@@ -258,16 +186,31 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 case "alllesion"
                     bold = this.task_dtseries_alllesion(sub, task);
                 otherwise
-                    bold = this.task_dtseries(sub, task);
+                    bold = this.task_dtseries_simple(sub, task);
             end
         end
+
+        function bold = task_dtseries_alllesion(this, sub, task)
+            isleft = contains(this.json.location, "left");
+            isright = contains(this.json.location, "right");
+            if isleft
+                bold = this.task_dtseries_1hemi(sub, task, 'L');
+                return
+            end
+            if isright
+                bold = this.task_dtseries_1hemi(sub, task, 'R');
+                return
+            end
+            bold = this.task_dtseries_simple(sub, task); % bilateral
+        end
+
         function bold = task_dtseries_1hemi(this, sub, task, hemi)
             %% duplicates selected hemi to contralateral hemi
             %  Args:
             %      subj (text)
             %      task (text)
             %      hemi char % in {'l', 'L', 'r', 'R', ''}; selecting 'L' copies 'L' ordinates to 'R' ordinates;
-            %                                               selecting '' returns this.task_dtseries().
+            %                                               selecting '' returns this.task_dtseries_simple().
             %  Returns:
             %      BOLD (numeric):  time x grayordinate
 
@@ -278,7 +221,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 hemi char = ''
             end
 
-            bold = this.task_dtseries(sub, task);
+            bold = this.task_dtseries_simple(sub, task);
             assert(size(bold, 2) == this.num_nodes, stackstr())
             l_ordinates = 1:29706;
             r_ordinates = 29707:59412;
@@ -290,6 +233,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 otherwise
             end
         end
+
         function bold = task_dtseries_flipLR(this, sub, task)
             %  Args:
             %      subj (text)
@@ -303,7 +247,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 task {mustBeTextScalar} = this.current_task
             end
 
-            bold = this.task_dtseries(sub, task);
+            bold = this.task_dtseries_simple(sub, task);
             assert(size(bold, 2) == this.num_nodes, stackstr())
             l_ordinates = 1:29706;
             r_ordinates = 29707:59412;
@@ -311,14 +255,16 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
             bold(:, l_ordinates) = bold(:, r_ordinates);
             bold(:, r_ordinates) = buff;
         end
+
         function [bold,isleft] = task_dtseries_lesionR(this, sub, task)
             isleft = contains(this.json.location, "left");
             if isleft
                 bold = this.task_dtseries_flipLR(sub, task);
                 return
             end
-            bold = this.task_dtseries(sub, task); % right & bilateral
+            bold = this.task_dtseries_simple(sub, task); % right & bilateral
         end
+
         function bold = task_dtseries_nolesion(this, sub, task)
             isleft = contains(this.json.location, "left");
             isright = contains(this.json.location, "right");
@@ -336,19 +282,11 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
                 throw(ME);
             end
         end
-        function bold = task_dtseries_alllesion(this, sub, task)
-            isleft = contains(this.json.location, "left");
-            isright = contains(this.json.location, "right");
-            if isleft
-                bold = this.task_dtseries_1hemi(sub, task, 'L');
-                return
-            end
-            if isright
-                bold = this.task_dtseries_1hemi(sub, task, 'R');
-                return
-            end
-            bold = this.task_dtseries(sub, task); % bilateral
+
+        function mat = task_dtseries_simple(this, varargin)
+            mat = task_dtseries_simple@mlraut.AnalyticSignal(this, varargin{:});
         end
+
         function ic = task_signal_mask(this)
             ic = this.task_signal_reference();
             ic = ic.blurred(7).thresh(100).binarized();
@@ -422,6 +360,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
             end            
             popd(pwd0);
         end
+
         function prepare_tumor_segs()
             SUBS = mlraut.AnalyticSignalGBM.SUBS;
             pwd0 = pushd(fullfile("/data/nil-bluearc/shimony/jjlee/Kiyun/rsFC_PreProc"));
@@ -509,6 +448,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignal
             end
             popd(pwd0);
         end
+
         function serialcall(opts)
             arguments
                 opts.config_hemispheres {mustBeTextScalar} = "" % "lesionR" "nolesion" "alllesion" ""

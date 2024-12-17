@@ -6,6 +6,81 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
     %  Developed on Matlab 9.14.0.2286388 (R2023a) Update 3 for MACI64.  Copyright 2023 John J. Lee.
     
     methods (Static)
+        function this = median_twistor(physio)
+            arguments
+                physio {mustBeTextScalar} = 'physio_iFV'
+            end
+
+            this = mlraut.AnalyticSignalGBMPar( ...
+                subjects={'sub-I3CR0023'}, ...
+                do_7T=false, ...
+                do_resting=true, ...
+                do_task=false, ...
+                do_save=false, ...
+                do_save_dynamic=false, ...
+                do_save_ciftis=false, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                global_signal_regression=true, ...
+                tags="AnalyticSignalGBMPar-mean-twistor");
+
+            mats = asrow(glob(fullfile(this.out_dir, physio, '*', 'sub-*_ses-*AnalyticSignalGBM*.mat')));
+            n = length(mats);
+            nx = this.num_nodes;
+
+            X_ = zeros(1, nx);
+            Y_ = zeros(1, nx);
+            Z_ = zeros(1, nx);
+            T_ = zeros(1, nx);
+
+            for mat = mats
+                % tic
+                ld = load(mat{1});
+                this_subset = ld.this_subset;
+                try
+                    psi = this_subset.bold_signal;
+                catch ME
+                    if strcmp(ME.identifier, 'MATLAB:nonExistentField')
+                        psi = this_subset.analytic_signal.*this_subset.physio_signal;  % overly normalized in this_subset
+                    else
+                        rethrow(ME)
+                    end
+                end
+                phi = this_subset.physio_signal;
+                X = mean(this.build_final_normalization((psi.*conj(phi) + phi.*conj(psi))/sqrt(2)), 1);
+                Y = mean(this.build_final_normalization((psi.*conj(phi) - phi.*conj(psi))/sqrt(2i)), 1);
+                Z = mean(this.build_final_normalization((psi.*conj(psi) - phi.*conj(phi))/sqrt(2)), 1);
+                T = mean(this.build_final_normalization((psi.*conj(psi) + phi.*conj(phi))/sqrt(2)), 1);
+
+                X_ = X_ + X/n;
+                Y_ = Y_ + Y/n;
+                Z_ = Z_ + Z/n;
+                T_ = T_ + T/n;
+                % toc
+            end
+
+            this.write_ciftis( ...
+                X_, sprintf('X_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
+                do_save_dynamic=false);
+            this.write_ciftis( ...
+                Y_, sprintf('Y_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
+                do_save_dynamic=false);
+            this.write_ciftis( ...
+                Z_, sprintf('Z_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
+                do_save_dynamic=false);
+            this.write_ciftis( ...
+                T_, sprintf('T_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
+                do_save_dynamic=false);
+            this.write_ciftis( ...
+                T_+Z_, sprintf('T+Z_as_sub-all_ses-all_%s', this.tags), ...
+                do_final_normalization=false, ...
+                do_save_dynamic=false);
+        end
+        
         function parcall(cores, opts)
             arguments
                 cores {mustBeScalarOrEmpty} = 32
@@ -34,6 +109,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 end
             end
         end
+
         function parcall_physios(cores)   
             %% left insula, no midline shift
 

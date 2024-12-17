@@ -13,10 +13,12 @@ classdef HCPAgingData < handle & mlraut.CohortData
 
     properties (Dependent)
         atlas_fqfn
+        extended_task
         extended_task_dir
         json_fqfn
         out_dir
         root_dir
+        stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn  
@@ -29,9 +31,16 @@ classdef HCPAgingData < handle & mlraut.CohortData
             mg = mglob(fullfile(this.task_dir+"*", this.task + "*_Atlas_MSMAll_hp0_vn.dscalar.nii"));
             g = mg(end);
         end
+        function g = get.extended_task(this)
+            if strcmp(this.task, "rfMRI_REST")
+                g = "fMRI_CONCAT_ALL";
+                return
+            end
+            g = this.task;
+        end
         function g = get.extended_task_dir(this)
             ext_root_dir = strrep(this.root_dir, "HCPAgingRec", "rfMRIExtended");
-            g = fullfile(ext_root_dir, this.sub, "MNINonLinear", "Results", this.task);
+            g = fullfile(ext_root_dir, this.sub, "MNINonLinear", "Results", this.extended_task);
         end
         function g = get.json_fqfn(this)
             g = fullfile(this.out_dir, this.sub, this.sub + ".json");  % mm voxels
@@ -86,12 +95,27 @@ classdef HCPAgingData < handle & mlraut.CohortData
             end
             error("mlraut:NotImplementedError", stackstr());
         end
+        function g = get.stats_fqfn(this)
+            mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_MSMAll_mean.dscalar.nii"));
+            % rfMRI_REST1_AP_Atlas_MSMAll_mean.dscalar.nii
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_mean.dscalar.nii"));
+                % rfMRI_REST1_AP_Atlas_mean.dscalar.nii
+            end
+            assert(~isemptytext(mg), stackstr())
+            g = mg(1);
+        end
         function g = get.task_dtseries_fqfn(this)
-            mg = mglob(fullfile(this.extended_task_dir, this.task + "_Atlas_MSMAll_hp0_clean.dtseries.nii"));
+            mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_MSMAll_hp0_clean.dtseries.nii"));
             % fMRI_CONCAT_ALL_Atlas_MSMAll_hp0_clean.dtseries.nii
             if isemptytext(mg)
-                mg = mglob(fullfile(this.extended_task_dir, this.task + "_Atlas_hp0_clean.dtseries.nii"));
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_hp0_clean.dtseries.nii"));
                 % fMRI_CONCAT_ALL_Atlas_hp0_clean.dtseries.nii
+            end
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_MSMAll_hp0_clean.dtseries.nii"));
+                % rfMRI_REST_Atlas_MSMAll_hp0_clean.dtseries.nii
+                % rfMRI_REST1_AP_Atlas_MSMAll_hp0_clean.dtseries.nii
             end
             if isemptytext(mg)
                 mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp0_clean.dtseries.nii"));
@@ -102,14 +126,14 @@ classdef HCPAgingData < handle & mlraut.CohortData
             g = mg(1);
         end
         function g = get.task_niigz_fqfn(this)
-            mg = mglob(fullfile(this.extended_task_dir, this.task + "_hp*_clean.nii.gz"));
+            mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_hp*_clean.nii.gz"));
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
         end
         function g = get.task_signal_reference_fqfn(this)
-            mg = mglob(fullfile(this.extended_task_dir, this.task + "_SBRef.nii.gz"));
+            mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_SBRef.nii.gz"));
             if isemptytext(mg)                
-                mg = mglob(fullfile(this.extended_task_dir, this.task + "_mean.nii.gz"));
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_mean.nii.gz"));
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
@@ -127,6 +151,40 @@ classdef HCPAgingData < handle & mlraut.CohortData
     methods
         function this = HCPAgingData(varargin)
             this = this@mlraut.CohortData(varargin{:});
+        end
+
+        function g = surf_gii_fqfn(this, hemis)
+            arguments
+                this mlraut.HCPAgingData
+                hemis {mustBeTextScalar} = "L"
+            end
+
+            if startsWith(hemis, "L", IgnoreCase=true)
+                hemis = "L";
+            elseif startsWith(hemis, "R", IgnoreCase=true)
+                hemis = "R";
+            end
+
+            if this.is_7T
+                mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere_MSMall.164k_fs_LR.surf.gii"));
+                % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+                if isemptytext(mg)
+                    mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere.164k_fs_LR.surf.gii"));
+                    % 995174.L.midthickness.164k_fs_LR.surf.gii
+                end
+                assert(~isemptytext(mg), stackstr())
+                g = mg(end);
+                return
+            end
+
+            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere_MSMall.32k_fs_LR.surf.gii"));
+            % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere.32k_fs_LR.surf.gii"));
+                % 995174.L.midthickness.164k_fs_LR.surf.gii
+            end
+            assert(~isemptytext(mg), stackstr())
+            g = mg(end);
         end
     end
 

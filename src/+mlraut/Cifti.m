@@ -114,17 +114,36 @@ classdef Cifti < handle & mlsystem.IHandle
                 this mlraut.Cifti
                 cdata {mustBeNumericOrLogical}
                 fp {mustBeTextScalar}
+                opts.partitions logical = []
                 opts.do_save_dynamic logical = false
-                opts.averaging_method function_handle = @median
+                opts.averaging_method function_handle = @mean
+                opts.do_final_normalization logical = true
             end
 
             try
+                if opts.do_final_normalization
+                    cdata = this.ihcp_.build_final_normalization(cdata);
+                end
                 if opts.do_save_dynamic
                     this.write_cifti(cdata, fp); % mlraut.HCP
                 end
-                cdata1 = opts.averaging_method(cdata, 1);
-                fp1 = strcat(fp, '_avgt');
-                this.write_cifti(cdata1, fp1); % mlraut.HCP
+                if ~isempty(opts.partitions)
+                    cdata_t = cdata(opts.partitions, :);  % select pos x
+                    cdata_t = opts.averaging_method(cdata_t, 1);  % select t
+                    fp_t = strcat(fp, '_parts-T');
+                    this.write_cifti(cdata_t, fp_t); % mlraut.HCP
+
+                    cdata_f = cdata(~opts.partitions, :);  % select pos x
+                    cdata_f = opts.averaging_method(cdata_f, 1);  % select t
+                    fp_f = strcat(fp, '_parts-F');
+                    this.write_cifti(cdata_f, fp_f); % mlraut.HCP
+
+                    cdata1 = {cdata_t, cdata_f};
+                else
+                    cdata1 = opts.averaging_method(cdata, 1);
+                    fp1 = strcat(fp, '_avgt');
+                    this.write_cifti(cdata1, fp1); % mlraut.HCP
+                end
             catch ME
                 handwarning(ME)
             end

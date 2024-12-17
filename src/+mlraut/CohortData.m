@@ -12,6 +12,7 @@ classdef CohortData < handle & mlsystem.IHandle
         num_frames_to_trim
         out_dir
         root_dir
+        stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn
@@ -60,6 +61,12 @@ classdef CohortData < handle & mlsystem.IHandle
         end
     end
 
+    methods
+        function g = surf_gii_fqfn(~, varargin)
+            error("mlraut:NotImplementedError", stackstr());
+        end
+    end
+
     methods (Static)
         function this = create(ihcp)
             arguments
@@ -69,7 +76,7 @@ classdef CohortData < handle & mlsystem.IHandle
             switch class(ihcp)
                 case 'mlraut.HCP'
                     this = mlraut.HCPYoungAdultData(ihcp);
-                case {'mlraut.AnalyticSignal', 'mlraut.AnalyticSignalPar'}
+                case {'mlraut.AnalyticSignalHCP', 'mlraut.AnalyticSignalHCPPar'}
                     this = mlraut.HCPYoungAdultData(ihcp);
                 case 'mlraut.AnalyticSignalYoungAdult'
                     this = mlraut.HCPYoungAdultData(ihcp);

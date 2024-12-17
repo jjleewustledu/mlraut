@@ -29,7 +29,7 @@ classdef PhysioHRV < handle & mlraut.PhysioData
                              %,'minpeakwidth',400/(1/(200/60))); 
                              % max heart rate = 180 bpm; at 400 Hz, minimum of 100 samples apart
                 locs = locs(pks > prctile(data_(phys_start:phys_end,3), 60));
-                physio(idx) = median(diff(locs), 'omitnan') / this.physFs;
+                physio(idx) = mean(diff(locs), 'omitnan') / this.physFs;
             end
         end
 

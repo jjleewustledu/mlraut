@@ -14,7 +14,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_networks
         do_plot_radar
         do_save
-        do_save_subset
         do_save_ciftis
         do_save_ciftis_of_diffs
         do_save_dynamic
@@ -41,11 +40,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         tags_user
 
         bold_signal
-        physio_angle
         physio_signal
         roi
         source_physio_is_ROI
-        source_physio_is_none
     end
 
     methods %% GET, SET
@@ -156,17 +153,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             g = this.bold_signal_;
         end
 
-        function g = get.physio_angle(this)
-            if isempty(this.physio_signal)
-                g = [];
-                return
-            end
-            if isempty(this.physio_angle_)
-               this.physio_angle_ = angle(mean(this.physio_signal, 2));
-            end
-            g = this.physio_angle_;
-        end
-
         function g = get.physio_signal(this)
             g = this.physio_signal_;
         end
@@ -178,15 +164,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function g = get.source_physio_is_ROI(this)
             g = ~contains(this.source_physio, ["RV", "HRV", "no-physio", "nophys", "none"]);
         end
-
-        function g = get.source_physio_is_none(this)
-            g = contains(this.source_physio, ["no-physio", "nophys", "none"]);
-        end
     end
     
     methods
 
         %% helpers for buillding
+
+        function a = angle(~, as)
+            a = unwrap(angle(as)); % [-pi pi] -> [-inf inf]
+            a = mod(a, 2*pi); % [-inf inf] -> [0 2*pi]
+        end
 
         function psi = average_network_signal(this, psi, opts)
             arguments
@@ -300,11 +287,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
 
-            psi = psi - mean(opts.reference, 'all', 'omitnan');
+            psi = psi - median(opts.reference, 'all', 'omitnan');
         end
 
         function psi = build_centered_and_rescaled(this, psi, varargin)
-            %% Mimics z-score of |psi(t,x)> using mean and mad.
+            %% Mimics z-score of |psi(t,x)> using median and mad.
 
             psi = this.build_centered(psi, varargin{:});
             psi = this.build_rescaled(psi, varargin{:});
@@ -330,7 +317,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function [gs,beta] = build_global_signal_for(this, sig)
-            %% global_signal := mean(sig, "space"), then formatted for greyordinates or 4D voxels
+            %% global_signal := median(sig, "space"), then formatted for greyordinates or 4D voxels
             %  Args:
             %    this mlraut.AnalyticSignal
             %    sig double = ones(this.num_frames, 1)            
@@ -350,10 +337,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             msk = this.task_signal_mask();
             msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1]);
 
-            % img ~ task niigz masked; then mean
+            % img ~ task niigz masked; then median
             img_g = double(niigz);
             img_g = img_g(logical(msk), :);
-            img_g = mean(img_g, 1);
+            img_g = median(img_g, 1);
 
             % format for greyordinates
             this.global_signal_ = ascol(img_g);
@@ -416,7 +403,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 psi {mustBeNumeric}
                 opts.dim = "all" 
             end
-            n = mad(abs(psi), 0, opts.dim);  % mean abs. dev.
+            n = mad(abs(psi), 1, opts.dim);  % median abs. dev.
         end
 
         function psi = build_rescaled(this, psi, opts)
@@ -748,7 +735,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     physio_0 = this.twistors_.propagate_physio( ...
                         opts.reference, physio_vec_0, ...
                         physio_pos=ifv_pos, ...
-                        v=0.1);
+                        v=50);
 
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=opts.roi, flipLR=opts.flipLR);
@@ -831,27 +818,19 @@ classdef AnalyticSignal < handle & mlraut.HCP
         %% misc. helpers
 
         function psi = X(this, varargin)
-            psi = this.twistors_.X(varargin{:});
+            psi = this.twistor_.X(varargin{:});
         end
 
         function psi = Y(this, varargin)
-            psi = this.twistors_.Y(varargin{:});
+            psi = this.twistor_.Y(varargin{:});
         end
 
         function psi = Z(this, varargin)
-            psi = this.twistors_.Z(varargin{:});
+            psi = this.twistor_.Z(varargin{:});
         end
 
         function psi = T(this, varargin)
-            psi = this.twistors_.T(varargin{:});
-        end
-
-        function psi = angle(this, varargin)
-            psi = this.twistors_.angle(varargin{:});
-        end
-
-        function psi = unwrap(this, varargin)
-            psi = this.twistors_.unwrap(varargin{:});
+            psi = this.twistor_.T(varargin{:});
         end
 
         function tseries = trim_frames(this, tseries)
@@ -870,6 +849,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
             error("mlraut:TypeError", stackstr())
+        end
+
+        function u = unwrap(~, psi)
+            u = unwrap(angle(psi));
         end
 
         function c = write_cifti(this, varargin)
@@ -896,7 +879,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_networks logical = true
             %      opts.do_plot_radar logical = true
             %      opts.do_save logical = true : save fully populated this to mlraut_AnalyticSignal.mat
-            %      opts.do_save_subset logical = false : save only subset of this to decrease storage
             %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
             %      opts.do_save_ciftis_of_diffs logical = true: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
@@ -944,7 +926,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
-                opts.plot_range double = []
+                opts.plot_range double = 1:417
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV"
@@ -969,7 +951,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_networks = opts.do_plot_networks;
             this.do_plot_radar = opts.do_plot_radar;
             this.do_save = opts.do_save;
-            this.do_save_subset = opts.do_save_subset;
             this.do_save_ciftis = opts.do_save_ciftis;
             this.do_save_ciftis_of_diffs = opts.do_save_ciftis_of_diffs;
             this.do_save_dynamic = opts.do_save_dynamic;
@@ -1010,7 +991,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
         global_signal_
         global_signal_beta_
         global_signal_regression_
-        physio_angle_
         physio_signal_
         roi_
         twistors_
