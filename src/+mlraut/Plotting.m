@@ -152,24 +152,44 @@ classdef Plotting < handle & mlsystem.IHandle
             arguments
                 this mlraut.Plotting
                 opts.measure function_handle = @abs
+                opts.marker_size double = 100
+                opts.plot_range {mustBeInteger} = []
             end
-            secs_ = this.tr * (0:this.num_frames-1);
+
+            ms = opts.marker_size;
+            is_angle = isequal(opts.measure, @abs) || isequal(opts.measure, @unwrap);
+            phi = mean(this.physio_signal, 2);
+            if isempty(opts.plot_range)
+                opts.plot_range = this.plot_range;
+            end
+            secs_ = ascol(this.tr * (0:this.num_frames-1));  
+
+            meas_label = char(opts.measure);
+            meas_label = strrep(meas_label, "@(varargin)", "");
+            meas_label = strrep(meas_label, "(varargin{:})", "");
+            meas_label = strrep(meas_label, "this.", "");
+
+            % get nice colours from colorbrewer
+            % (https://uk.mathworks.com/matlabcentral/fileexchange/34087-cbrewer---colorbrewer-schemes-for-matlab)
+            cb = 0.8*flip(cbrewer2('Spectral', 7), 1);  % 1 is blue, 7 is red
 
             h1 = figure;
             h1.Position = [0 0 2880 2880*0.618];
-            hold on
-            plot(secs_, opts.measure(this.global_signal));
-            plot(secs_, opts.measure(this.physio_signal), '--', LineWidth=2);
-            legend({'global', 'arousal'}, FontSize=18)
-            xlabel('time/s', FontSize=24)
-            ylabel(char(opts.measure), FontSize=24, Interpreter="none")
-            title(sprintf('Global Signal, Arousal Signal, sub-%s, %s ', this.sub, this.task), FontSize=24, Interpreter="none")
-            hold off
+            if is_angle
+                scatter(secs_, opts.measure(phi), ms, cb(1), 'filled');
+            else
+                plot(secs_, opts.measure(phi), LineWidth=5);
+            end
+            xlabel('time/s')
+            ylabel(sprintf('%s(arousal)', meas_label), Interpreter="none")
+            title(sprintf('Global arousal, %s, %s ', this.sub, this.source_physio), Interpreter="none")
+            fontsize(scale=2)
 
             if this.do_save
-                this.saveFigures(char(opts.measure));
+                this.saveFigures(char(meas_label));
             end
         end
+
         function plot_regions(this, funh, opts)
             arguments
                 this mlraut.Plotting
@@ -196,61 +216,150 @@ classdef Plotting < handle & mlsystem.IHandle
                 opts.anatomy {mustBeTextScalar} = 'ctx'
                 opts.plot_range {mustBeInteger} = []
             end
-            assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
+
+            assert(contains(opts.anatomy, {'ctx', 'str', 'thal', 'cbm'}))
             psi = this.HCP_signals.(lower(opts.anatomy)).psi;
             phi = this.HCP_signals.(lower(opts.anatomy)).phi;
             if isempty(opts.plot_range)
                 opts.plot_range = this.plot_range;
             end
-            secs_ = this.tr*((0:this.num_frames-1) + this.num_frames_to_trim);
+            secs_ = ascol(this.tr*((0:this.num_frames-1) + this.num_frames_to_trim));
 
             meas_label = char(opts.measure);
             meas_label = strrep(meas_label, "@(varargin)", "");
             meas_label = strrep(meas_label, "(varargin{:})", "");
             meas_label = strrep(meas_label, "this.", "");
 
+            % get nice colours from colorbrewer
+            % (https://uk.mathworks.com/matlabcentral/fileexchange/34087-cbrewer---colorbrewer-schemes-for-matlab)
+            cb = flip(cbrewer2('Spectral', 7), 1);  % task+ is blue, task- is red
+            cb = [0.8*cb, [0.5; 0.5; 0.5; 0.5; 0.5; 0.5; 0.9]];  % 80% brightness, 70% alpha for task+
+
             %% plot Yeo's 7 RSNs
 
             h1 = figure;
             h1.Position = [0 0 2880 2880*0.618];
             hold on
-            % RSNs 1-5 are extrinsic
-            for k = 1:5
+            % RSNs 1-6 are extrinsic
+            for k = 1:6
                 meas_ = real(opts.measure(psi(:, k), phi(:, k)));
-                plot(secs_(opts.plot_range), meas_(opts.plot_range));
+                p = plot(secs_(opts.plot_range), meas_(opts.plot_range), ':', LineWidth=7);
+                p.Color=cb(k,:);
             end
-            % RSNs 6-7 are intrinsic
-            meas6_ = real(opts.measure(psi(:, 6), phi(:, 6)));
-            plot(secs_(opts.plot_range), meas6_(opts.plot_range), '--', LineWidth=2); % frontoparietal
+            % RSNs 7 are intrinsic
+            % meas6_ = real(opts.measure(psi(:, 6), phi(:, 6)));
+            % p = plot(secs_(opts.plot_range), meas6_(opts.plot_range), LineWidth=5);
+            % p.Color=cb(6,:); % frontoparietal
             meas7_ = real(opts.measure(psi(:, 7), phi(:, 7)));
-            plot(secs_(opts.plot_range), meas7_(opts.plot_range), '--', LineWidth=2); % default mode
+            p = plot(secs_(opts.plot_range), meas7_(opts.plot_range), LineWidth=5);
+            p.Color=cb(7,:); % default mode
             legend(this.rsn_list(1:7))
             xlabel('time/s')
-            ylabel(sprintf('%s(%s_signals)', meas_label, opts.anatomy), Interpreter="none")
-            title(sprintf('Yeo RSNs, sub-%s, %s ', this.sub, this.task), Interpreter="none")
+            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            title(sprintf('Yeo RSNs, %s, %s ', this.sub, this.source_physio), Interpreter="none")
             fontsize(scale=2)
             hold off
 
             %% plot task+, task- RSNs
 
-            h3 = figure;
-            h3.Position = [0 0 2880 2880*0.618];
+            h2 = figure;
+            h2.Position = [0 0 2880 2880*0.618];
             hold on
             % 8 is extrinsic (task+)
             meas8_ = real(opts.measure(psi(:, 8), phi(:, 8)));
-            plot(secs_(opts.plot_range), meas8_(opts.plot_range));
+            p = plot(secs_(opts.plot_range), meas8_(opts.plot_range), ':', LineWidth=7);
+            p.Color=cb(1,:);
             % 9 is instrinsic (task-)
             meas9_ = real(opts.measure(psi(:, 9), phi(:, 9)));
-            plot(secs_(opts.plot_range), meas9_(opts.plot_range), '--', LineWidth=2);
+            p = plot(secs_(opts.plot_range), meas9_(opts.plot_range), LineWidth=5);
+            p.Color=cb(7,:);
             legend(this.rsn_list(8:9))
             xlabel('time/s')
-            ylabel(sprintf('%s(%s_signals)', meas_label, opts.anatomy), Interpreter="none")
-            title(sprintf('Task +/-, sub-%s, %s ', this.sub, this.task), Interpreter="none")
+            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            title(sprintf('Task +/-, %s, %s ', this.sub, this.source_physio), Interpreter="none")
             fontsize(scale=2)
             hold off
 
-            this.saveFigures(sprintf('%s_%s_', char(opts.measure), opts.anatomy));
+            this.saveFigures(sprintf('%s_%s_', char(meas_label), opts.anatomy));
         end
+
+        function [h1,h2] = plot_networks_dots(this, opts)
+            %  Args:
+            %      this mlraut.Plotting           
+            %      opts.measure function_handle = @this.ias_.X
+            %      opts.anatomy {mustBeTextScalar} = 'ctx'
+            %      opts.plot_range {mustBeInteger} = 150:300
+
+            arguments
+                this mlraut.Plotting           
+                opts.measure function_handle = @this.ias_.angle
+                opts.anatomy {mustBeTextScalar} = 'ctx'
+                opts.marker_size double = 100
+                opts.plot_range {mustBeInteger} = []
+            end
+
+            ms = opts.marker_size;
+            assert(contains(opts.anatomy, {'ctx', 'str', 'thal', 'cbm'}))
+            psi = this.HCP_signals.(lower(opts.anatomy)).psi;
+            phi = this.HCP_signals.(lower(opts.anatomy)).phi;
+            if isempty(opts.plot_range)
+                opts.plot_range = this.plot_range;
+            end
+            secs_ = ascol(this.tr*((0:this.num_frames-1) + this.num_frames_to_trim));
+
+            meas_label = char(opts.measure);
+            meas_label = strrep(meas_label, "@(varargin)", "");
+            meas_label = strrep(meas_label, "(varargin{:})", "");
+            meas_label = strrep(meas_label, "this.", "");
+
+            % get nice colours from colorbrewer
+            % (https://uk.mathworks.com/matlabcentral/fileexchange/34087-cbrewer---colorbrewer-schemes-for-matlab)
+            cb = flip(cbrewer2('Spectral', 7), 1);  % task+ is blue, task- is red
+            cb = 0.8*cb;  % 80% brightness
+
+            %% plot Yeo's 7 RSNs
+
+            h1 = figure;
+            h1.Position = [0 0 2880 2880*0.618];
+            hold on
+            % RSNs 1-6 are extrinsic
+            for k = 1:6
+                meas_ = real(opts.measure(psi(:, k), phi(:, k)));
+                scatter(secs_(opts.plot_range), meas_(opts.plot_range), ms, cb(k,:), 'filled', MarkerFaceAlpha=0.5, MarkerEdgeAlpha=0.5);
+            end
+            % RSNs 7 are intrinsic
+            % meas6_ = real(opts.measure(psi(:, 6), phi(:, 6)));
+            % plot(secs_(opts.plot_range), meas6_(opts.plot_range), ms, cb(6,:), 'filled');
+            meas7_ = real(opts.measure(psi(:, 7), phi(:, 7)));
+            scatter(secs_(opts.plot_range), meas7_(opts.plot_range), ms, cb(7,:), 'filled');
+            legend(this.rsn_list(1:7))
+            xlabel('time/s')
+            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            title(sprintf('Yeo RSNs, %s, %s ', this.sub, this.source_physio), Interpreter="none")
+            fontsize(scale=2)
+            hold off
+
+            %% plot task+, task- RSNs
+
+            h2 = figure;
+            h2.Position = [0 0 2880 2880*0.618];
+            hold on
+            % 8 is extrinsic (task+)
+            meas8_ = real(opts.measure(psi(:, 8), phi(:, 8)));
+            p = scatter(secs_(opts.plot_range), meas8_(opts.plot_range), ms, cb(1,:), 'filled', MarkerFaceAlpha=0.5, MarkerEdgeAlpha=0.5);
+            % 9 is instrinsic (task-)
+            meas9_ = real(opts.measure(psi(:, 9), phi(:, 9)));
+            p = scatter(secs_(opts.plot_range), meas9_(opts.plot_range), ms, cb(7,:), 'filled');
+            legend(this.rsn_list(8:9))
+            xlabel('time/s')
+            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            title(sprintf('Task +/-, %s, %s ', this.sub, this.source_physio), Interpreter="none")
+            fontsize(scale=2)
+            hold off
+
+            this.saveFigures(sprintf('%s_%s_', char(meas_label), opts.anatomy));
+        end
+
         function [h,h1,h2] = plot_radar(this, opts)
             %  Args:
             %      this mlraut.Plotting           
