@@ -12,8 +12,8 @@ classdef NetworkData < handle & mlsystem.IHandle
 
     properties (Constant)
         NETWORKS_YEO_NAMES = ...
-            {'visual', 'somatomotor', 'dorsal attention', 'ventral attention', 'limbic', ...
-             'frontoparietal', 'default mode', ...
+            {'visual', 'somatomotor', 'dorsal attention', 'ventral attention', 'limbic', 'frontoparietal', ...
+             'default mode', ...
              'task+', 'task-'}
     end
 
@@ -63,8 +63,8 @@ classdef NetworkData < handle & mlsystem.IHandle
                 signals(:,n) = mean(psi(:,msk), 2, 'omitnan');
             end
 
-            task_pos = 1 <= this.networks_Yeo & this.networks_Yeo <= 5;
-            task_neg = 6 <= this.networks_Yeo & this.networks_Yeo <= 7;
+            task_pos = 1 <= this.networks_Yeo & this.networks_Yeo <= 6;
+            task_neg = this.networks_Yeo == 7;
 
             % task+
             idx = contains(this.NETWORKS_YEO_NAMES, 'task+');
