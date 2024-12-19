@@ -51,8 +51,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
     methods %% GET, SET
         function g = get.anatomy_list(~)
-            % g = {'cbm', 'ctx', 'str', 'thal'};
-            g = {'ctx'};
+            % g = {'ctx', 'str', 'thal', 'cbm'};
+            g = {'ctx', 'str', 'thal', 'cbm'};
         end
         function g = get.digital_filter(this)
             g = this.digital_filter_;
