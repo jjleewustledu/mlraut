@@ -187,6 +187,15 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                     if this.do_save_ciftis_of_diffs                        
                         error("mlraut:NotImplementedError", stackstr())
                     end
+            arguments
+                this %  mlraut.AnalyticSignalHCP
+                physio_keys string {mustBeText}
+                physio_vs double = [this.v_physio_iFV, this.v_physio]
+                weights double = [0.5, 0.5]
+            end
+            assert(length(physio_keys) == 2)
+            assert(length(physio_vs) == 2)
+            assert(length(weights) == 2)
 
                     % do plot
                     if this.do_plot_global_physio

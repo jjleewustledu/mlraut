@@ -25,6 +25,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         frac_ext_physio  % fraction of external physio power
         source_physio
         v_physio  % velocity of physio signal, m/s
+        v_physio_iFV  % velocity of physio signal, m/s
     end
 
     properties (Dependent)
@@ -916,7 +917,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                      used with this.task_physio()
             %      opts.scale_to_hcp {mustBeScalar,mustBePositive} = 1: scaling factor
             %      opts.source_physio {mustBeTextScalar} = 'iFV'
-            %      opts.v_physio double = 150
+            %      opts.v_physio double = 0.1
+            %      opts.v_physio_iFV double = 50
             %      opts.global_signal_regression logical = true
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
@@ -948,7 +950,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV"
-                opts.v_physio double = 0.1
+                opts.v_physio double = 50
+                opts.v_physio_iFV double = 50
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}
@@ -986,6 +989,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
             this.v_physio = opts.v_physio;
+            this.v_physio_iFV = opts.v_physio_iFV;
             this.tags_user_ = opts.tags;
 
             this.build_roi(opts.roi);
