@@ -115,6 +115,11 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
                 call(as);
             end
         end
+
+        function test_mat_fqfn(this)
+            disp(this.testObj.mat_fqfn())
+            disp(this.testObj.mat_fqfn(v_physio=150, source_physio="new_roi", is_subset=true))
+        end
     end
     
     methods (TestClassSetup)

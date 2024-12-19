@@ -435,6 +435,51 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi./d;
         end
 
+        function fqfn = mat_fqfn(this, opts)
+            %% see also get.tags()
+
+            arguments
+                this mlraut.AnalyticSignal
+                opts.v_physio double = this.v_physio
+                opts.source_physio {mustBeTextScalar} = this.source_physio
+                opts.is_subset logical = false
+            end
+
+            t = "proc";
+            if ~isempty(opts.v_physio)
+                t = t + "-v" + strrep(num2str(opts.v_physio), ".", "p");
+            end
+            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
+                t = t + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
+            end
+            if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
+                t = t + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
+            end
+            if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
+                t = t + "-" + this.final_normalization;
+            end
+            if ~isemptytext(opts.source_physio)
+                t = t + "-" + opts.source_physio;
+            end
+            if isfinite(this.max_frames)
+                t = t + "-maxframes" + num2str(this.max_frames);
+            end
+            if ~isemptytext(this.tags_user_) 
+                t = t + "-" + this.tags_user_;
+            end
+
+            sub = strrep(this.current_subject, "sub-", "");
+            ses = strrep(this.current_task, "ses-", "");
+            ses = strrep(ses, "_", "-");
+            if opts.is_subset
+                t_subset = "-subset";
+            else
+                t_subset = "";
+            end
+            fqfn = fullfile(this.out_dir, ...
+                sprintf("sub-%s_ses-%s_%s%s.mat", sub, ses, t, t_subset));
+        end
+
         function p = mix_physio(this, p_0, p_1)
             %% mix phyio signals:  p := (1 - f)*p_0 + f*p_1, f ~ this.frac_ext_physio, weighted by norms
 
@@ -739,41 +784,23 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     physio = this.twistors_.propagate_physio( ...
                         opts.reference, physio_vec, ...
                         physio_pos=ifv_pos, ...
-                        v=this.v_physio);
+                        v=this.v_physio_iFV);
                     assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
-                case 'ROI'  % propagated, superposed with iFV
-                    iFV = mlraut.IFourthVentricle(this, bold);
-                    ifv_pos = this.twistors_.center_of_mass_position(iFV.ifv_mask);
-                    physio_vec_0_ = iFV.call();
-                    physio_vec_0_gsr_ = ...
-                        this.build_global_signal_regressed(physio_vec_0_, is_physio=true);
-                    physio_vec_0 = ...
-                        this.build_rescaled( ...
-                        this.build_band_passed( ...
-                        this.build_centered(physio_vec_0_gsr_)));
-                    physio_0 = this.twistors_.propagate_physio( ...
-                        opts.reference, physio_vec_0, ...
-                        physio_pos=ifv_pos, ...
-                        v=0.1);
-
+                case {'CE_on_T1w', 'WT_on_T1w', 'edema_on_T1w', 'ROI'}
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=opts.roi, flipLR=opts.flipLR);
                     proi_pos = this.twistors_.center_of_mass_position(pROI.roi_mask);
-                    physio_vec_1_ = pROI.call();
-                    physio_vec_1_gsr_ = ...
-                        this.build_global_signal_regressed(physio_vec_1_, is_physio=true);
-                    physio_vec_1 = ...
+                    physio_vec_ = pROI.call();
+                    physio_vec_gsr_ = ...
+                        this.build_global_signal_regressed(physio_vec_, is_physio=true);
+                    physio_vec = ...
                         this.build_rescaled( ...
                         this.build_band_passed( ...
-                        this.build_centered(physio_vec_1_gsr_)));
-                    physio_1 = this.twistors_.propagate_physio( ...
-                        opts.reference, physio_vec_1, ...
+                        this.build_centered(physio_vec_gsr_)));
+                    physio = this.twistors_.propagate_physio( ...
+                        opts.reference, physio_vec, ...
                         physio_pos=proi_pos, ...
                         v=this.v_physio);
-
-                    physio_vec = this.mix_physio(physio_vec_0, physio_vec_1);  % superposition of physio signals
-                    physio = this.mix_physio(physio_0, physio_1);  % superposition of physio signals
-                    assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
                 case {'no-physio', 'nophys', 'none'}
                     physio_vec = ones(size(opts.reference, 1), 1);
                     physio = ones(size(opts.reference)).*physio_vec;
@@ -945,7 +972,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.final_normalization {mustBeTextScalar} = "none"
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
-                opts.frac_ext_physio double = 0.5
+                opts.frac_ext_physio double = 1
                 opts.global_signal_regression logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
@@ -1051,24 +1078,27 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             if isempty(roi)
                 return
-            end
+            end            
             
-            this.source_physio = "ROI";
             if isa(roi, "mlfourd.ImagingContext2")
                 this.roi_ = copy(roi);
+                this.source_physio = this.roi_.fileprefix;
                 return
             end
             if istext(roi) && isfile(roi)
                 this.roi_ = mlfourd.ImagingContext2(roi);
+                this.source_physio = this.roi_.fileprefix;
                 return
             end
             if isnumeric(roi) && ismatrix(roi)
                 pr = mlraut.PhysioRoi(this, this.task_niigz, from_wmparc_indices=roi);
                 this.roi_ = pr.roi_mask;
+                this.source_physio = "ROI";
                 return
             end
             if isnumeric(roi) && ~ismatrix(roi)
                 this.roi_ = mlfourd.ImagingContext2(roi);
+                this.source_physio = "ROI";
                 return
             end
             error("mlraut:ValueError", stackstr())

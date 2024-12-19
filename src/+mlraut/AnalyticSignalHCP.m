@@ -197,29 +197,51 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             assert(length(physio_vs) == 2)
             assert(length(weights) == 2)
 
+            for t = 1:this.num_tasks     
+                try
+
+                    fqfn1 = this.mat_fqfn( ...
+                        v_physio=physio_vs(1), source_physio=physio_keys(1), is_subset=this.do_save_subset);
+                    ld1 = load(fqfn1);
+                    this1 = ld1.this;
+
+                    fqfn2 = this.mat_fqfn( ...
+                        v_physio=physio_vs(2), source_physio=physio_keys(2), is_subset=this.do_save_subset);
+                    ld2 = load(fqfn2);
+                    this2 = ld2.this;
+
+                    %% modify this1 only
+
+                    this1.current_subject = this.current_subject;
+                    this1.current_task = this.tasks{t};
+
+                    this1.source_physio = strrep( ...
+                        sprintf("%s%g-%s%g", ...
+                        this1.source_physio, weights(1), this2.source_physio, weights(2)), ...
+                        ".", "p");
+
+                    % Update BOLD signals
+                    this1.bold_signal_ = weights(1)*this1.bold_signal_ + weights(2)*this2.bold_signal_;
+
+                    % Update physio signals
+                    this1.physio_signal_ = weights(1)*this1.physio_signal_ + weights(2)*this2.physio_signal_;
+
+                    % Update averages for networks
+                    this1.average_network_signals(this1.bold_signal_, this1.physio_signal_);
+
+                    % Null connectivity to avoid saving it
+                    this1.comparator_ = [];
+
+                    % do save
+                    this1.meta_save();
+
                     % do plot
-                    if this.do_plot_global_physio
-                        error("mlraut:NotImplementedError", stackstr())
-                    end
-                    if this.do_plot_networks
-                        this.plot_regions(@this.plot_networks, measure=@this.X);
-                        this.plot_regions(@this.plot_networks, measure=@this.Y);
-                        this.plot_regions(@this.plot_networks, measure=@this.Z);
-                        this.plot_regions(@this.plot_networks, measure=@this.T);
-                        this.plot_regions(@this.plot_networks, measure=@this.angle);
-                        this.plot_regions(@this.plot_networks, measure=@this.unwrap);
-                    end
-                    if this.do_plot_radar
-                        error("mlraut:NotImplementedError", stackstr())
-                    end
-                    if this.do_plot_emd
-                        error("mlraut:NotImplementedError", stackstr())
-                    end
+                    this1.meta_plot();
                 catch ME
                     handwarning(ME)
                 end
             end
-        end  
+        end
 
         function mat = connectivity(~, bold, seed)
             bold = real(bold)';  % Nx x Nt
