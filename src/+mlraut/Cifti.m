@@ -68,6 +68,10 @@ classdef Cifti < handle & mlsystem.IHandle
             if ~contains(fn, '.nii')
                 fn = strcat(fn, '.nii');
             end
+
+            fn = strrep(fn, 'sub-sub', 'sub');  % clean-up legacy nomenclature
+            fn = strrep(fn, 'ses-ses', 'ses');
+
             c_ = cifti_last;
             c_.cdata = c1_data;
             if contains(fn, '.dtseries')
@@ -124,17 +128,19 @@ classdef Cifti < handle & mlsystem.IHandle
                 if opts.do_final_normalization
                     cdata = this.ihcp_.build_final_normalization(cdata);
                 end
+
                 if opts.do_save_dynamic
                     this.write_cifti(cdata, fp); % mlraut.HCP
                 end
+
                 if ~isempty(opts.partitions)
                     cdata_t = cdata(opts.partitions, :);  % select pos x
-                    cdata_t = opts.averaging_method(cdata_t, 1);  % select t
+                    cdata_t = opts.averaging_method(cdata_t, 1);  % average over t
                     fp_t = strcat(fp, '_parts-T');
                     this.write_cifti(cdata_t, fp_t); % mlraut.HCP
 
                     cdata_f = cdata(~opts.partitions, :);  % select pos x
-                    cdata_f = opts.averaging_method(cdata_f, 1);  % select t
+                    cdata_f = opts.averaging_method(cdata_f, 1);  % average over t
                     fp_f = strcat(fp, '_parts-F');
                     this.write_cifti(cdata_f, fp_f); % mlraut.HCP
 

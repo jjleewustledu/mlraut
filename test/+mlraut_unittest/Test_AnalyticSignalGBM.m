@@ -69,6 +69,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             disp(asgbm)
             asgbm.call();
         end
+        
         function test_call_I3CR0023(this)   
             %% left insula, no midline shift
 
@@ -88,6 +89,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
 
             % Elapsed time is ___ seconds.
         end
+        
         function test_call_I3CR0023_physios_wmparc(this)  
             %% left insula, no midline shift
 
@@ -128,12 +130,14 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 source_physio=wmparc);
             call(this.testObj_);
         end
+        
         function test_call_I3CR0023_physios_flip1(this)  
             %% left insula, no midline shift
 
-            SUB = {'sub-I3CR0023'};
-            % SUB = {'sub-I3CR0111'};            
-            % SUB = {'sub-I3CR0116'};
+            % SUB = {'sub-I3CR0023'};
+            % SUB = {'sub-I3CR0111'};  % OS ~ 2246 days   
+            % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
+            SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
 
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
             cd(root_dir);
@@ -172,19 +176,22 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 tags="WT-flip1");
             call(this.testObj_);
         end
-        function test_call_I3CR0023_physios(this)   
+        
+        function test_call_I3CR1488_physios(this)   
             %% left insula, no midline shift
 
-            SUB = {'sub-I3CR0023'};
-            % SUB = {'sub-I3CR0111'};            
-            % SUB = {'sub-I3CR0116'};
+            % SUB = {'sub-I3CR0023'};  % legaacy
+            % SUB = {'sub-I3CR0111'};  % OS ~ 2246 days   
+            % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
+            SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
+
             v_physio_gbm = 0.05;
             v_physio_iFV = 50;
 
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
             cd(root_dir);
 
-            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout/2-spinor/physio_iFV';
+            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
             ensuredir(out_dir);
 
             this.testObj_ = mlraut.AnalyticSignalGBM( ...
@@ -201,9 +208,6 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_plot_networks=true, ...
                 source_physio='iFV');
             call(this.testObj_);
-
-            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout/2-spinor/physio_CE';
-            ensuredir(out_dir);
 
             ce = mlfourd.ImagingContext2( ...
                 fullfile(root_dir, SUB{1}, 'MNINonLinear', 'CE_on_T1w.nii.gz'));

@@ -126,10 +126,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isempty(this.v_physio)
                 g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
             end
-            if ~isempty(this.lp_thresh)
+            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
                 g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
             end
-            if ~isempty(this.hp_thresh) 
+            if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
                 g = g + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
             end
             if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
@@ -188,6 +188,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
     methods
 
         %% helpers for buillding
+
+        function psi = angle(this, varargin)
+            psi = this.twistors_.angle(varargin{:});
+        end
 
         function psi = average_network_signal(this, psi, opts)
             arguments
@@ -523,6 +527,26 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
             error("mlraut:TypeError", stackstr())
+        end
+
+        function psi = T(this, varargin)
+            psi = this.twistors_.T(varargin{:});
+        end
+
+        function psi = unwrap(this, varargin)
+            psi = this.twistors_.unwrap(varargin{:});
+        end
+        
+        function psi = X(this, varargin)
+            psi = this.twistors_.X(varargin{:});
+        end
+
+        function psi = Y(this, varargin)
+            psi = this.twistors_.Y(varargin{:});
+        end
+
+        function psi = Z(this, varargin)
+            psi = this.twistors_.Z(varargin{:});
         end
 
         %% plotting
@@ -862,30 +886,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         %% misc. helpers
-
-        function psi = X(this, varargin)
-            psi = this.twistors_.X(varargin{:});
-        end
-
-        function psi = Y(this, varargin)
-            psi = this.twistors_.Y(varargin{:});
-        end
-
-        function psi = Z(this, varargin)
-            psi = this.twistors_.Z(varargin{:});
-        end
-
-        function psi = T(this, varargin)
-            psi = this.twistors_.T(varargin{:});
-        end
-
-        function psi = angle(this, varargin)
-            psi = this.twistors_.angle(varargin{:});
-        end
-
-        function psi = unwrap(this, varargin)
-            psi = this.twistors_.unwrap(varargin{:});
-        end
 
         function tseries = trim_frames(this, tseries)
             nt = this.num_frames_to_trim + 1;

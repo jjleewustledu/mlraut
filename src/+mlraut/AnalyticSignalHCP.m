@@ -76,20 +76,19 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         this.out_dir = proposed_dir;
                         ensuredir(proposed_dir);
                     end
-                    this.call_subject(s);
+                    this.call_subject();
                 catch ME
                     handexcept(ME)
                 end
             end
         end
 
-        function this = call_subject(this, s)
+        function this = call_subject(this)
 
             %% Hilbert transform is applied after most other operations
 
             arguments
                 this %  mlraut.AnalyticSignalHCP; avoid down-casting
-                s double
             end
 
             for t = 1:this.num_tasks     

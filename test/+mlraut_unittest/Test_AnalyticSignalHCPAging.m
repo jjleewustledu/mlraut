@@ -16,6 +16,19 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+
+        function test_call_iFV(this)
+            as = this.testObj;
+            as.do_save=true;
+            as.do_save_dynamic=true;
+            as.do_save_ciftis=true;
+            as.do_plot_networks=true;
+            as.source_physio="iFV";
+            as.out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalHCPAging';
+            
+            disp(as)            
+            call(as);
+
             % qc
             zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
             as.plot3(z=zeta)  % re(psi) vaguely resemble ECG :-)
@@ -23,9 +36,11 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             as.plot3(z=as.HCP_signals.ctx.psi(:,9))  % ctx, task-
             as.plot3(z=as.HCP_signals.ctx.phi(:,9))  % ctx, task-
             figure; imagesc(angle(as.physio_signal));
+        end
+
         function test_call_physio(this)
 
-            for phys = {'iFV' 'HRV' 'RV'}
+            for phys = {'HRV' 'RV'}
                 as = this.testObj;
                 as.do_save=true;
                 as.do_save_dynamic=true;
@@ -40,6 +55,7 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             % Elapsed time is 273 seconds on twistor.  Peak memory is 64 GB.  Files saved < 8 GB.
             % Elapsed time is ~791 seconds on vglab2.
         end
+        
         function test_call_wmparc(this)
 
             % wmparc = 'precuneus';
@@ -104,6 +120,7 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
                 force_band=false, ...
                 hp_thresh=0.01, ...
                 lp_thresh=0.1, ...
+                v_physio=50, ...
                 plot_range=1:250, ...
                 global_signal_regression=true, ...
                 tags=stackstr(use_dashes=true));

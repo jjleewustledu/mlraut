@@ -7,7 +7,7 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
     
 
     properties
-        num_frames_to_trim = 167
+        num_frames_to_trim = 4
         tr = 0.72
     end
 
