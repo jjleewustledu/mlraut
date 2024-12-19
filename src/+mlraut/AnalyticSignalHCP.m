@@ -249,9 +249,27 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this.HCP_signals_.str.phi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.thal.psi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.thal.phi = complex(nan(this.num_frames,this.num_nets));
-        end
+        end 
 
-        function save(this, s, t)
+        function meta_plot(this)
+            if this.do_plot_global_physio
+                error("mlraut:NotImplementedError", stackstr())
+            end
+            if this.do_plot_networks
+                this.plot_regions(@this.plot_networks, measure=@this.X);
+                this.plot_regions(@this.plot_networks, measure=@this.Y);
+                this.plot_regions(@this.plot_networks, measure=@this.Z);
+                this.plot_regions(@this.plot_networks, measure=@this.T);
+                this.plot_regions(@this.plot_networks_dots, measure=@this.angle);
+                this.plot_regions(@this.plot_networks_dots, measure=@this.unwrap);
+            end
+            if this.do_plot_radar
+                error("mlraut:NotImplementedError", stackstr())
+            end
+            if this.do_plot_emd
+                error("mlraut:NotImplementedError", stackstr())
+            end
+        end
 
             if this.do_save_subset
 

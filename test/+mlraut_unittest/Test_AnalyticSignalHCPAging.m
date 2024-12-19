@@ -16,6 +16,13 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+            % qc
+            zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
+            as.plot3(z=zeta)  % re(psi) vaguely resemble ECG :-)
+            % as.plot3(z=mean(as.bold_signal, 2))
+            as.plot3(z=as.HCP_signals.ctx.psi(:,9))  % ctx, task-
+            as.plot3(z=as.HCP_signals.ctx.phi(:,9))  % ctx, task-
+            figure; imagesc(angle(as.physio_signal));
         function test_call_physio(this)
 
             for phys = {'iFV' 'HRV' 'RV'}
@@ -97,6 +104,7 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
                 force_band=false, ...
                 hp_thresh=0.01, ...
                 lp_thresh=0.1, ...
+                plot_range=1:250, ...
                 global_signal_regression=true, ...
                 tags=stackstr(use_dashes=true));
             this.addTeardown(@this.cleanTestMethod)

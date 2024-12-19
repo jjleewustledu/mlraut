@@ -554,7 +554,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.t double = []
                 opts.z double = []
                 opts.num_frames double = []
-                opts.title = ""
+                opts.title {mustBeTextScalar} = ""
+                opts.symbol {mustBeTextScalar} = "\psi"
             end
             if isempty(opts.num_frames)
                 opts.num_frames = this.num_frames;  % ceil(300/this.tr);
@@ -589,9 +590,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             figure('Position', [100, 100, 1200, 600]);
             civ = cividis;
             plot3(t, real(z), imag(z), LineWidth=2, Color=civ(1,:));
-            xlabel('time / s');
-            ylabel('Re \psi(t)');
-            zlabel('Im \psi(t)');
+            xlabel("time / s");
+            ylabel(sprintf('Re %s(t)', opts.symbol));
+            zlabel(sprintf('Im %s(t)', opts.symbol));
             title(opts.title);
             grid on;
             fontsize(scale=2)
@@ -604,8 +605,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             % Add a 2D projection onto the complex plane
             figure;
             scatter(real(z), imag(z), [], t, 'filled', 'o', MarkerFaceAlpha=0.618);
-            xlabel('Re \psi(t)');
-            ylabel('Im \psi(t)');
+            ylabel(sprintf('Re %s(t)', opts.symbol));
+            ylabel(sprintf('Im %s(t)', opts.symbol));
             title("");
             axis equal;
             colorbar;
@@ -621,7 +622,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function h1 = plot_global_physio(this, varargin)
-            this.plotting_.plot_global_physio(varargin{:});
+            h1 = this.plotting_.plot_global_physio(varargin{:});
         end
 
         function plot_regions(this, varargin)
@@ -630,6 +631,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function [h1,h3] = plot_networks(this, varargin)
             [h1,h3] = this.plotting_.plot_networks(varargin{:});
+        end
+
+        function [h1,h3] = plot_networks_dots(this, varargin)
+            [h1,h3] = this.plotting_.plot_networks_dots(varargin{:});
         end
 
         function [h,h1,h2] = plot_radar(this, varargin)

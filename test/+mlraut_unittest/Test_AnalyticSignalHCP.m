@@ -16,6 +16,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+        
         function test_call_no_physio(this)
             as = this.testObj;
             as.do_save=true;
@@ -27,6 +28,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             disp(as)            
             call(as);
         end
+
         function test_call_iFV(this)
             as = this.testObj;
             as.do_save=true;
@@ -34,18 +36,19 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.do_save_ciftis=true;
             as.do_plot_networks=true;
             as.source_physio="iFV";
-            
+           
             disp(as)            
             call(as);
 
             % qc
             zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
             as.plot3(z=zeta)  % re(psi) vaguely resemble ECG :-)
-            as.plot3(z=mean(as.bold_signal, 2))
-            as.plot3(z=as.HCP_signals.ctx.psi(:,9))  % ctx, task-
-            as.plot3(z=as.HCP_signals.ctx.phi(:,9))  % ctx, task-
+            % as.plot3(z=mean(as.bold_signal, 2))
+            as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
+            as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
             figure; imagesc(angle(as.physio_signal));
         end
+
         function test_call_HRV(this)
             as = this.testObj;
             as.do_save=true;
@@ -57,6 +60,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             disp(as)            
             call(as);
         end
+
         function test_call_RV(this)
             as = this.testObj;
             as.do_save=true;
@@ -68,6 +72,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             disp(as)            
             call(as);
         end
+
         function test_call_wmparc(this)
 
             % wmparc = 'precuneus';

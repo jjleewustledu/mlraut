@@ -24,6 +24,7 @@ classdef Plotting < handle & mlsystem.IHandle
         num_frames_to_trim
         out_dir
         physio_signal
+        source_physio
         sub
         subjects
         tags
@@ -69,6 +70,9 @@ classdef Plotting < handle & mlsystem.IHandle
         function g = get.physio_signal(this)
             g = this.ias_.physio_signal;
         end
+        function g = get.source_physio(this)
+            g = this.ias_.source_physio;
+        end
         function g = get.sub(this)
             g = this.ias_.current_subject;
         end
@@ -102,7 +106,7 @@ classdef Plotting < handle & mlsystem.IHandle
                 opts.measure function_handle = @real
                 opts.anatomy {mustBeTextScalar} = 'ctx'
             end
-            assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
+            assert(contains(opts.anatomy, {'ctx', 'str', 'thal', 'cbm'}))
             signals = this.HCP_signals.(lower(opts.anatomy));
             if isreal(signals)
                 return
@@ -144,6 +148,7 @@ classdef Plotting < handle & mlsystem.IHandle
 
             this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.anatomy));
         end
+
         function h1 = plot_global_physio(this, opts)
             %  Args:
             %      this mlraut.Plotting   
@@ -203,7 +208,8 @@ classdef Plotting < handle & mlsystem.IHandle
                 funh(measure=opts.measure, anatomy=opts.anatomy);
             end
         end
-        function [h1,h3] = plot_networks(this, opts)
+
+        function [h1,h2] = plot_networks(this, opts)
             %  Args:
             %      this mlraut.Plotting           
             %      opts.measure function_handle = @this.ias_.X
@@ -370,7 +376,7 @@ classdef Plotting < handle & mlsystem.IHandle
                 opts.measure function_handle = @this.identity
                 opts.anatomy {mustBeText} = 'ctx'
             end
-            assert(contains(opts.anatomy, {'cbm', 'ctx', 'str', 'thal'}))
+            assert(contains(opts.anatomy, {'ctx', 'str', 'thal', 'cbm'}))
             signals = this.HCP_signals.(lower(opts.anatomy));
             if isreal(signals)
                 return
@@ -416,6 +422,7 @@ classdef Plotting < handle & mlsystem.IHandle
 
             this.saveFigures(sprintf('%s_%s', char(opts.measure), opts.anatomy));
         end
+
         function [h,h1] = plot_timeseries_qc(this, tseries, opts)
             arguments
                 this mlraut.Plotting
@@ -455,6 +462,7 @@ classdef Plotting < handle & mlsystem.IHandle
             ylabel("log "+opts.ylabel);
             title(sprintf("%s: %s: log %s", stackstr(3), stackstr(2), opts.ylabel), Interpreter="none");
         end
+
         function saveFigures(this, label, varargin)
             label = strrep(label, "@(varargin)", "");
             label = strrep(label, "(varargin{:})", "");
