@@ -942,7 +942,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_save_ciftis logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
-                opts.final_normalization {mustBeTextScalar} = "normxyzt"
+                opts.final_normalization {mustBeTextScalar} = "none"
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
                 opts.frac_ext_physio double = 0.5
