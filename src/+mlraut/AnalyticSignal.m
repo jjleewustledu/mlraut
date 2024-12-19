@@ -421,7 +421,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 psi {mustBeNumeric}
                 opts.dim = "all" 
             end
-            n = mad(abs(psi), 0, opts.dim);  % mean abs. dev.
+            % n = mad(abs(psi), 0, opts.dim);  % mean abs. dev., doesn't scale psi and phi comparably
+            % n = mad(abs(psi), 1, opts.dim);  % median abs. dev., doesn't scale psi and phi comparably
+            % n = norm(psi);  % 2-norm seems more consistent with 2-spinors, but discrepancy of psi, phi ~ 1e6
+            n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
+            % n = max(psi, [], opts.dim);  % discrepancy of psi, phi ~ 1e3
         end
 
         function psi = build_rescaled(this, psi, opts)
