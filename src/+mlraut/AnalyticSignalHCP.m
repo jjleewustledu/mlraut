@@ -126,67 +126,27 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                     % Store physio signals
                     this.physio_signal_ = hilbert(physio_);
 
-                    % Averages for networks
+                    % Store averages for networks
                     this.average_network_signals(this.bold_signal_, this.physio_signal_);
 
-                    % connectivity for comparisons
+                    % Store connectivity for comparisons
                     this.comparator_ = this.connectivity(bold_, physio__);
 
-                    % Store reduced analytic signal, real(), imag(), abs(), angle()
-                    if this.do_save
-                        % Store reduced analytic signals for all s, t
-                        % grid of data from s, t may be assessed with stats
-                        save(this, s, t);
-                    end
-                    if this.do_save_ciftis
+                    % do save
+                    this.meta_save();
 
-                        % connectivity(this.bold_signal_, this.physio_signal_), with matching normalizations
-                        this.write_cifti( ...
-                            this.comparator_, ...
-                            sprintf('connectivity_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags));
+                    % do plots
+                    this.meta_plot();
+                catch ME
+                    handwarning(ME)
+                end
+            end
+        end 
 
-                        % (T,X,Y,Z) in omega
-                        psi = this.bold_signal_;
-                        phi = this.physio_signal_;
-                        % parts = this.physio_angle >= 0;  % unbiased, but fails to separate features
-                        parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
-                        % cortical X(psi, phi) >= 0, region 9 ~ task-, biased but informative
-                        
-                        this.write_ciftis( ...
-                            this.T(psi, phi), ...
-                            sprintf('T_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            partitions=parts, ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            this.X(psi, phi), ...
-                            sprintf('X_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            partitions=parts, ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            this.Y(psi, phi), ...
-                            sprintf('Y_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            partitions=parts, ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            this.Z(psi, phi), ...
-                            sprintf('Z_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            partitions=parts, ...
-                            do_save_dynamic=this.do_save_dynamic);
-                        this.write_ciftis( ...
-                            this.angle(psi, phi), ...
-                            sprintf('angle_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            partitions=parts, ...
-                            do_save_dynamic=this.do_save_dynamic);  
-                        this.write_ciftis( ...
-                            this.unwrap(psi, phi), ...
-                            sprintf('unwrap_as_sub-%s_ses-%s_%s', this.subjects{s}, this.tasks{t}, this.tags), ...
-                            partitions=parts, ...
-                            do_save_dynamic=this.do_save_dynamic);   
+        function call_superposition(this, physio_keys, physio_vs, weights)
 
-                    end
-                    if this.do_save_ciftis_of_diffs                        
-                        error("mlraut:NotImplementedError", stackstr())
-                    end
+            %% create and write superposition of results from listed physios
+
             arguments
                 this %  mlraut.AnalyticSignalHCP
                 physio_keys string {mustBeText}
@@ -293,73 +253,132 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
         end
 
-            if this.do_save_subset
+        function meta_save(this)
+            if this.do_save
+                % Store reduced analytic signals for current_subject, current_task
+                % grid of data from s, t may be assessed with stats
+                save(this);
+            end
+            if this.do_save_ciftis
 
-                %% reduce size of saved
-
-                this_subset.digital_filter = this.digital_filter;
-                this_subset.do_7T = this.do_7T;
-                this_subset.do_resting = this.do_resting;
-                this_subset.do_task = this.do_task;
-                this_subset.do_save = this.do_save;
-                this_subset.do_save_ciftis = this.do_save_ciftis;
-                this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
-                this_subset.do_save_dynamic = this.do_save_dynamic;
-                this_subset.force_band = this.force_band;
-                this_subset.final_normalization = this.final_normalization;
-                this_subset.roi = this.roi;
-                this_subset.source_physio = this.source_physio;
-                this_subset.global_signal = this.global_signal;
-                this_subset.global_signal_regression = this.global_signal_regression;
-                this_subset.hp_thresh = this.hp_thresh;
-                this_subset.lp_thresh = this.lp_thresh;
-                this_subset.num_nets = this.num_nets;
-                this_subset.num_sub = this.num_sub;
-                this_subset.num_tasks = this.num_tasks;
-                this_subset.scale_to_hcp = this.scale_to_hcp;
-                this_subset.tags = this.tags;
-                this_subset.bold_signal = this.bold_signal;
-                this_subset.HCP_signals = this.HCP_signals;
-                this_subset.physio_signal = this.physio_signal;
-                this_subset.comparator = this.comparator;
-                this_subset.max_frames = this.max_frames;
-                this_subset.current_subject = this.current_subject;
-                this_subset.current_task = this.current_task;
-                this_subset.subjects = this.subjects;
-                this_subset.tasks = this.tasks;
-                % this_subset.bold_data = this.bold_data;
-                % this_subset.cohort_data = this.cohort_data;
-                % this_subset.cifti_last = this.cifti_last;
-                this_subset.Fs = this.Fs;
-                this_subset.num_frames = this.num_frames;
-                this_subset.num_frames_ori = this.num_frames_ori;
-                this_subset.num_frames_to_trim = this.num_frames_to_trim;
-                this_subset.num_nodes = this.num_nodes;
-                this_subset.out_dir = this.out_dir;
-                this_subset.root_dir = this.root_dir;
-                this_subset.task_dir = this.task_dir;
-                this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
-                this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
-                this_subset.task_signal_reference_fqfn = this.task_signal_reference_fqfn;
-                this_subset.t1w_fqfn = this.t1w_fqfn;
-                this_subset.tr = this.tr;
-                this_subset.waves_dir = this.waves_dir;
-                this_subset.wmparc_fqfn = this.wmparc_fqfn;
-                this_subset.workbench_dir = this.workbench_dir;
-                try
-                    save(fullfile(this.out_dir, ...
-                        sprintf("sub-%s_ses-%s_%s_subset.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), this.tags)), ...
-                        'this_subset');
-                catch ME
-                    handwarning(ME)
+                % connectivity(this.bold_signal_, this.physio_signal_), with matching normalizations
+                if ~isempty(this.comparator_)
+                    this.write_cifti( ...
+                        this.comparator_, ...
+                        sprintf('connectivity_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags));
                 end
+
+                % (T,X,Y,Z) in omega
+                psi = this.bold_signal_;
+                phi = this.physio_signal_;
+
+                % cortical X(psi, phi) >= 0, region 9 ~ task-, biased but informative
+                parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
+                % parts = cos(this.physio_angle) >= 0;  % unbiased, but shows identical features in trues/falses
+                
+                this.write_ciftis( ...
+                    this.T(psi, phi), ...
+                    sprintf('T_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.X(psi, phi), ...
+                    sprintf('X_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags), ...
+                    partitions=parts, ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.Y(psi, phi), ...
+                    sprintf('Y_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags), ...
+                    partitions=parts, ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.Z(psi, phi), ...
+                    sprintf('Z_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.angle(psi, phi), ...
+                    sprintf('angle_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);  
+                this.write_ciftis( ...
+                    this.unwrap(psi, phi), ...
+                    sprintf('unwrap_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);  
+            end
+            if this.do_save_ciftis_of_diffs                        
+                error("mlraut:NotImplementedError", stackstr())
+            end
+        end
+
+        function save(this)
+            if this.do_save_subset
+                this.save_subset();
                 return
             end
-
             try
-                save(fullfile(this.out_dir, ...
-                    sprintf("sub-%s_ses-%s_%s.mat", this.subjects{s}, strrep(this.tasks{t}, "_", "-"), this.tags)), ...
-                    'this');
+                save(this.mat_fqfn(), 'this');
+            catch ME
+                handwarning(ME)
+            end
+        end
+
+        function save_subset(this)
+
+            %% reduce size of saved
+
+            this_subset.digital_filter = this.digital_filter;
+            this_subset.do_7T = this.do_7T;
+            this_subset.do_resting = this.do_resting;
+            this_subset.do_task = this.do_task;
+            this_subset.do_save = this.do_save;
+            this_subset.do_save_ciftis = this.do_save_ciftis;
+            this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
+            this_subset.do_save_dynamic = this.do_save_dynamic;
+            this_subset.force_band = this.force_band;
+            this_subset.final_normalization = this.final_normalization;
+            this_subset.roi = this.roi;
+            this_subset.source_physio = this.source_physio;
+            this_subset.global_signal = this.global_signal;
+            this_subset.global_signal_regression = this.global_signal_regression;
+            this_subset.hp_thresh = this.hp_thresh;
+            this_subset.lp_thresh = this.lp_thresh;
+            this_subset.num_nets = this.num_nets;
+            this_subset.num_sub = this.num_sub;
+            this_subset.num_tasks = this.num_tasks;
+            this_subset.scale_to_hcp = this.scale_to_hcp;
+            this_subset.tags = this.tags;
+            this_subset.bold_signal = this.bold_signal;
+            this_subset.HCP_signals = this.HCP_signals;
+            this_subset.physio_signal = this.physio_signal;
+            this_subset.comparator = this.comparator;
+            this_subset.max_frames = this.max_frames;
+            this_subset.current_subject = this.current_subject;
+            this_subset.current_task = this.current_task;
+            this_subset.subjects = this.subjects;
+            this_subset.tasks = this.tasks;
+            % this_subset.bold_data = this.bold_data;
+            % this_subset.cohort_data = this.cohort_data;
+            % this_subset.cifti_last = this.cifti_last;
+            this_subset.Fs = this.Fs;
+            this_subset.num_frames = this.num_frames;
+            this_subset.num_frames_ori = this.num_frames_ori;
+            this_subset.num_frames_to_trim = this.num_frames_to_trim;
+            this_subset.num_nodes = this.num_nodes;
+            this_subset.out_dir = this.out_dir;
+            this_subset.root_dir = this.root_dir;
+            this_subset.task_dir = this.task_dir;
+            this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
+            this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
+            this_subset.task_signal_reference_fqfn = this.task_signal_reference_fqfn;
+            this_subset.t1w_fqfn = this.t1w_fqfn;
+            this_subset.tr = this.tr;
+            this_subset.waves_dir = this.waves_dir;
+            this_subset.wmparc_fqfn = this.wmparc_fqfn;
+            this_subset.workbench_dir = this.workbench_dir;
+            try
+                save(this.mat_fqfn(is_subset=true), 'this_subset');
             catch ME
                 handwarning(ME)
             end
