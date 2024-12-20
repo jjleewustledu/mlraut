@@ -979,18 +979,18 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.frac_ext_physio double = 1
                 opts.global_signal_regression logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
-                opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
+                opts.lp_thresh {mustBeScalarOrEmpty} = 0.05
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
                 opts.plot_range double = []
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV"
-                opts.v_physio double = 50
-                opts.v_physio_iFV double = 50
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}
+                opts.v_physio double = 50
+                opts.v_physio_iFV double = 50
             end
 
             this = this@mlraut.HCP(max_frames=opts.max_frames, subjects=opts.subjects, tasks=opts.tasks)
