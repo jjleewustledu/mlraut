@@ -30,12 +30,12 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             call(as);
 
             % qc
-            zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
-            as.plot3(z=zeta)  % re(psi) vaguely resemble ECG :-)
-            % as.plot3(z=mean(as.bold_signal, 2))
-            as.plot3(z=as.HCP_signals.ctx.psi(:,9))  % ctx, task-
-            as.plot3(z=as.HCP_signals.ctx.phi(:,9))  % ctx, task-
-            figure; imagesc(angle(as.physio_signal));
+            % zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
+            % as.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
+            % % as.plot3(z=mean(as.bold_signal, 2))
+            % as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
+            % as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
+            % figure; imagesc(angle(as.physio_signal));
         end
 
         function test_call_physio(this)
@@ -121,7 +121,7 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
                 hp_thresh=0.01, ...
                 lp_thresh=0.05, ...
                 v_physio=50, ...
-                plot_range=1:250, ...
+                plot_range=1:225, ...
                 global_signal_regression=true, ...
                 tags=stackstr(use_dashes=true));
             this.addTeardown(@this.cleanTestMethod)
