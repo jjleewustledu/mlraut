@@ -38,8 +38,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz
         rsn_list
         scale_to_hcp  % adjust norm by time of scanning
-        tags  % for filenames
-        tags_user
+        tags_user  % for filenames
 
         bold_signal
         physio_angle
@@ -115,41 +114,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             g = this.scale_to_hcp_;
         end
 
-        function g = get.tags(this)
-            if isempty(this.final_normalization) && strcmp(this.source_physio, "iFV") && ...
-                    ~isempty(this.hp_thresh) && ~isempty(this.lp_thresh)
-                % provide legacy compatibility
-                g = "";
-                return
-            end
-
-            g = "proc";
-            if ~isempty(this.v_physio)
-                g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
-            end
-            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
-                g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
-            end
-            if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
-                g = g + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
-            end
-            if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
-                g = g + "-" + this.final_normalization;
-            end
-            if ~isemptytext(this.source_physio)
-                g = g + "-" + this.source_physio;
-            end
-            if isfinite(this.max_frames)
-                g = g + "-maxframes" + num2str(this.max_frames);
-            end
-            if ~isemptytext(this.tags_user_) 
-                g = g + "-" + this.tags_user_;
-            end
-        end
-
         function g = get.tags_user(this)
             g = this.tags_user_;
         end        
+        
         function set.tags_user(this, s)
             this.tags_user_ = s;
         end
@@ -445,7 +413,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function fqfn = mat_fqfn(this, opts)
-            %% see also get.tags()
+            %% see also tags()
 
             arguments
                 this mlraut.AnalyticSignal
@@ -892,6 +860,48 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         %% misc. helpers
 
+        function g = tags(this, more_tags)
+            %% for filenames; see also mat_fqfn()
+
+            arguments
+                this mlraut.AnalyticSignal
+                more_tags {mustBeTextScalar} = ""
+            end
+
+            if isempty(this.final_normalization) && strcmp(this.source_physio, "iFV") && ...
+                    ~isempty(this.hp_thresh) && ~isempty(this.lp_thresh)
+                % provide legacy compatibility
+                g = "";
+                return
+            end
+
+            g = "proc";
+            if ~isempty(this.v_physio)
+                g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
+            end
+            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.05
+                g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
+            end
+            if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
+                g = g + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
+            end
+            if isfinite(this.max_frames)
+                g = g + "-maxframes" + num2str(this.max_frames);
+            end
+            if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
+                g = g + "-" + this.final_normalization;
+            end
+            if ~isemptytext(this.source_physio)
+                g = g + "-" + this.source_physio;
+            end
+            if ~isemptytext(this.tags_user) 
+                g = g + "-" + this.tags_user;
+            end
+            if ~isemptytext(more_tags) 
+                g = g + "-" + more_tags;
+            end
+        end
+
         function tseries = trim_frames(this, tseries)
             nt = this.num_frames_to_trim + 1;
             if isnumeric(tseries)
@@ -1026,9 +1036,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.cohort_data_.out_dir = opts.out_dir;
             this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
+            this.tags_user_ = opts.tags;
             this.v_physio = opts.v_physio;
             this.v_physio_iFV = opts.v_physio_iFV;
-            this.tags_user_ = opts.tags;
 
             this.build_roi(opts.roi);
 
