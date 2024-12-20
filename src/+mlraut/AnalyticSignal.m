@@ -937,6 +937,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function this = AnalyticSignal(opts)
             %% ANALYTICSIGNAL 
             %  Args:
+            %      opts.anatomy_list {mustBeText} = {'ctx', 'str', 'thal', 'cbm'}
             %      opts.do_7T logical = false
             %      opts.do_resting logical = true
             %      opts.do_task logical = false
@@ -972,6 +973,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.tasks cell {mustBeText} = {}
             
             arguments
+                opts.anatomy_list {mustBeText} = {'ctx', 'str', 'thal', 'cbm'}
                 opts.do_7T logical = false
                 opts.do_resting logical = true
                 opts.do_task logical = false
