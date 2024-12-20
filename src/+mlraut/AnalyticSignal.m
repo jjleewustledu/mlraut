@@ -29,7 +29,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
     end
 
     properties (Dependent)
-        anatomy_list
+        anatomy_list  % {'ctx', 'str', 'thal', 'cbm'}
         digital_filter
         global_signal
         global_signal_regression  % logical
@@ -50,14 +50,15 @@ classdef AnalyticSignal < handle & mlraut.HCP
     end
 
     methods %% GET, SET
-        function g = get.anatomy_list(~)
-            % g = {'ctx', 'str', 'thal', 'cbm'};
-            g = {'ctx', 'str', 'thal', 'cbm'};
+        function g = get.anatomy_list(this)
+            g = this.anatomy_list_;
         end
+        
         function g = get.digital_filter(this)
             g = this.digital_filter_;
 
         end
+        
         function g = get.global_signal(this)
             g = this.global_signal_;
         end
@@ -1000,6 +1001,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.cifti_ = mlraut.Cifti(this);
             this.plotting_ = mlraut.Plotting(this, plot_range=opts.plot_range);
 
+            this.anatomy_list_ = opts.anatomy_list;
             this.do_7T = opts.do_7T;
             this.do_resting = opts.do_resting;
             this.do_task = opts.do_task;
@@ -1037,6 +1039,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
     %% PROTECTED
 
     properties (Access = protected)
+        anatomy_list_
         cifti_
         digital_filter_
         hp_thresh_

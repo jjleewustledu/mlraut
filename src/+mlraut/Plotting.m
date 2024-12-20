@@ -7,6 +7,7 @@ classdef Plotting < handle & mlsystem.IHandle
     
 
     properties
+        fontscale
         do_plot_emd
         plot_range
     end
@@ -188,7 +189,7 @@ classdef Plotting < handle & mlsystem.IHandle
             xlabel('time/s')
             ylabel(sprintf('%s(arousal)', meas_label), Interpreter="none")
             title(sprintf('Global arousal, %s, %s ', this.sub, this.source_physio), Interpreter="none")
-            fontsize(scale=2)
+            fontsize(scale=this.fontscale)
 
             if this.do_save
                 this.saveFigures(char(meas_label));
@@ -261,9 +262,9 @@ classdef Plotting < handle & mlsystem.IHandle
             p.Color=cb(7,:); % default mode
             legend(this.rsn_list(1:7))
             xlabel('time/s')
-            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            ylabel(sprintf('%s(%s signals)', meas_label, this.expand_abbr(opts.anatomy)), Interpreter="none")
             title(sprintf('Yeo RSNs, %s, %s ', this.sub, this.source_physio), Interpreter="none")
-            fontsize(scale=2)
+            fontsize(scale=this.fontscale)
             hold off
 
             %% plot task+, task- RSNs
@@ -281,9 +282,9 @@ classdef Plotting < handle & mlsystem.IHandle
             p.Color=cb(7,:);
             legend(this.rsn_list(8:9))
             xlabel('time/s')
-            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            ylabel(sprintf('%s(%s signals)', meas_label, this.expand_abbr(opts.anatomy)), Interpreter="none")
             title(sprintf('Task +/-, %s, %s ', this.sub, this.source_physio), Interpreter="none")
-            fontsize(scale=2)
+            fontsize(scale=this.fontscale)
             hold off
 
             this.saveFigures(sprintf('%s_%s_', char(meas_label), opts.anatomy));
@@ -340,9 +341,9 @@ classdef Plotting < handle & mlsystem.IHandle
             scatter(secs_(opts.plot_range), meas7_(opts.plot_range), ms, cb(7,:), 'filled');
             legend(this.rsn_list(1:7))
             xlabel('time/s')
-            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            ylabel(sprintf('%s(%s signals)', meas_label, this.expand_abbr(opts.anatomy)), Interpreter="none")
             title(sprintf('Yeo RSNs, %s, %s ', this.sub, this.source_physio), Interpreter="none")
-            fontsize(scale=2)
+            fontsize(scale=this.fontscale)
             hold off
 
             %% plot task+, task- RSNs
@@ -352,15 +353,15 @@ classdef Plotting < handle & mlsystem.IHandle
             hold on
             % 8 is extrinsic (task+)
             meas8_ = real(opts.measure(psi(:, 8), phi(:, 8)));
-            p = scatter(secs_(opts.plot_range), meas8_(opts.plot_range), ms, cb(1,:), 'filled', MarkerFaceAlpha=0.5, MarkerEdgeAlpha=0.5);
+            scatter(secs_(opts.plot_range), meas8_(opts.plot_range), ms, cb(1,:), 'filled', MarkerFaceAlpha=0.5, MarkerEdgeAlpha=0.5);
             % 9 is instrinsic (task-)
             meas9_ = real(opts.measure(psi(:, 9), phi(:, 9)));
-            p = scatter(secs_(opts.plot_range), meas9_(opts.plot_range), ms, cb(7,:), 'filled');
+            scatter(secs_(opts.plot_range), meas9_(opts.plot_range), ms, cb(7,:), 'filled');
             legend(this.rsn_list(8:9))
             xlabel('time/s')
-            ylabel(sprintf('%s(%s signals)', meas_label, opts.anatomy), Interpreter="none")
+            ylabel(sprintf('%s(%s signals)', meas_label, this.expand_abbr(opts.anatomy)), Interpreter="none")
             title(sprintf('Task +/-, %s, %s ', this.sub, this.source_physio), Interpreter="none")
-            fontsize(scale=2)
+            fontsize(scale=this.fontscale)
             hold off
 
             this.saveFigures(sprintf('%s_%s_', char(meas_label), opts.anatomy));
@@ -482,6 +483,7 @@ classdef Plotting < handle & mlsystem.IHandle
                 ias mlraut.AnalyticSignal {mustBeNonempty}
                 opts.do_plot_emd logical = false
                 opts.plot_range {mustBeInteger} = []
+                opts.fontscale = 3
             end
 
             this.ias_ = ias;
@@ -491,6 +493,7 @@ classdef Plotting < handle & mlsystem.IHandle
             else
                 this.plot_range = opts.plot_range;
             end
+            this.fontscale = opts.fontscale;
         end
     end
 
@@ -498,6 +501,23 @@ classdef Plotting < handle & mlsystem.IHandle
 
     properties (Access = protected)
         ias_
+    end
+
+    methods (Static, Access = protected)
+        function e = expand_abbr(a)
+            switch lower(convertStringsToChars(a))
+                case 'ctx'
+                    e = "cortical";
+                case 'str'
+                    e = "striatal";
+                case 'thal'
+                    e = "thalamic";
+                case 'cbm'
+                    e = "cerebellar";
+                otherwise
+                    e = "unknown";
+            end
+        end
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
