@@ -104,6 +104,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                             this.build_rescaled( ...
                             this.build_band_passed( ...
                             this.build_centered(bold_gsr_)));
+                        if ~isemptytext(getenv("VERBOSITY")); fprintf("size(bold_):\n"); disp(size(bold_)); end
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
                         handwarning(ME)
@@ -112,7 +113,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
                     % physio
                     try
-                        [physio_,physio__] = this.task_physio(reference=bold_);
+                        [physio_,physio__] = this.task_physio(reference=bold_);                        
+                        if ~isemptytext(getenv("VERBOSITY")); fprintf("size(physio_):\n"); disp(size(physio_)); end
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
                         handwarning(ME)
