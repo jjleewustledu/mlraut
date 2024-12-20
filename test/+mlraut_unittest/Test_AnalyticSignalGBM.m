@@ -181,9 +181,11 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             %% left insula, no midline shift
 
             % SUB = {'sub-I3CR0023'};  % legaacy
+            % SUB = {'sub-I3CR0668'};  % OS ~ 2568 days, 46 yo
+            SUB = {'sub-I3CR0311'};  % OS ~ 2246 days, 36 yo
             % SUB = {'sub-I3CR0111'};  % OS ~ 2246 days   
             % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
-            SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
+            % SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
 
             v_physio_gbm = 0.05;
             v_physio_iFV = 50;
