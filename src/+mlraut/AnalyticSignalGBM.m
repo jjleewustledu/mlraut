@@ -149,7 +149,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                         ensuredir(proposed_dir);
                     end
                     this.build_conc();  % new for AnalyticSignalGBM
-                    this.call_subject(s);
+                    this.call_subject();
                 catch ME
                     handexcept(ME)
                 end

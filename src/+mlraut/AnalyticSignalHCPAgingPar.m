@@ -155,7 +155,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
             globbed = asrow(ld.globbed);
             globbed = globbed(opts.sub_indices);
 
-            c = mlraut.CHPC3.propcluster_tiny();
+            c = mlraut.CHPC3.propcluster();
             disp(c.AdditionalProperties)
             for g = globbed
                 try
@@ -231,7 +231,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
             globbed = globbed(opts.sub_indices);
             N_sub = length(opts.sub_indices);
 
-            c = mlraut.CHPC3.propcluster_tiny();
+            c = mlraut.CHPC3.propcluster();
             disp(c.AdditionalProperties)
             try
                 j = c.batch( ...

@@ -17,6 +17,21 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.assertEqual(1,1);
         end
 
+        function test_memory_footprint(this)
+            tic
+            as = this.testObj;
+            as.do_save=false;
+            as.do_save_dynamic=false;
+            as.do_save_ciftis=false;
+            as.do_plot_networks=false;
+            as.source_physio="iFV";
+            as.out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalHCPAging';
+            
+            disp(as)            
+            call(as);
+            toc
+        end
+
         function test_call_iFV(this)
             as = this.testObj;
             as.do_save=true;

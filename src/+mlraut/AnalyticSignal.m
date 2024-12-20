@@ -83,6 +83,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function g = get.json(this)
             g = this.cohort_data_.json;
         end
+        
         function     set.json(this, s)
             this.cohort_data_.json = s;
         end
@@ -953,6 +954,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.force_band logical = true: force bandpass to Nyquist limits of available data
             %      opts.force_legacy_butter logical = false: 
             %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
+            %      opts.global_signal_regression logical = true
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05.
@@ -965,12 +967,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                      used with this.task_physio()
             %      opts.scale_to_hcp {mustBeScalar,mustBePositive} = 1: scaling factor
             %      opts.source_physio {mustBeTextScalar} = 'iFV'
-            %      opts.v_physio double = 0.1
-            %      opts.v_physio_iFV double = 50
-            %      opts.global_signal_regression logical = true
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
             %      opts.tasks cell {mustBeText} = {}
+            %      opts.v_physio double = 0.1
+            %      opts.v_physio_iFV double = 50
             
             arguments
                 opts.anatomy_list {mustBeText} = {'ctx', 'str', 'thal', 'cbm'}
