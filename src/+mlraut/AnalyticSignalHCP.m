@@ -317,7 +317,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 return
             end
             try
-                save(this.mat_fqfn(), 'this');
+                save(this.mat_fqfn(), 'this', '-v7.3');
             catch ME
                 handwarning(ME)
             end
@@ -377,7 +377,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.wmparc_fqfn = this.wmparc_fqfn;
             this_subset.workbench_dir = this.workbench_dir;
             try
-                save(this.mat_fqfn(is_subset=true), 'this_subset');
+                save(this.mat_fqfn(is_subset=true), 'this_subset', '-v7.3');
             catch ME
                 handwarning(ME)
             end
