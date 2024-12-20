@@ -134,21 +134,14 @@ classdef Cifti < handle & mlsystem.IHandle
                 end
 
                 if ~isempty(opts.partitions)
-                    cdata_t = cdata(opts.partitions, :);  % select pos x
-                    cdata_t = opts.averaging_method(cdata_t, 1);  % average over t
-                    fp_t = strcat(fp, '_parts-T');
-                    this.write_cifti(cdata_t, fp_t); % mlraut.HCP
-
-                    cdata_f = cdata(~opts.partitions, :);  % select pos x
-                    cdata_f = opts.averaging_method(cdata_f, 1);  % average over t
-                    fp_f = strcat(fp, '_parts-F');
-                    this.write_cifti(cdata_f, fp_f); % mlraut.HCP
-
-                    cdata1 = {cdata_t, cdata_f};
-                else
-                    cdata1 = opts.averaging_method(cdata, 1);
+                    cdata1 = cdata(opts.partitions, :);  % select pos x
+                    cdata1 = opts.averaging_method(cdata1, 1);  % average over t
                     fp1 = strcat(fp, '_avgt');
-                    this.write_cifti(cdata1, fp1); % mlraut.HCP
+                    this.write_cifti(cdata1, fp1); 
+                else
+                    cdata1 = opts.averaging_method(cdata, 1);  % average over t
+                    fp1 = strcat(fp, '_avgt');   
+                    this.write_cifti(cdata1, fp1);  
                 end
             catch ME
                 handwarning(ME)
