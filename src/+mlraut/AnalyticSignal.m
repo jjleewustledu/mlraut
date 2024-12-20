@@ -426,7 +426,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isempty(opts.v_physio)
                 t = t + "-v" + strrep(num2str(opts.v_physio), ".", "p");
             end
-            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
+            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.05
                 t = t + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
             end
             if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
