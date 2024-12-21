@@ -26,6 +26,22 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             %this.max_frames = 158;
         end
 
+        function build_angles_gt_0(this)
+
+            %% shift phases to start at zero for use with "Videen-style" color spaces in wb_view
+
+            wb_dir = this.out_dir;
+            toglob = fullfile(wb_dir, "angle*_avgt.dscalar.nii");
+            mg = mglob(toglob);
+            for c = mg
+                c = char(c);
+                c1 = cifti_read(c);
+                min_ = min(c1.cdata, [], "all");
+                c1.cdata = c1.cdata - min_;
+                cifti_write(c1, strrep(c, '_avgt.dscalar.nii', '_shifted_avgt.dscalar.nii'));
+            end
+        end
+
         function build_conc(this)
 
             %% for AnalyticSignalGBM, concat BOLD runs to have 320 frames available
@@ -85,22 +101,6 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             t1w = mlfourd.ImagingContext2(fullfile(mnl_dir, "T1w.nii.gz"));
             t1w = flip(t1w, 1);
             t1w.save;
-        end
-
-        function build_angles_gt_0(this)
-
-            %% shift phases to start at zero for use with "Videen-style" color spaces in wb_view
-
-            wb_dir = this.out_dir;
-            toglob = fullfile(wb_dir, "angle*_avgt.dscalar.nii");
-            mg = mglob(toglob);
-            for c = mg
-                c = char(c);
-                c1 = cifti_read(c);
-                min_ = min(c1.cdata, [], "all");
-                c1.cdata = c1.cdata - min_;
-                cifti_write(c1, strrep(c, '_avgt.dscalar.nii', '_shifted_avgt.dscalar.nii'));
-            end
         end
 
         function this = call(this, opts)
@@ -242,9 +242,14 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
         end
 
         function bold = task_dtseries_nolesion(this, sub, task)
-            isleft = contains(this.json.location, "left");
-            isright = contains(this.json.location, "right");
-            isbl = contains(this.json.location, "b/l");
+            %% returns contralesional hemisphere;
+            %  throws mlraut:RunTimeException if bilateral or midline
+
+            isleft = contains(this.json.location, "left", IgnoreCase=true);
+            isright = contains(this.json.location, "right", IgnoreCase=true);
+            isbl = contains(this.json.location, "b/l", IgnoreCase=true) || ...
+                contains(this.json.location, "bilateral", IgnoreCase=true) || ...
+                contains(this.json.location, "midline", IgnoreCase=true);
             if isleft
                 bold = this.task_dtseries_1hemi(sub, task, 'R');
                 return
