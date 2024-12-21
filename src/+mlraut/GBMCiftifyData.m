@@ -246,8 +246,10 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
                 "AnalyticSignalGBM", "GBM_datashare", "ISLEFT.mat"));
             tf = asrow(double(ld.ISLEFT));
         end
-        
+
         function flirt_tumor_segs()
+            %% use after prepare_tumor_segs
+
             SUBS = mlraut.AnalyticSignalGBM.SUBS;
             SEGS = {'WT', 'CE'};
             srcdir = "/home/usr/jjlee/Tmp";
@@ -315,6 +317,9 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
         end
 
         function prepare_tumor_segs()
+            %% use before flirt_tumor_segs;
+            %  build tumor segs in neuroimage machines, ~/Tmp
+
             SUBS = mlraut.AnalyticSignalGBM.SUBS;
             pwd0 = pushd(fullfile("/data/nil-bluearc/shimony/jjlee/Kiyun/rsFC_PreProc"));
             %parfor (idx = 1:length(SUBS), 16)
