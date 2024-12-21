@@ -16,6 +16,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+        
         function test_call_do_qc_I3CR0023(this)
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
             cd(root_dir);
@@ -34,6 +35,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
 
             % Elapsed time is ___ seconds.
         end
+        
         function test_call_do_qc_I3CR0479(this)
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
             cd(root_dir);
@@ -52,6 +54,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
 
             % Elapsed time is ___ seconds.
         end
+        
         function test_call_do_qc_RT126(this)
             cd('/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout_20230629111500/ciftify');
             this.testObj_ = mlraut.AnalyticSignalGBM(subjects={'sub-RT126'}, do_save=true);  
@@ -60,6 +63,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
 
             % Elapsed time is ___ seconds.
         end
+        
         function test_call_gbm_par(this)
             cd('/vgpool02/data2/jjlee/AnalyticSignalGBM/analytic_signal/dockerout/ciftify');
             out_dir = '/vgpool02/data2/jjlee/AnalyticSignalGBM/analytic_signal/matlabout';

@@ -122,7 +122,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 'AnalyticSignalGBM/analytic_signal/dockerout/ciftify');
             cd(root_dir);
 
-            g = convertStringsToChars("sub-" + mlraut.AnalyticSignalGBMPar.SUBS);
+            g = convertStringsToChars("sub-" + mlraut.GBMCiftifyData.SUBS);
             leng = length(g);
             for idxg = 1:1
             % parfor (idxg = 1:leng, cores)
