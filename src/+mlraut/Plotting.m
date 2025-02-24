@@ -224,7 +224,6 @@ classdef Plotting < handle & mlsystem.IHandle
                 opts.plot_range {mustBeInteger} = []
             end
 
-            assert(contains(opts.anatomy, {'ctx', 'str', 'thal', 'cbm'}))
             psi = this.HCP_signals.(lower(opts.anatomy)).psi;
             phi = this.HCP_signals.(lower(opts.anatomy)).phi;
             if isempty(opts.plot_range)
@@ -306,7 +305,6 @@ classdef Plotting < handle & mlsystem.IHandle
             end
 
             ms = opts.marker_size;
-            assert(contains(opts.anatomy, {'ctx', 'str', 'thal', 'cbm'}))
             psi = this.HCP_signals.(lower(opts.anatomy)).psi;
             phi = this.HCP_signals.(lower(opts.anatomy)).phi;
             if isempty(opts.plot_range)
@@ -497,6 +495,22 @@ classdef Plotting < handle & mlsystem.IHandle
         end
     end
 
+    methods (Static)
+        function this = create(ias, varargin)
+            assert(isa(ias, "mlraut.HCP"))
+            
+            if isa(ias, "mlraut.AnalyticSignalGBM")
+                this = mlraut.PlottingGBM(ias, varargin{:});
+                return
+            end
+            if isa(ias, "mlraut.AnalyticSignalHCP")
+                this = mlraut.PlottingWavelets(ias, varargin{:});
+                return
+            end
+            error("mlraut:ValueError", "%s: received an %s object.", stackstr(), class(ias))
+        end
+    end
+
     %% PROTECTED
 
     properties (Access = protected)
@@ -514,6 +528,8 @@ classdef Plotting < handle & mlsystem.IHandle
                     e = "thalamic";
                 case 'cbm'
                     e = "cerebellar";
+                case 'gbm'
+                    e = "tumor";
                 otherwise
                     e = "unknown";
             end

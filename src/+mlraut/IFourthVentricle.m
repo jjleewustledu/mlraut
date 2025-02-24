@@ -8,6 +8,7 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
     
     properties (Dependent)
         ifv_mask
+        roi_mask
     end
 
     methods %% GET/SET
@@ -27,6 +28,9 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
             end
             this.ifv_mask_ = mlfourd.ImagingContext2(ifc);
             g = this.ifv_mask_;
+        end
+        function g = get.roi_mask(this)
+            g = this.ifv_mask;
         end
     end
 

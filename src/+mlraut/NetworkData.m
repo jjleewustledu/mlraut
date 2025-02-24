@@ -59,8 +59,12 @@ classdef NetworkData < handle & mlsystem.IHandle
             signals = complex(nan(this.num_frames, Nyeo));
 
             for n = 1:Nyeo % Yeo's 7x RSNs
-                msk = this.networks_Yeo == n & this.anat_mask;
-                signals(:,n) = mean(psi(:,msk), 2, 'omitnan');
+                try
+                    msk = this.networks_Yeo == n & this.anat_mask;
+                    signals(:,n) = mean(psi(:,msk), 2, 'omitnan');
+                catch ME
+                    handerror(ME)
+                end
             end
 
             task_pos = 1 <= this.networks_Yeo & this.networks_Yeo <= 6;

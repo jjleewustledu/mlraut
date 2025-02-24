@@ -37,26 +37,24 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
     end
     
     methods
-        function psis = average_network_signals(this, psi, phi)
+        function psis = average_network_signals(this)
             arguments
                 this mlraut.AnalyticSignalHCP
-                psi {mustBeNumeric}
-                phi {mustBeNumeric}
             end
 
-            this.HCP_signals_.cbm.psi = this.average_network_signal(psi, network_type="cerebellar");
-            this.HCP_signals_.cbm.phi = this.average_network_signal(phi, network_type="cerebellar");
-            this.HCP_signals_.ctx.psi = this.average_network_signal(psi, network_type="cortical");
-            this.HCP_signals_.ctx.phi = this.average_network_signal(phi, network_type="cortical");
-            this.HCP_signals_.str.psi = this.average_network_signal(psi, network_type="striatal");
-            this.HCP_signals_.str.phi = this.average_network_signal(phi, network_type="striatal");
-            this.HCP_signals_.thal.psi = this.average_network_signal(psi, network_type="thalamic");
-            this.HCP_signals_.thal.phi = this.average_network_signal(phi, network_type="thalamic");
+            this.HCP_signals_.cbm.psi = this.average_network_signal(this.bold_signal_, network_type="cerebellar");
+            this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
+            this.HCP_signals_.ctx.psi = this.average_network_signal(this.bold_signal_, network_type="cortical");
+            this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
+            this.HCP_signals_.str.psi = this.average_network_signal(this.bold_signal_, network_type="striatal");
+            this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
+            this.HCP_signals_.thal.psi = this.average_network_signal(this.bold_signal_, network_type="thalamic");
+            this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
             psis = this.HCP_signals;
         end
 
         function this = call(this, opts)
-            %% CALL all subjects
+            %% CALL only one subject to avoid problems with caching this.roi
 
             arguments
                 this mlraut.AnalyticSignalHCP
@@ -68,18 +66,17 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
 
             out_dir_ = this.out_dir;
-            for s = 1:this.num_sub
-                try
-                    this.current_subject = this.subjects{s};
-                    if ~contains(out_dir_, this.current_subject)
-                        proposed_dir = fullfile(out_dir_, this.current_subject);
-                        this.out_dir = proposed_dir;
-                        ensuredir(proposed_dir);
-                    end
-                    this.call_subject();
-                catch ME
-                    handexcept(ME)
+            s = 1;
+            try
+                this.current_subject = this.subjects{s};
+                if ~contains(out_dir_, this.current_subject)
+                    proposed_dir = fullfile(out_dir_, this.current_subject);
+                    this.out_dir = proposed_dir;
+                    ensuredir(proposed_dir);
                 end
+                this.call_subject();
+            catch ME
+                handexcept(ME)
             end
         end
 
@@ -113,7 +110,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
                     % physio
                     try
-                        [physio_,physio__] = this.task_physio(reference=bold_);                        
+                        [physio_,physio__] = this.task_physio(size_reference=size(bold_));
                         if ~isemptytext(getenv("VERBOSITY")); fprintf("size(physio_):\n"); disp(size(physio_)); end
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
@@ -128,7 +125,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                     this.physio_signal_ = hilbert(physio_);
 
                     % Store averages for networks
-                    this.average_network_signals(this.bold_signal_, this.physio_signal_);
+                    this.average_network_signals();
 
                     % Store connectivity for comparisons
                     this.comparator_ = this.connectivity(bold_, physio__);
@@ -238,6 +235,14 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             if this.do_plot_global_physio
                 error("mlraut:NotImplementedError", stackstr())
             end
+            if this.do_plot_wavelets
+                this.plot_regions(@this.plot_cmor, measure=@this.X);
+                this.plot_regions(@this.plot_cmor, measure=@this.Y);
+                this.plot_regions(@this.plot_cmor, measure=@this.Z);
+                this.plot_regions(@this.plot_cmor, measure=@this.T);
+                this.plot_regions(@this.plot_wcoherence, measure=@nan);
+                this.plot_regions(@this.plot_cwt, measure=@nan);
+            end
             if this.do_plot_networks
                 this.plot_regions(@this.plot_networks, measure=@this.X);
                 this.plot_regions(@this.plot_networks, measure=@this.Y);
@@ -269,50 +274,56 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         sprintf('connectivity_sub-%s_ses-%s_%s', this.current_subject, this.current_task, this.tags));
                 end
 
-                % (T,X,Y,Z) in omega
-                psi = this.bold_signal_;
-                phi = this.physio_signal_;
-
                 % cortical X(psi, phi) >= 0, region 9 ~ task-, biased but informative
                 % parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
                 % parts = cos(this.physio_angle) >= 0;  % unbiased, but shows identical features in trues/falses
                 
                 for rsn = 1:7
                     angle_rsn = this.angle(this.HCP_signals.ctx.psi(:,rsn), this.HCP_signals.ctx.phi(:,rsn));
-                    parts = cos(angle_rsn) > 0;
+                    t_interesting = cos(angle_rsn) > 0;
                     tags = this.tags("rsn"+rsn);
-
                     this.write_ciftis( ...
-                        this.T(psi, phi), ...
-                        sprintf('T_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
-                        partitions=parts, ...
-                        do_save_dynamic=this.do_save_dynamic);
-                    this.write_ciftis( ...
-                        this.X(psi, phi), ...
+                        this.X(this.bold_signal_, this.physio_signal_), ...
                         sprintf('X_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
-                        partitions=parts, ...
+                        partitions=t_interesting, ...
                         do_save_dynamic=this.do_save_dynamic);
                     this.write_ciftis( ...
-                        this.Y(psi, phi), ...
+                        this.Y(this.bold_signal_, this.physio_signal_), ...
                         sprintf('Y_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
-                        partitions=parts, ...
+                        partitions=t_interesting, ...
                         do_save_dynamic=this.do_save_dynamic);
-                    this.write_ciftis( ...
-                        this.Z(psi, phi), ...
-                        sprintf('Z_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
-                        partitions=parts, ...
-                        do_save_dynamic=this.do_save_dynamic);
-                    this.write_ciftis( ...
-                        this.angle(psi, phi), ...
-                        sprintf('angle_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
-                        partitions=parts, ...
-                        do_save_dynamic=this.do_save_dynamic);
-                    this.write_ciftis( ...
-                        this.unwrap(psi, phi), ...
-                        sprintf('unwrap_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
-                        partitions=parts, ...
-                        do_save_dynamic=this.do_save_dynamic);
-                end                
+                end  
+
+                this.write_ciftis( ...
+                    this.T(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('T_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.Z(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('Z_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                % this.write_ciftis( ...
+                %     this.X(this.bold_signal_, this.physio_signal_), ...
+                %     sprintf('X_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                %     partitions=[], ...
+                %     do_save_dynamic=this.do_save_dynamic);
+                % this.write_ciftis( ...
+                %     this.Y(this.bold_signal_, this.physio_signal_), ...
+                %     sprintf('Y_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                %     partitions=[], ...
+                %     do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.angle(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('angle_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.unwrap(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('unwrap_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
             end
             if this.do_save_ciftis_of_diffs                        
                 error("mlraut:NotImplementedError", stackstr())

@@ -39,7 +39,7 @@ classdef CHPC3
             c.AdditionalProperties.EmailAddress = '';
             c.AdditionalProperties.EnableDebug = false;
             c.AdditionalProperties.GpusPerNode = 0;
-            c.AdditionalProperties.MemPerCPU = '64gb';
+            c.AdditionalProperties.MemPerCPU = '100gb';
             % c.AdditionalProperties.Node = '';
             c.AdditionalProperties.Partition = 'tier2_cpu';
             c.AdditionalProperties.RemoteJobStorageLocation = '/home/jjlee/.matlab/3p_cluster_jobs/chpc/twistor.attlocal.net.dhcp.wustl.edu/R2024b/nonshared';
@@ -58,22 +58,22 @@ classdef CHPC3
             c.AdditionalProperties.EmailAddress = '';
             c.AdditionalProperties.EnableDebug = true;
             c.AdditionalProperties.GpusPerNode = 0;
-            c.AdditionalProperties.MemPerCPU = '64gb';
+            c.AdditionalProperties.MemPerCPU = '16gb';
             % c.AdditionalProperties.Node = '';
             c.AdditionalProperties.Partition = 'tier2_cpu';
             c.AdditionalProperties.RemoteJobStorageLocation = '/home/jjlee/.matlab/3p_cluster_jobs/chpc/twistor.attlocal.net.dhcp.wustl.edu/R2024b/nonshared';
             c.AdditionalProperties.UseIdentityFile = false;
             c.AdditionalProperties.UseSmpd = false;
             c.AdditionalProperties.Username = 'jjlee';
-            c.AdditionalProperties.WallTime = '02:00:00';
+            c.AdditionalProperties.WallTime = '100:00:00';
             disp(c.AdditionalProperties)
         end
 
         function setenvs()
             [~,r] = system('hostname');
-            if ~contains(r, 'cluster')
-                return
-            end
+            % if ~contains(r, 'cluster')
+            %     return
+            % end
 
             setenv('TMPDIR', '/scratch/jjlee/tmp') % worker nodesk
 
@@ -102,6 +102,7 @@ classdef CHPC3
                        fullfile(getenv('FREESURFER_HOME'), 'bin'), ':', ...
                        fullfile(getenv('FSLDIR'), 'bin'), ':', ...
                        '/export/singularity/singularity-3.9.0/bin', ':', ...
+                       '/usr/bin', ':', ...
                        getenv('PATH')))
             setenv('LD_LIBRARY_PATH', ...
                 strcat('/usr/lib64', ':', getenv('LD_LIBRARY_PATH'))) % need libOSMesa.so.8 for fsleyes render

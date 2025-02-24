@@ -134,7 +134,7 @@ classdef Cifti < handle & mlsystem.IHandle
                 end
 
                 if ~isempty(opts.partitions)
-                    cdata1 = cdata(opts.partitions, :);  % select pos x
+                    cdata1 = cdata(opts.partitions, :);  % select times of interest
                     cdata1 = opts.averaging_method(cdata1, 1);  % average over t
                     fp1 = strcat(fp, '_avgt');
                     this.write_cifti(cdata1, fp1); 

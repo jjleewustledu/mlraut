@@ -96,7 +96,7 @@ classdef Twistors < handle & mlsystem.IHandle
             pos = [gl_pos, gr_pos, sc_pos];  % [3x29696, 3x29716, 3x31870] ~ [3x91282]
         end
 
-        function propagated_signal = propagate_physio(this, bold_signal, physio_signal, opts)
+        function propagated_signal = propagate_physio(this, size_bold_signal, physio_signal, opts)
             %% Propagate physio_signal from physio_pos radially according to propagation velocity v.
             %  Prior to arrival of physio signal, the array for propagated_signal will be Inf or one
             %  according to unvisited_is_inf.
@@ -104,7 +104,7 @@ classdef Twistors < handle & mlsystem.IHandle
 
             arguments
                 this mlraut.Twistors
-                bold_signal double  % N_t x N_x
+                size_bold_signal double  % [N_t, N_x]
                 physio_signal double  % N_t x 1
                 opts.physio_pos double = this.center_of_mass_position()  % 3 x 1
                 opts.v double {mustBeScalarOrEmpty} = this.ihcp_.v_physio  % m/s
@@ -114,15 +114,15 @@ classdef Twistors < handle & mlsystem.IHandle
             v = 1e3*opts.v;  % mm/s
             
             if v*this.ihcp_.tr > 0.95*5e4  % 50 m/s is lower limit of myelinated conduction velocity
-                propagated_signal = ones(size(bold_signal)).*physio_signal;
+                propagated_signal = ones(size_bold_signal).*physio_signal;
                 return
             end
 
             if opts.unvisited_is_inf
                 big = 1e3*max(physio_signal, [], "all");
-                propagated_signal = big*ones(size(bold_signal));
+                propagated_signal = big*ones(size_bold_signal);
             else
-                propagated_signal = physio_signal(1)*ones(size(bold_signal));
+                propagated_signal = physio_signal(1)*ones(size_bold_signal);
             end
             bold_pos = this.grayordinate_positions();  % 3 x N_x
             x = abs(vecnorm(bold_pos - opts.physio_pos));  % Nx x 1, in mm
@@ -183,6 +183,69 @@ classdef Twistors < handle & mlsystem.IHandle
     end
 
     methods (Static)
+        function signal1 = forward(signal, times, opts)
+            arguments
+                signal double  % Nt x 1
+                times double  % Nt x 1
+                opts.dt double  % 1 x Nx
+                opts.unvisited_is_inf logical = false
+            end
+            Nt = length(times);
+            Nx = length(opts.dt);
+            signal1 = ones(Nt, Nx);
+            if opts.unvisited_is_inf 
+                boundary = 1e3*max(signal, [], "all");
+            else
+                boundary = signal(1);
+            end
+            for idx = 1:Nx
+                signal1(:,idx) = interp1(times, signal, times-opts.dt(idx), "linear", boundary);
+            end
+        end
+
+        function psi = selective_X(mat, opts)
+            %% of twistor
+
+            arguments
+                mat {mustBeFile}
+                opts.selection {mustBeTextScalar} = "nonpositivity"
+                opts.save_cifti logical = true
+                opts.out_dir {mustBeTextScalar} = ""
+            end
+
+            ld = load(mat);
+            psi = ld.this.bold_signal;
+            phi = ld.this.physio_signal;
+
+            psi = (psi.*conj(phi) + phi.*conj(psi))/sqrt(2);
+
+            switch opts.selection
+                case "negativity"
+                    select = real(mean(psi, 2)) < 0;  % mean over all vertices
+                case "positivity"
+                    select = real(mean(psi, 2)) > 0;  % mean over all vertices
+                case "nonnegativity"
+                    select = real(mean(psi, 2)) >= 0;  % mean over all vertices
+                case "nonpositivity"
+                    select = real(mean(psi, 2)) <= 0;  % mean over all vertices
+                otherwise
+                    return
+            end
+
+            if opts.save_cifti
+                if ~isemptytext(opts.out_dir)
+                    ld.this.out_dir = opts.out_dir;
+                end
+                cifti_ = mlraut.Cifti(ld.this);
+                tags = ld.this.tags(opts.selection);
+                cifti_.write_ciftis( ...
+                    psi, ...
+                    sprintf('X_as_sub-%s_ses-%s_%s', ld.this.current_subject, ld.this.current_task, tags), ...
+                    partitions=select, ...
+                    do_save_dynamic=false);
+            end
+        end
+
         function pos = voxel_indices_to_position(v, ic)
             %% v ~ 3 x N voxel indices (starting at 1), N >= 1
             %  ic ~ mlfourd.ImagingContext2
@@ -203,26 +266,6 @@ classdef Twistors < handle & mlsystem.IHandle
             T = [roi.hdr.hist.srow_x; roi.hdr.hist.srow_y; roi.hdr.hist.srow_z; 0 0 0 1];
             pos = T*v1;
             pos = pos(1:3, :);
-        end
-
-        function signal1 = forward(signal, times, opts)
-            arguments
-                signal double  % Nt x 1
-                times double  % Nt x 1
-                opts.dt double  % 1 x Nx
-                opts.unvisited_is_inf logical = false
-            end
-            Nt = length(times);
-            Nx = length(opts.dt);
-            signal1 = ones(Nt, Nx);
-            if opts.unvisited_is_inf 
-                boundary = 1e3*max(signal, [], "all");
-            else
-                boundary = signal(1);
-            end
-            for idx = 1:Nx
-                signal1(:,idx) = interp1(times, signal, times-opts.dt(idx), "linear", boundary);
-            end
         end
     end
 

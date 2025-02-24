@@ -35,22 +35,26 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
         function test_call_iFV(this)
             as = this.testObj;
             as.do_save=true;
-            as.do_save_dynamic=true;
+            as.do_save_dynamic=false;
             as.do_save_ciftis=true;
-            as.do_plot_networks=true;
+            as.do_plot_wavelets=true;
             as.source_physio="iFV";
+            % as.force_legacy_butter = true;  % legacy butter has less contrast for X(rsn7)
             as.out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalHCPAging';
             
             disp(as)            
             call(as);
 
             % qc
-            % zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
-            % as.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
-            % % as.plot3(z=mean(as.bold_signal, 2))
-            % as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
-            % as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
+            pwd0 = pushd(as.out_dir);
+            zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
+            as.fit_power_law(x=zeta, title="\zeta = \psi / \phi");
+            as.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
+            as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
+            as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
             % figure; imagesc(angle(as.physio_signal));
+            as.plotting.saveFigures("qc");
+            popd(pwd0);
         end
 
         function test_call_physio(this)

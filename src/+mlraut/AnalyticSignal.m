@@ -13,6 +13,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_global_physio
         do_plot_networks
         do_plot_radar
+        do_plot_wavelets
         do_save
         do_save_subset
         do_save_ciftis
@@ -36,6 +37,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
         json
         lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz
+        plot_range
         rsn_list
         scale_to_hcp  % adjust norm by time of scanning
         tags_user  % for filenames
@@ -43,6 +45,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         bold_signal
         physio_angle
         physio_signal
+        plotting
         roi
         source_physio_is_ROI
         source_physio_is_none
@@ -101,6 +104,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             g = this.lp_thresh_;
         end     
 
+        function g = get.plot_range(this)
+            g = this.plotting_.plot_range;
+        end
+
         function g = get.rsn_list(~)
             g = mlraut.NetworkData.NETWORKS_YEO_NAMES;
         end
@@ -140,6 +147,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.physio_signal(this)
             g = this.physio_signal_;
+        end
+
+        function g = get.plotting(this)
+            g = this.plotting_;
         end
 
         function g = get.roi(this)
@@ -447,6 +458,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
 
             sub = strrep(this.current_subject, "sub-", "");
+            sub = strrep(sub, filesep, "");
             ses = strrep(this.current_task, "ses-", "");
             ses = strrep(ses, "_", "-");
             if opts.is_subset
@@ -454,8 +466,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             else
                 t_subset = "";
             end
+
+            assert(isfolder(this.out_dir), stackstr())
             fqfn = fullfile(this.out_dir, ...
                 sprintf("sub-%s_ses-%s_%s%s.mat", sub, ses, t, t_subset));
+            % disp(stackstr() + ": mat_fqfn=" + fqfn)
         end
 
         function p = mix_physio(this, p_0, p_1)
@@ -660,6 +675,14 @@ classdef AnalyticSignal < handle & mlraut.HCP
             title(opts.title);
         end
 
+        function h1 = plot_cmor(this, varargin)
+            h1 = this.plotting_.plot_cmor(varargin{:});
+        end
+
+        function h1 = plot_cwt(this, varargin)
+            h1 = this.plotting_.plot_cwt(varargin{:});
+        end
+
         function plot_emd(this, varargin)
             this.plotting_.plot_emd(varargin{:});
         end
@@ -688,6 +711,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             [h,h1] = this.plotting_.plot_timeseries_qc(varargin{:});
         end
         
+        function h1 = plot_wcoherence(this, varargin)
+            h1 = this.plotting_.plot_wcoherence(varargin{:});
+        end
+
         %% helpers for BOLD
 
         function mat = task_dtseries(this, varargin)
@@ -746,7 +773,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.roi = this.roi
                 opts.flipLR logical = false
                 opts.source_physio {mustBeText} = this.source_physio
-                opts.reference {mustBeNumeric} = []
+                opts.size_reference {mustBeNumeric} = []
             end
 
             bold = this.task_niigz();
@@ -758,7 +785,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                         this.build_rescaled( ...
                         this.build_band_passed( ...
                         this.build_centered(physio_vec_)));
-                    physio = ones(size(opts.reference)).*physio_vec;
+                    physio = ones(opts.size_reference).*physio_vec;
                     assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
                 case 'HRV'
                     HRV = mlraut.PhysioHRV(this, bold);
@@ -767,41 +794,33 @@ classdef AnalyticSignal < handle & mlraut.HCP
                         this.build_rescaled( ...
                         this.build_band_passed( ...
                         this.build_centered(physio_vec_)));
-                    physio = ones(size(opts.reference)).*physio_vec;
+                    physio = ones(opts.size_reference).*physio_vec;
                     assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
                 case 'iFV'  % propagated
                     iFV = mlraut.IFourthVentricle(this, bold);
-                    ifv_pos = this.twistors_.center_of_mass_position(iFV.ifv_mask);
-                    physio_vec_ = iFV.call();
-                    physio_vec_gsr_ = ...
-                        this.build_global_signal_regressed(physio_vec_, is_physio=true);
-                    physio_vec = ...
-                        this.build_rescaled( ...
-                        this.build_band_passed( ...
-                        this.build_centered(physio_vec_gsr_)));
-                    physio = this.twistors_.propagate_physio( ...
-                        opts.reference, physio_vec, ...
-                        physio_pos=ifv_pos, ...
-                        v=this.v_physio_iFV);
-                    assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
+                    [physio, physio_vec] = this.build_physio_from_ROI(iFV, opts.size_reference);
+                case 'CE'
+                    assert(isa(this, "mlraut.AnalyticSignalGBM"))                    
+                    pROI = mlraut.PhysioRoi(this, bold, ...
+                        from_imaging_context=this.cohort_data.CE_ic, flipLR=opts.flipLR);
+                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                case 'WT'
+                    assert(isa(this, "mlraut.AnalyticSignalGBM"))
+                    pROI = mlraut.PhysioRoi(this, bold, ...
+                        from_imaging_context=this.cohort_data.WT_ic, flipLR=opts.flipLR);
+                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                case 'edema'
+                    assert(isa(this, "mlraut.AnalyticSignalGBM"))
+                    pROI = mlraut.PhysioRoi(this, bold, ...
+                        from_imaging_context=this.cohort_data.edema_ic, flipLR=opts.flipLR);
+                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
                 case {'CE_on_T1w', 'WT_on_T1w', 'edema_on_T1w', 'ROI'}
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=opts.roi, flipLR=opts.flipLR);
-                    proi_pos = this.twistors_.center_of_mass_position(pROI.roi_mask);
-                    physio_vec_ = pROI.call();
-                    physio_vec_gsr_ = ...
-                        this.build_global_signal_regressed(physio_vec_, is_physio=true);
-                    physio_vec = ...
-                        this.build_rescaled( ...
-                        this.build_band_passed( ...
-                        this.build_centered(physio_vec_gsr_)));
-                    physio = this.twistors_.propagate_physio( ...
-                        opts.reference, physio_vec, ...
-                        physio_pos=proi_pos, ...
-                        v=this.v_physio);
+                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
                 case {'no-physio', 'nophys', 'none'}
-                    physio_vec = ones(size(opts.reference, 1), 1);
-                    physio = ones(size(opts.reference)).*physio_vec;
+                    physio_vec = ones(opts.size_reference(1), 1);
+                    physio = ones(opts.size_reference).*physio_vec;
                     assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
                 otherwise  % other wmparc regions, propagated
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
@@ -809,19 +828,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     assert(~all(n == 0), stackstr())
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_wmparc_indices=n, flipLR=opts.flipLR);
-                    proi_pos = this.twistors_.center_of_mass_position(pROI.roi_mask);
-                    physio_vec_ = pROI.call();
-                    physio_vec_gsr_ = ...
-                        this.build_global_signal_regressed(physio_vec_, is_physio=true);
-                    physio_vec = ...
-                        this.build_rescaled( ...
-                        this.build_band_passed( ...
-                        this.build_centered(physio_vec_gsr_)));
-                    physio = this.twistors_.propagate_physio( ...
-                        opts.reference, physio_vec, ...
-                        physio_pos=proi_pos, ...
-                        v=this.v_physio);
-                    assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
+                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
             end
             physio_vec = single(physio_vec);
             physio = single(physio);
@@ -942,16 +949,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_7T logical = false
             %      opts.do_resting logical = true
             %      opts.do_task logical = false
-            %      opts.do_plot_global_physio logical = true
-            %      opts.do_plot_networks logical = true
-            %      opts.do_plot_radar logical = true
+            %      opts.do_plot_global_physio logical = false
+            %      opts.do_plot_networks logical = false
+            %      opts.do_plot_radar logical = false
+            %      opts.do_plot_wavelets logical = false
             %      opts.do_save logical = true : save fully populated this to mlraut_AnalyticSignal.mat
             %      opts.do_save_subset logical = false : save only subset of this to decrease storage
-            %      opts.do_save_ciftis logical = true: save ciftis of {abs,angle} of analytic_signal.
-            %      opts.do_save_ciftis_of_diffs logical = true: save ciftis of {abs,angle} of analytic_signal, diff from bold.
+            %      opts.do_save_ciftis logical = false: save ciftis of {abs,angle} of analytic_signal.
+            %      opts.do_save_ciftis_of_diffs logical = false: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
-            %      opts.force_band logical = true: force bandpass to Nyquist limits of available data
+            %      opts.force_band logical = false: force bandpass to Nyquist limits of available data
             %      opts.force_legacy_butter logical = false: 
             %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
             %      opts.global_signal_regression logical = true
@@ -962,7 +970,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.max_frames {mustBeScalarOrEmpty} = nan: try 158 for assessing GBM rsfMRI
             %      opts.out_dir {mustBeFolder} = pwd
             %      opts.roi = []:  e.g. fqfn;
-            %                      ImagingContext2 for "WT_on_T1w", "CE_on_T1w", for files found in sub-*/MNINonLinear; 
+            %                      ImagingContext2 for "WT_on_T1w", "CE_on_T1w", "ROI", for files found in sub-*/MNINonLinear; 
             %                      double row_vec for mlraut.PhysioRoi(from_wmparc_indices=row_vec)
             %                      used with this.task_physio()
             %      opts.scale_to_hcp {mustBeScalar,mustBePositive} = 1: scaling factor
@@ -982,6 +990,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_global_physio logical = false
                 opts.do_plot_networks logical = false
                 opts.do_plot_radar logical = false
+                opts.do_plot_wavelets logical = false
                 opts.do_save logical = false
                 opts.do_save_subset logical = false
                 opts.do_save_ciftis logical = false
@@ -1012,7 +1021,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
             addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
             this.cifti_ = mlraut.Cifti(this);
-            this.plotting_ = mlraut.Plotting(this, plot_range=opts.plot_range);
+            this.plotting_ = mlraut.Plotting.create(this, plot_range=opts.plot_range);
 
             this.anatomy_list_ = opts.anatomy_list;
             this.do_7T = opts.do_7T;
@@ -1022,6 +1031,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_global_physio = opts.do_plot_global_physio;
             this.do_plot_networks = opts.do_plot_networks;
             this.do_plot_radar = opts.do_plot_radar;
+            this.do_plot_wavelets = opts.do_plot_wavelets;
             this.do_save = opts.do_save;
             this.do_save_subset = opts.do_save_subset;
             this.do_save_ciftis = opts.do_save_ciftis;
@@ -1091,6 +1101,22 @@ classdef AnalyticSignal < handle & mlraut.HCP
     %% PRIVATE
 
     methods (Access = private)
+        function [physio,physio_vec] = build_physio_from_ROI(this, pROI, size_reference)
+            proi_pos = this.twistors_.center_of_mass_position(pROI.roi_mask);
+            physio_vec_ = pROI.call();
+            physio_vec_gsr_ = ...
+                this.build_global_signal_regressed(physio_vec_, is_physio=true);
+            physio_vec = ...
+                this.build_rescaled( ...
+                this.build_band_passed( ...
+                this.build_centered(physio_vec_gsr_)));
+            physio = this.twistors_.propagate_physio( ...
+                size_reference, physio_vec, ...
+                physio_pos=proi_pos, ...
+                v=this.v_physio);
+            assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
+        end
+
         function this = build_roi(this, roi)
             arguments
                 this mlraut.AnalyticSignal

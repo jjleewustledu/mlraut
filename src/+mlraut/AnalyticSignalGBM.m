@@ -14,7 +14,8 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
         %  set config_hemispheres := "alllesion"
         %  set config_hemispheres := ""
 
-        config_hemispheres = "lesionR"
+        gbm_list = ["Gd enhancing", "edema", "whole tumor"]
+        config_hemispheres = ""
     end
 
     methods
@@ -22,8 +23,69 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             this = this@mlraut.AnalyticSignalHCP(varargin{:});
 
             this.current_subject = this.subjects{1};
+
             %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
             %this.max_frames = 158;
+        end
+
+        function psi = average_gbm_signal(this, bold)
+            arguments
+                this mlraut.AnalyticSignalGBM
+                bold mlfourd.ImagingContext2 = this.task_niigz()  % very large:  Nt x Nx x Ny x Nz
+            end
+
+            ics{1} = this.cohort_data.CE_ic;  % class ~ mlfourd.ImagingContext2
+            ics{2} = this.cohort_data.edema_ic;
+            ics{3} = this.cohort_data.WT_ic;
+            assert(length(ics) == length(this.gbm_list))
+
+            psi = nan(this.num_frames, length(ics));
+            for idx = 1:length(ics)
+                try
+                    pROI = mlraut.PhysioRoi(this, bold, ...
+                        from_imaging_context=ics{idx}, flipLR=false);
+                    physio_vec_ = pROI.call();
+                    physio_vec_gsr_ = ...
+                        this.build_global_signal_regressed(physio_vec_, is_physio=true);
+                    psi_col = ...
+                        this.build_rescaled( ...
+                        this.build_band_passed( ...
+                        this.build_centered(physio_vec_gsr_)));
+                    psi(:,idx) = psi_col;
+                catch ME
+                    error("mlraut:ValueError", stackstr());
+                end
+            end
+        end
+
+        function psi = average_gbm_physio_signal(this)
+            arguments
+                this mlraut.AnalyticSignalGBM
+            end
+
+            Nt = this.num_frames;
+            Nx = length(this.gbm_list);
+            psi = ones(Nt, Nx).*mean(this.physio_signal, 2);
+        end
+
+        function psis = average_network_signals(this)
+            arguments
+                this mlraut.AnalyticSignalHCP
+            end
+
+            this.HCP_signals_.cbm.psi = this.average_network_signal(this.bold_signal_, network_type="cerebellar");
+            this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
+            this.HCP_signals_.ctx.psi = this.average_network_signal(this.bold_signal_, network_type="cortical");
+            this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
+            this.HCP_signals_.str.psi = this.average_network_signal(this.bold_signal_, network_type="striatal");
+            this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
+            this.HCP_signals_.thal.psi = this.average_network_signal(this.bold_signal_, network_type="thalamic");
+            this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
+
+            this.HCP_signals_.gbm.psi = this.average_gbm_signal();
+            this.HCP_signals_.gbm.phi = this.average_gbm_physio_signal();
+
+            psis = this.HCP_signals_;
         end
 
         function build_angles_gt_0(this)
@@ -104,7 +166,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
         end
 
         function this = call(this, opts)
-            %% CALL all subjects
+            %% CALL only one subject to avoid problems with caching this.roi
 
             arguments
                 this mlraut.AnalyticSignalHCP
@@ -116,24 +178,121 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
 
             out_dir_ = this.out_dir;
-            for s = 1:this.num_sub
-                try
-                    this.current_subject = this.subjects{s};
-                    if ~contains(out_dir_, this.current_subject)
-                        proposed_dir = fullfile(out_dir_, this.current_subject);
-                        this.out_dir = proposed_dir;
-                        ensuredir(proposed_dir);
-                    end
-                    this.build_conc();  % new for AnalyticSignalGBM
-                    this.call_subject();
-                catch ME
-                    handexcept(ME)
+            s = 1;
+            try
+                this.current_subject = this.subjects{s};
+                if ~contains(out_dir_, this.current_subject)
+                    proposed_dir = fullfile(out_dir_, this.current_subject);
+                    this.out_dir = proposed_dir;
+                    ensuredir(proposed_dir);
                 end
+                this.build_conc();  % new for AnalyticSignalGBM
+                this.call_subject();
+            catch ME
+                handexcept(ME)
             end
         end
         
         function j = jsonread(this)
             j = jsonread(this.cohort_data_.json_fqfn);
+        end
+
+        function meta_plot(this)
+
+            meta_plot@mlraut.AnalyticSignalHCP(this);
+
+            if this.do_plot_wavelets
+                this.plot_regions_gbm(@this.plot_cmor_gbm, measure=@this.X);
+                this.plot_regions_gbm(@this.plot_cmor_gbm, measure=@this.Y);
+                this.plot_regions_gbm(@this.plot_cmor_gbm, measure=@this.Z);
+                this.plot_regions_gbm(@this.plot_cmor_gbm, measure=@this.T);
+                this.plot_regions_gbm(@this.plot_wcoherence_gbm, measure=@nan);
+                this.plot_regions_gbm(@this.plot_cwt_gbm, measure=@nan);
+            end
+            if this.do_plot_networks
+                this.plot_regions_gbm(@this.plot_networks_gbm, measure=@this.X);
+                this.plot_regions_gbm(@this.plot_networks_gbm, measure=@this.Y);
+                this.plot_regions_gbm(@this.plot_networks_gbm, measure=@this.Z);
+                this.plot_regions_gbm(@this.plot_networks_gbm, measure=@this.T);
+                this.plot_regions_gbm(@this.plot_networks_dots_gbm, measure=@this.angle);
+                this.plot_regions_gbm(@this.plot_networks_dots_gbm, measure=@this.unwrap);
+            end
+        end
+
+        function meta_save(this)
+
+            meta_save@mlraut.AnalyticSignalHCP(this);
+
+            if this.do_save_ciftis
+
+                % cortical X(psi, phi) >= 0, region 9 ~ task-, biased but informative
+                % parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
+                % parts = cos(this.physio_angle) >= 0;  % unbiased, but shows identical features in trues/falses
+                
+                rsns = ["ce", "edema", "wt"];
+                for irsn = 1:length(rsns)
+                    angle_rsn = this.angle(this.HCP_signals.gbm.psi(:, irsn), this.HCP_signals.gbm.phi(:, irsn));
+                    parts = cos(angle_rsn) > 0;
+                    tags = this.tags("rsn"+rsns(irsn));
+
+                    this.write_ciftis( ...
+                        this.X(this.bold_signal_, this.physio_signal_), ...
+                        sprintf('X_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=parts, ...
+                        do_save_dynamic=this.do_save_dynamic);
+                    this.write_ciftis( ...
+                        this.Y(this.bold_signal_, this.physio_signal_), ...
+                        sprintf('Y_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=parts, ...
+                        do_save_dynamic=this.do_save_dynamic);
+                    
+                end    
+
+                this.write_ciftis( ...
+                    this.T(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('T_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.Z(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('Z_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.angle(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('angle_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+                this.write_ciftis( ...
+                    this.unwrap(this.bold_signal_, this.physio_signal_), ...
+                    sprintf('unwrap_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                    partitions=[], ...
+                    do_save_dynamic=this.do_save_dynamic);
+            end
+        end
+
+        function h1 = plot_cmor_gbm(this, varargin)
+            h1 = this.plotting_.plot_cmor_gbm(varargin{:});
+        end
+
+        function h1 = plot_cwt_gbm(this, varargin)
+            h1 = this.plotting_.plot_cwt_gbm(varargin{:});
+        end
+
+        function [h1,h3] = plot_networks_gbm(this, varargin)
+            [h1,h3] = this.plotting_.plot_networks_gbm(varargin{:});
+        end
+
+        function [h1,h3] = plot_networks_dots_gbm(this, varargin)
+            [h1,h3] = this.plotting_.plot_networks_dots_gbm(varargin{:});
+        end
+
+        function plot_regions_gbm(this, varargin)
+            this.plotting_.plot_regions_gbm(varargin{:});
+        end
+        
+        function h1 = plot_wcoherence_gbm(this, varargin)
+            h1 = this.plotting_.plot_wcoherence_gbm(varargin{:});
         end
 
         function [bold,isleft] = task_dtseries(this, sub, task)
@@ -301,6 +460,11 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 end
             end
         end
+    end
+
+    %% PROTECTED
+
+    properties (Access = protected)
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.

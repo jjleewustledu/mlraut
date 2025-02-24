@@ -54,7 +54,7 @@ classdef BOLDData < handle & mlsystem.IHandle
             % if ~isempty(this.task_dtseries_)
             %     mat = this.task_dtseries_;
             %     return
-            % end
+            % end   % caching is risky if BOLDData is re-used for multiple tasks per sub
 
             try
                 cifti = cifti_read(this.ihcp_.task_dtseries_fqfn);
@@ -70,7 +70,7 @@ classdef BOLDData < handle & mlsystem.IHandle
             % if ~isempty(this.task_niigz_)
             %     ic = this.task_niigz_;
             %     return
-            % end
+            % end   % caching is risky if BOLDData is re-used for multiple tasks per sub
 
             ifc = mlfourd.ImagingFormatContext2(this.ihcp_.task_niigz_fqfn);  % HCP Young Adult
             tr = this.ihcp_.tr;
@@ -84,14 +84,14 @@ classdef BOLDData < handle & mlsystem.IHandle
             % if ~isempty(this.task_signal_reference_)
             %     ic = copy(this.task_signal_reference_);
             %     return
-            % end
+            % end   % caching is risky if BOLDData is re-used for multiple tasks per sub
 
             ic = mlfourd.ImagingContext2(this.ihcp_.task_signal_reference_fqfn);
             if 4 == ndims(ic)
                 ic = ic.timeAveraged();
                 ic.save();
             end
-            this.task_signal_reference_ = copy(ic);
+            % this.task_signal_reference_ = copy(ic);   % caching is risky if BOLDData is re-used for multiple tasks per sub
         end
     end
 

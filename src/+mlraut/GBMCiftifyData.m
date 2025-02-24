@@ -320,7 +320,7 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
             %% use before flirt_tumor_segs;
             %  build tumor segs in neuroimage machines, ~/Tmp
 
-            SUBS = mlraut.AnalyticSignalGBM.SUBS;
+            SUBS = mlraut.GBMCiftifyData.SUBS;
             pwd0 = pushd(fullfile("/data/nil-bluearc/shimony/jjlee/Kiyun/rsFC_PreProc"));
             %parfor (idx = 1:length(SUBS), 16)
             for idx = 1:length(SUBS)

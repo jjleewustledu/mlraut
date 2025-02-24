@@ -122,7 +122,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 'AnalyticSignalGBM/analytic_signal/dockerout/ciftify');
             cd(root_dir);
 
-            g = convertStringsToChars("sub-" + mlraut.GBMCiftifyData.SUBS);
+            g = convertStringsToChars("sub-" + mlraut.GBMCiftifyData2.SUBS);
             leng = length(g);
             for idxg = 1:1
             % parfor (idxg = 1:leng, cores)
@@ -180,6 +180,152 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
 
             % Elapsed time is ___ seconds.
         end
+
+        %% running call on single server or cluster
+
+        function server_call(cores, opts)
+            %% for servers
+
+            arguments
+                cores {mustBeScalarOrEmpty} = 2
+                opts.N_sub {mustBeScalarOrEmpty} = 1
+                opts.flip_globbed logical = true
+            end
+
+            % root_dir = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
+            root_dir = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify');
+
+            g = glob(fullfile(root_dir, 'sub-*'))
+            g = strip(g, filesep);
+            g = flip(g); % examine more recent ones first
+            g = cellfun(@(x) basename(x), g, UniformOutput=false);
+            if opts.flip_globbed
+                g = flip(g); % examine more recent ones
+            end
+            g = g(1:opts.N_sub);
+            for idxg = 1:1
+            % parfor (idxg = 1:length(g), cores)
+                try
+                    this = mlraut.AnalyticSignalGBMPar( ...
+                        subjects=subjects, ...
+                        tasks=opts.tasks, ...
+                        do_7T=false, ...
+                        do_plot_networks=false, ...
+                        do_resting=true, ...
+                        do_task=false, ...
+                        do_save=true, ...
+                        do_save_dynamic=false, ...
+                        do_save_ciftis=false, ...
+                        do_save_subset=false, ...
+                        final_normalization="none", ...
+                        force_band=false, ...
+                        global_signal_regression=true, ...
+                        hp_thresh=0.01, ...
+                        lp_thresh=0.05, ...
+                        out_dir=opts.out_dir, ...
+                        source_physio="iFV", ...
+                        tags=opts.tags, ...
+                        v_physio=50);
+                    call(this);
+                catch ME
+                    handwarning(ME)
+                end
+            end
+        end
+
+        function [j,c] = cluster_batch_call(globbing_mat, opts)
+            %% for clusters running Matlab parallel server
+            %  globbing_mat (text): on local machine calling parallel server
+            %  sub_indices (double): nonempty for selecting subjects
+            %  globbing_var (text) = "globbed": the object name of interest in globbing_mat
+
+            arguments
+                globbing_mat {mustBeFile} = ...
+                    fullfile( ...
+                    filesep, 'Users', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify', ...
+                    'mlraut_AnalyticSignalGBMPar_globbing.mat')
+                opts.sub_indices double = []
+                opts.globbing_var = "globbed"
+            end
+            ld = load(globbing_mat);
+            globbed = convertStringsToChars(ld.(opts.globbing_var));
+            globbed = asrow(globbed);
+            if ~isempty(opts.sub_indices)
+                globbed = globbed(opts.sub_indices);
+            end
+
+            c = mlraut.CHPC3.propcluster();
+            disp(c.AdditionalProperties)
+            for g = globbed
+                try
+                    j = c.batch( ...
+                        @mlraut.AnalyticSignalGBMPar.construct_and_call, ...
+                        1, ...
+                        {g(1)}, ...
+                        'CurrentFolder', '.', ...
+                        'AutoAddClientPath', false);
+                catch ME
+                    handwarning(ME)
+                end
+            end
+
+            % j = c.batch(@mlraut.AnalyticSignalHCPAgingPar.construct_and_call, 1, {}, 'CurrentFolder', '.', 'AutoAddClientPath', false);
+        end
+
+        function duration = construct_and_call(subjects, opts)
+            %% must be called by batch()
+
+            arguments
+                subjects cell = {'sub-I3CR1488'}
+                opts.tasks cell = {}  % {'ses-1_task-rest_run-all_desc-preproc'}
+                opts.tags {mustBeTextScalar} = "AnalyticSignalGBMPar"
+                opts.out_dir {mustBeFolder} = fullfile( ...
+                    filesep, 'scratch', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'matlabout')
+            end
+
+            % populate opts.tasks as needed
+            if isempty(opts.tasks)
+                root_dir = fullfile( ...
+                    filesep, 'scratch', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify');
+                assert(~isempty(subjects))
+                globbed = asrow(glob(fullfile(root_dir, subjects{1}, 'MNINonLinear', 'Results', '*rest*')));
+                opts.tasks = mybasename(globbed);
+            end
+            
+            mlraut.CHPC3.setenvs();
+            setenv("VERBOSITY", "1");
+            ensuredir(opts.out_dir);
+            ensuredir(fullfile(opts.out_dir, subjects{1}));
+            diary(fullfile(opts.out_dir, subjects{1}, "diary.log"));
+            tic;
+            disp("constructing mlraut.AnalyticSignalGBMPar")
+            this = mlraut.AnalyticSignalGBMPar( ...
+                subjects=subjects, ...
+                tasks=opts.tasks, ...
+                do_7T=false, ...
+                do_plot_networks=false, ...
+                do_resting=true, ...
+                do_task=false, ...
+                do_save=true, ...
+                do_save_dynamic=false, ...
+                do_save_ciftis=false, ...
+                do_save_subset=false, ...
+                final_normalization="none", ...
+                force_band=false, ...
+                global_signal_regression=true, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.05, ...
+                out_dir=opts.out_dir, ...
+                source_physio="iFV", ...
+                tags=opts.tags, ...                
+                v_physio=50);
+            disp("calling this")
+            call(this);
+            duration = toc;
+            fprintf("tic-toc duration: %s seconds", duration);
+            diary("off");
+        end
     end
 
     methods
@@ -200,7 +346,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                     ensuredir(proposed_dir);
                     this.out_dir = proposed_dir;
                 end 
-                this.call_subject(s);
+                this.call_subject();
             end
         end
     end
