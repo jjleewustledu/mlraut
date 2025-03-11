@@ -218,31 +218,36 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
 
-            if isempty(this.digital_filter_)
-                if isempty(this.lp_thresh) && ~isempty(isempty(this.hp_thresh))
-                    this.digital_filter_ = designfilt("highpassiir", ...
-                        FilterOrder=8, ...
-                        HalfPowerFrequency=this.hp_thresh, ...
-                        SampleRate=this.Fs);
-                elseif ~isempty(this.lp_thresh) && isempty(this.hp_thresh)
-                    this.digital_filter_ = designfilt("lowpassiir", ...
-                        FilterOrder=8, ...
-                        HalfPowerFrequency=this.lp_thresh, ...
-                        SampleRate=this.Fs);
-                else
-                    this.digital_filter_ = designfilt("bandpassiir", ...
-                        FilterOrder=8, ...
-                        HalfPowerFrequency1=this.hp_thresh, HalfPowerFrequency2=this.lp_thresh, ...
-                        SampleRate=this.Fs);
+            try
+                if isempty(this.digital_filter_)
+                    if isempty(this.lp_thresh) && ~isempty(this.hp_thresh)
+                        this.digital_filter_ = designfilt("highpassiir", ...
+                            FilterOrder=8, ...
+                            HalfPowerFrequency=this.hp_thresh, ...
+                            SampleRate=this.Fs);
+                    elseif ~isempty(this.lp_thresh) && isempty(this.hp_thresh)
+                        this.digital_filter_ = designfilt("lowpassiir", ...
+                            FilterOrder=8, ...
+                            HalfPowerFrequency=this.lp_thresh, ...
+                            SampleRate=this.Fs);
+                    else
+                        this.digital_filter_ = designfilt("bandpassiir", ...
+                            FilterOrder=8, ...
+                            HalfPowerFrequency1=this.hp_thresh, HalfPowerFrequency2=this.lp_thresh, ...
+                            SampleRate=this.Fs);
+                    end
                 end
-            end
 
-            dat1 = filtfilt(this.digital_filter_, double(dat));  % zero-phase digital filtering; https://www.mathworks.com/help/releases/R2024b/signal/ref/filtfilt.html
-            if isa(dat, 'single')
-                dat1 = single(dat1);
-            end
-            if isa(dat, 'double')
-                dat1 = double(dat1);
+                dat1 = filtfilt(this.digital_filter_, double(dat));  % zero-phase digital filtering; https://www.mathworks.com/help/releases/R2024b/signal/ref/filtfilt.html
+                if isa(dat, 'single')
+                    dat1 = single(dat1);
+                end
+                if isa(dat, 'double')
+                    dat1 = double(dat1);
+                end
+            catch ME
+                warning(ME.message, "resorting to legacy butterworth")
+                dat1 = this.build_band_passed_butter(dat);
             end
         end
         
@@ -799,17 +804,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 case 'iFV'  % propagated
                     iFV = mlraut.IFourthVentricle(this, bold);
                     [physio, physio_vec] = this.build_physio_from_ROI(iFV, opts.size_reference);
-                case 'CE'
+                case 'CE'  % obtains CE_on_T1w.nii.gz
                     assert(isa(this, "mlraut.AnalyticSignalGBM"))                    
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=this.cohort_data.CE_ic, flipLR=opts.flipLR);
                     [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
-                case 'WT'
+                case 'WT'  % obtains WT_on_T1w.nii.gz
                     assert(isa(this, "mlraut.AnalyticSignalGBM"))
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=this.cohort_data.WT_ic, flipLR=opts.flipLR);
                     [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
-                case 'edema'
+                case 'edema'  % obtains edema_on_T1w.nii.gz
                     assert(isa(this, "mlraut.AnalyticSignalGBM"))
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=this.cohort_data.edema_ic, flipLR=opts.flipLR);
