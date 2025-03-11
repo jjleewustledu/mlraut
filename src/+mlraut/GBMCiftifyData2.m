@@ -159,7 +159,12 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
             assert(isfile(g), stackstr() + ": " + g + "not found")
         end
         function g = get.tr(this)
-            g = this.json.tr;
+            try
+                g = this.json.tr;
+            catch ME
+                handwarning(ME)
+                g = 2.4049;  % most likely tr for GBM
+            end
         end
         function g = get.wmparc_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "wmparc.nii.gz");  % mm voxels
@@ -228,12 +233,24 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
 
             %% assemble gbm.json
 
-            j.tr = TR;
-            j.num_frames_ori = numTRs;
-            j.num_frames_to_trim = 0;
-            hemi = lower(this.find_table_value("hemi"));
-            loc = lower(this.find_table_value("brain_location"));
-            j.location = sprintf("%s %s", hemi, loc);
+            try
+                j.tr = TR;
+                j.num_frames_ori = numTRs;
+                j.num_frames_to_trim = 0;
+                try
+                    hemi = lower(this.find_table_value("hemi"));
+                catch 
+                    hemi = "unknown";
+                end
+                try
+                    loc = lower(this.find_table_value("brain_location"));
+                catch
+                    loc = "unknown";
+                end
+                j.location = sprintf("%s %s", hemi, loc);
+            catch ME
+                handwarning(ME)
+            end
             if ~isfile(this.json_fqfn)
                 jsonwrite(j, this.json_fqfn);
             else
