@@ -6,6 +6,36 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
     %  Developed on Matlab 9.14.0.2286388 (R2023a) Update 3 for MACI64.  Copyright 2023 John J. Lee.
     
     methods (Static)
+        function out = link_kiyun(sub)
+            tic
+            mlraut.CHPC3.setenvs();
+            mnidir = fullfile(getenv("SINGULARITY_HOME"), ...
+                "AnalyticSignalGBM", "analytic_signal", "dockerout", "ciftify", sub, "MNINonLinear");
+            defectsdir = fullfile(mnidir, "Defects");
+            mkdir(defectsdir);
+            
+            moveExisting(fullfile(mnidir, "*flip-1.nii.gz"), defectsdir);
+            moveExisting(fullfile(mnidir, "CE_on_T1w.nii.gz"), defectsdir);
+            moveExisting(fullfile(mnidir, "edema_on_T1w.nii.gz"), defectsdir);
+            moveExisting(fullfile(mnidir, "WT_on_T1w.nii.gz"), defectsdir);
+            try
+                cek = fullfile(mnidir, "CE_on_T1w_kiyun.nii.gz");
+                ce = fullfile(mnidir, "CE_on_T1w.nii.gz");
+                system(sprintf("ln -s %s %s", cek, ce));
+            catch ME
+                handwarning(ME)
+            end
+            try
+                wtk = fullfile(mnidir, "WT_on_T1w_kiyun.nii.gz");
+                wt = fullfile(mnidir, "WT_on_T1w.nii.gz");
+                system(sprintf("ln -s %s %s", wtk, wt));
+            catch ME
+                handwarning(ME)
+            end
+
+            out = toc;
+        end
+
         function this = median_twistor(physio)
             arguments
                 physio {mustBeTextScalar} = 'physio_iFV'
@@ -84,7 +114,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
         function parcall(cores, opts)
             arguments
                 cores {mustBeScalarOrEmpty} = 32
-                opts.config_hemispheres {mustBeTextScalar} = "lesionR-CE" % "lesionR-iFV" "nolesion" "alllesion" ""
+                opts.config_hemispheres {mustBeTextScalar} = ""   % "lesionR-iFV" "lesionR-CE" "nolesion" "alllesion" ""
             end
 
             root_dir = '/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
@@ -101,7 +131,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 try
                     this = mlraut.AnalyticSignalGBMPar(subjects=g(idxg), ...
                         root_dir=root_dir, out_dir=out_dir, tasks=tasks, ...
-                        source_physio='ROI', roi_fileprefix='CE_on_T1w');
+                        source_physio='CE');
                     this.config_hemispheres = opts.config_hemispheres; %#ok<PFBNS>
                     call(this);
                 catch ME
@@ -183,55 +213,120 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
 
         %% running call on single server or cluster
 
-        function server_call(cores, opts)
+        function server_call_sub(sub, opts)
             %% for servers
 
             arguments
-                cores {mustBeScalarOrEmpty} = 2
-                opts.N_sub {mustBeScalarOrEmpty} = 1
-                opts.flip_globbed logical = true
+                sub {mustBeText} = "sub-I3CR0015"
+                opts.source_physio {mustBeText} = "iFV"
             end
+            sub = {convertStringsToChars(sub)};
 
-            % root_dir = '/home/usr/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200';
             root_dir = fullfile( ...
                 getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify');
+            cd(root_dir);
+            out_dir = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout');
 
-            g = glob(fullfile(root_dir, 'sub-*'))
-            g = strip(g, filesep);
-            g = flip(g); % examine more recent ones first
-            g = cellfun(@(x) basename(x), g, UniformOutput=false);
-            if opts.flip_globbed
-                g = flip(g); % examine more recent ones
+            this = mlraut.AnalyticSignalGBMPar( ...
+                subjects=sub, ...
+                do_7T=false, ...
+                do_plot_networks=false, ...
+                do_resting=true, ...
+                do_task=false, ...
+                do_save=true, ...
+                do_save_dynamic=false, ...
+                do_save_ciftis=false, ...
+                do_save_subset=false, ...
+                final_normalization="none", ...
+                force_band=false, ...
+                global_signal_regression=true, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.05, ...
+                out_dir=out_dir, ...
+                source_physio=opts.source_physio, ...
+                v_physio=50);
+            call(this);
+        end
+
+        function server_create_heatmap(cores, opts)
+            %% for servers
+
+            arguments
+                cores {mustBeScalarOrEmpty} = 1
+                opts.N_sub {mustBeScalarOrEmpty} = []
+                opts.flip_globbed logical = false
+                opts.map_filename {mustBeTextScalar} = "CE_on_T1w.nii.gz"
             end
-            g = g(1:opts.N_sub);
-            for idxg = 1:1
-            % parfor (idxg = 1:length(g), cores)
+
+            root_dir = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify');
+            subs_file = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout', 'subs_that_complete.mat');
+            ld = load(subs_file);
+            subs_list = ld.subs;
+
+            ifc = [];
+            heatmap = zeros(91, 109, 91, 'double');
+            for s1 = asrow(subs_list)
                 try
-                    this = mlraut.AnalyticSignalGBMPar( ...
-                        subjects=subjects, ...
-                        tasks=opts.tasks, ...
-                        do_7T=false, ...
-                        do_plot_networks=false, ...
-                        do_resting=true, ...
-                        do_task=false, ...
-                        do_save=true, ...
-                        do_save_dynamic=false, ...
-                        do_save_ciftis=false, ...
-                        do_save_subset=false, ...
-                        final_normalization="none", ...
-                        force_band=false, ...
-                        global_signal_regression=true, ...
-                        hp_thresh=0.01, ...
-                        lp_thresh=0.05, ...
-                        out_dir=opts.out_dir, ...
-                        source_physio="iFV", ...
-                        tags=opts.tags, ...
-                        v_physio=50);
-                    call(this);
+                    fqfn = fullfile(root_dir, "sub-"+s1, "MNINonLinear", opts.map_filename);
+                    if ~isfile(fqfn)
+                        continue
+                    end
+                    ifc = mlfourd.ImagingFormatContext2(fqfn);
+                    heatmap = heatmap + double(ifc.img);
                 catch ME
                     handwarning(ME)
                 end
             end
+
+            assert(~isempty(ifc))
+            ifc.img = heatmap;
+            ifc.filepath = fileparts(subs_file);
+            ifc.fileprefix = mybasename(opts.map_filename) + "_heatmap";
+            save(ifc);
+        end
+
+        function server_find_misregistered(opts)
+            %% for servers
+
+            arguments
+                opts.map_filename {mustBeTextScalar} = "CE_on_T1w.nii.gz"
+            end
+
+            root_dir = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify');
+            subs_file = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout', 'subs_that_complete.mat');
+            ld = load(subs_file);
+            subs_list = ld.subs;
+
+            fprintf("%s for %s:\n", stackstr(), opts.map_filename)
+            for s1 = asrow(subs_list)
+                try
+                    % find map
+                    fqfn = fullfile(root_dir, "sub-"+s1, "MNINonLinear", opts.map_filename);
+                    if ~isfile(fqfn)
+                        continue
+                    end
+                    ifc = mlfourd.ImagingFormatContext2(fqfn);
+                    
+                    % build extra-cerebral mask
+                    fqfn1 = fullfile(fileparts(fqfn), "T1w.nii.gz");
+                    ic1 = mlfourd.ImagingContext2(fqfn1);
+                    ic1 = ic1.numlt(0.001);
+
+                    % tally extra-cerebral voxels
+                    extra_vxls = sum(ifc.img .* ic1.imagingFormat.img > 0, "all");
+                    if extra_vxls > 0
+                        fprintf("%s: has %g extra voxels\n", s1, extra_vxls)
+                    end
+                catch ME
+                    handwarning(ME)
+                end
+            end
+            fprintf("\n")
         end
 
         function [j,c] = cluster_batch_call(globbing_mat, opts)
@@ -247,6 +342,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                     'mlraut_AnalyticSignalGBMPar_globbing.mat')
                 opts.sub_indices double = []
                 opts.globbing_var = "globbed"
+                opts.source_physio = "CE"
             end
             ld = load(globbing_mat);
             globbed = convertStringsToChars(ld.(opts.globbing_var));
@@ -262,7 +358,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                     j = c.batch( ...
                         @mlraut.AnalyticSignalGBMPar.construct_and_call, ...
                         1, ...
-                        {g(1)}, ...
+                        {g(1), "source_physio", opts.source_physio}, ...
                         'CurrentFolder', '.', ...
                         'AutoAddClientPath', false);
                 catch ME
@@ -271,6 +367,121 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
             end
 
             % j = c.batch(@mlraut.AnalyticSignalHCPAgingPar.construct_and_call, 1, {}, 'CurrentFolder', '.', 'AutoAddClientPath', false);
+        end
+
+        function [j,c] = cluster_batch_call_2(globbing_mat, opts)
+            %% for clusters running Matlab parallel server
+            %  globbing_mat (text): on local machine calling parallel server
+            %  sub_indices (double): nonempty for selecting subjects
+            %  globbing_var (text) = "globbed": the object name of interest in globbing_mat
+
+            arguments
+                globbing_mat {mustBeFile} = ...
+                    fullfile( ...
+                    filesep, 'Users', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify', ...
+                    'mlraut_AnalyticSignalGBMPar_globbing.mat')
+                opts.sub_indices double = []
+                opts.globbing_var = "globbed"
+                opts.source_physio = "iFV"
+            end
+            ld = load(globbing_mat);
+            globbed = convertStringsToChars(ld.(opts.globbing_var));
+            globbed = asrow(globbed);
+
+            % find matlabout/sub-* which need recovery
+            out_dir = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout');
+            sub_dirs = mglob(fullfile(out_dir, 'sub-*'));
+            deselect = false(size(sub_dirs));
+            for idx = 1:length(sub_dirs)
+                deselect(idx) = ~isempty(mglob(fullfile(sub_dirs(idx), '*.mat')));
+            end
+            sub_dirs(deselect) = [];
+            [~,subs] = fileparts(sub_dirs);
+            
+            % find the subset of globbed that contains subs
+            select = false(size(globbed));
+            for idx = 1:length(subs)
+                select = select | contains(globbed, subs(idx));
+            end
+            globbed = globbed(select);
+
+            c = mlraut.CHPC3.propcluster();
+            disp(c.AdditionalProperties)
+            globbed = globbed(2:end);
+            fprintf("%s:globbed:\n", stackstr())
+            disp(size(globbed))
+            disp(ascol(globbed))
+            for g = globbed
+                % g = globbed(1);
+                try
+                    j = c.batch( ...
+                        @mlraut.AnalyticSignalGBMPar.construct_and_call, ...
+                        1, ...
+                        {g(1), "source_physio", opts.source_physio}, ...
+                        'CurrentFolder', '.', ...
+                        'AutoAddClientPath', false);
+                catch ME
+                    handwarning(ME)
+                end
+            end
+        end
+
+        function [j,c] = cluster_batch_call_3(globbed, opts)
+            %% for clusters running Matlab parallel server
+            %  globbed (text): ["sub-I3CR0000/", "sub-I3CR0015/", ...] | {'sub-I3CR0000/', 'sub-I3CR0015/', ...}
+
+            arguments
+                globbed = [ ...
+                    "sub-I3CR0111/", "sub-I3CR0201/", "sub-I3CR0287/", "sub-I3CR0356/", "sub-I3CR0495/", ...
+                    "sub-I3CR0639/", "sub-I3CR0821/", "sub-I3CR1318/", "sub-I3CR1656/"]
+                opts.source_physio = ["CE", "edema"]
+            end
+            globbed = convertStringsToChars(globbed);
+
+            c = mlraut.CHPC3.propcluster();
+            disp(c.AdditionalProperties)
+            fprintf("%s:globbed:\n", stackstr())
+            disp(size(globbed))
+            disp(ascol(globbed))
+            for g = globbed
+                for sp = opts.source_physio
+                    try
+                        j = c.batch( ...
+                            @mlraut.AnalyticSignalGBMPar.construct_and_call, ...
+                            1, ...
+                            {g(1), "source_physio", sp}, ...
+                            'CurrentFolder', '.', ...
+                            'AutoAddClientPath', false);
+                    catch ME
+                        handwarning(ME)
+                    end
+                end
+            end
+        end
+
+        function cluster_batch_link_kiyun()
+
+            c = mlraut.CHPC3.propcluster_16gb_1h();
+            disp(c.AdditionalProperties)
+
+            % j = c.batch( ...
+            %     @mlraut.CHPC3.parallel_example, ...
+            %     1, ...
+            %     {3}, ...
+            %     'CurrentFolder', '.', ...
+            %     'AutoAddClientPath', false);
+ 
+            subs = {'sub-I3CR0266', 'sub-I3CR0483', 'sub-I3CR0639', 'sub-I3CR1023', 'sub-I3CR1318', 'sub-I3CR1837'};
+
+            for s = subs
+                j = c.batch( ...
+                    @mlraut.AnalyticSignalGBMPar.link_kiyun, ...
+                    1, ...
+                    {s}, ...
+                    'CurrentFolder', '.', ...
+                    'AutoAddClientPath', false);
+            end
         end
 
         function duration = construct_and_call(subjects, opts)
@@ -282,6 +493,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 opts.tags {mustBeTextScalar} = "AnalyticSignalGBMPar"
                 opts.out_dir {mustBeFolder} = fullfile( ...
                     filesep, 'scratch', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'matlabout')
+                opts.source_physio {mustBeTextScalar} = "iFV"  % "iFV" "CE" "edema"
             end
 
             % populate opts.tasks as needed
@@ -317,7 +529,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 hp_thresh=0.01, ...
                 lp_thresh=0.05, ...
                 out_dir=opts.out_dir, ...
-                source_physio="iFV", ...
+                source_physio=opts.source_physio, ...
                 tags=opts.tags, ...                
                 v_physio=50);
             disp("calling this")
