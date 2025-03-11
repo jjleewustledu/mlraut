@@ -275,6 +275,10 @@ classdef HCP < handle & mlsystem.IHandle
                 opts.subjects cell {mustBeText} = {}
                 opts.tasks cell {mustBeText} = {}
             end
+            this.do_7T = false;
+            this.do_resting = true;
+            this.do_task = false;
+
             this.max_frames = opts.max_frames;
             this.subjects_ = opts.subjects;
             this.tasks_ = opts.tasks;
