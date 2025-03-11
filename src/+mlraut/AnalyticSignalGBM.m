@@ -34,14 +34,23 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 bold mlfourd.ImagingContext2 = this.task_niigz()  % very large:  Nt x Nx x Ny x Nz
             end
 
-            ics{1} = this.cohort_data.CE_ic;  % class ~ mlfourd.ImagingContext2
-            ics{2} = this.cohort_data.edema_ic;
-            ics{3} = this.cohort_data.WT_ic;
-            assert(length(ics) == length(this.gbm_list))
+            try
+                ics{1} = this.cohort_data.CE_ic;  % class ~ mlfourd.ImagingContext2
+                ics{2} = this.cohort_data.edema_ic;
+                ics{3} = this.cohort_data.WT_ic;
+                assert(length(ics) == length(this.gbm_list))
+            catch ME
+                handwarning(ME)
+                psi = [];
+                return
+            end
 
             psi = nan(this.num_frames, length(ics));
             for idx = 1:length(ics)
                 try
+                    if ~isfile(ics{idx}.fqfn)
+                        continue
+                    end
                     pROI = mlraut.PhysioRoi(this, bold, ...
                         from_imaging_context=ics{idx}, flipLR=false);
                     physio_vec_ = pROI.call();
@@ -53,7 +62,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                         this.build_centered(physio_vec_gsr_)));
                     psi(:,idx) = psi_col;
                 catch ME
-                    error("mlraut:ValueError", stackstr());
+                    warning("mlraut:ValueWarning", stackstr());
                 end
             end
         end
@@ -73,19 +82,23 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 this mlraut.AnalyticSignalHCP
             end
 
-            this.HCP_signals_.cbm.psi = this.average_network_signal(this.bold_signal_, network_type="cerebellar");
-            this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
-            this.HCP_signals_.ctx.psi = this.average_network_signal(this.bold_signal_, network_type="cortical");
-            this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
-            this.HCP_signals_.str.psi = this.average_network_signal(this.bold_signal_, network_type="striatal");
-            this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
-            this.HCP_signals_.thal.psi = this.average_network_signal(this.bold_signal_, network_type="thalamic");
-            this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
+            try
+                this.HCP_signals_.cbm.psi = this.average_network_signal(this.bold_signal_, network_type="cerebellar");
+                this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
+                this.HCP_signals_.ctx.psi = this.average_network_signal(this.bold_signal_, network_type="cortical");
+                this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
+                this.HCP_signals_.str.psi = this.average_network_signal(this.bold_signal_, network_type="striatal");
+                this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
+                this.HCP_signals_.thal.psi = this.average_network_signal(this.bold_signal_, network_type="thalamic");
+                this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
 
-            this.HCP_signals_.gbm.psi = this.average_gbm_signal();
-            this.HCP_signals_.gbm.phi = this.average_gbm_physio_signal();
+                this.HCP_signals_.gbm.psi = this.average_gbm_signal();
+                this.HCP_signals_.gbm.phi = this.average_gbm_physio_signal();
 
-            psis = this.HCP_signals_;
+                psis = this.HCP_signals_;
+            catch ME
+                handwarning(ME)
+            end
         end
 
         function build_angles_gt_0(this)
