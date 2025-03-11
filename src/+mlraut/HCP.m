@@ -272,9 +272,14 @@ classdef HCP < handle & mlsystem.IHandle
 
             arguments
                 opts.max_frames double = Inf
-                opts.subjects cell {mustBeText} = {}
-                opts.tasks cell {mustBeText} = {}
+                opts.subjects {mustBeText} = {}
+                opts.tasks {mustBeText} = {}
             end
+            opts.subjects = convertStringsToChars(opts.subjects);
+            opts.subjects = ensureCell(opts.subjects);
+            opts.tasks = convertStringsToChars(opts.tasks);
+            opts.tasks = ensureCell(opts.tasks);
+            
             this.do_7T = false;
             this.do_resting = true;
             this.do_task = false;
