@@ -44,10 +44,10 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
         end
         function g = get.CE_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "CE_on_T1w.nii.gz");  % mm voxels
-            assert(isfile(g), stackstr() + ": " + g + "not found")
+            % assert(isfile(g), stackstr() + ": " + g + "not found")
         end
         function g = get.CE_ic(this)
-            assert(isfile(this.CE_fqfn));
+            % assert(isfile(this.CE_fqfn));
             g = mlfourd.ImagingContext2(this.CE_fqfn);
         end
         function g = get.ciftify_subject_fmri_log_fqfn(this)
@@ -60,6 +60,7 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
         end
         function g = get.edema_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "edema_on_T1w.nii.gz");  % mm voxels
+            % assert(isfile(g), stackstr() + ": " + g + "not found")
         end
         function g = get.edema_ic(this)
             if ~isfile(this.edema_fqfn)
@@ -67,7 +68,7 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
                 edema.fileprefix = "edema_on_T1w";
                 save(edema);
             end
-            assert(isfile(this.edema_fqfn), stackstr() + ": " + this.edema_fqfn + "not found")
+            % assert(isfile(this.edema_fqfn), stackstr() + ": " + this.edema_fqfn + "not found")
             g = mlfourd.ImagingContext2(this.edema_fqfn);
         end
         function g = get.json_fqfn(this)
@@ -166,10 +167,10 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
         end
         function g = get.WT_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "WT_on_T1w.nii.gz");  % mm voxels
-            assert(isfile(g), stackstr() + ": " + g + "not found")
+            % assert(isfile(g), stackstr() + ": " + g + "not found")
         end
         function g = get.WT_ic(this)
-            assert(isfile(this.WT_fqfn));
+            % assert(isfile(this.WT_fqfn));
             g = mlfourd.ImagingContext2(this.WT_fqfn);
         end
     end
