@@ -5,6 +5,13 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
     %  Created 29-Jun-2023 11:22:03 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 9.14.0.2286388 (R2023a) Update 3 for MACI64.  Copyright 2023 John J. Lee.
     
+
+    properties (Constant)
+        unrecoverable_ce_wt = [ ...
+            "sub-I3CR1149", "sub-I3CR0483", "sub-I3CR1318", "sub-I3CR0632", "sub-I3CR0639", "sub-I3CR0964", "sub-I3CR1026" ...
+        ]  % see also Singularity/AnalyticSignaGBM/GBM_datashare/README_JJL.docx
+    end
+
     methods (Static)
         function out = link_kiyun(sub)
             tic
@@ -256,21 +263,23 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 cores {mustBeScalarOrEmpty} = 1
                 opts.N_sub {mustBeScalarOrEmpty} = []
                 opts.flip_globbed logical = false
-                opts.map_filename {mustBeTextScalar} = "CE_on_T1w.nii.gz"
+                opts.physio {mustBeTextScalar} = "CE"
             end
 
             root_dir = fullfile( ...
                 getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify');
-            subs_file = fullfile( ...
-                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout', 'subs_that_complete.mat');
-            ld = load(subs_file);
-            subs_list = ld.subs;
+            matlabout_dir = fullfile( ...
+                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout');
+            subs_list = mglob(fullfile(matlabout_dir, sprintf('sub-I3CR*/*%s*.mat', opts.physio)));
+            [~,subs_list] = fileparts(fileparts(subs_list));
+            subs_list = unique(subs_list);
+            map_filename = opts.physio + "_on_T1w.nii.gz";
 
             ifc = [];
             heatmap = zeros(91, 109, 91, 'double');
             for s1 = asrow(subs_list)
                 try
-                    fqfn = fullfile(root_dir, "sub-"+s1, "MNINonLinear", opts.map_filename);
+                    fqfn = fullfile(root_dir, s1, "MNINonLinear", map_filename);
                     if ~isfile(fqfn)
                         continue
                     end
@@ -283,8 +292,8 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
 
             assert(~isempty(ifc))
             ifc.img = heatmap;
-            ifc.filepath = fileparts(subs_file);
-            ifc.fileprefix = mybasename(opts.map_filename) + "_heatmap";
+            ifc.filepath = matlabout_dir;
+            ifc.fileprefix = mybasename(map_filename) + "_heatmap";
             save(ifc);
         end
 
@@ -432,10 +441,15 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
             %  globbed (text): ["sub-I3CR0000/", "sub-I3CR0015/", ...] | {'sub-I3CR0000/', 'sub-I3CR0015/', ...}
 
             arguments
-                globbed = [ ...
-                    "sub-I3CR0111/", "sub-I3CR0201/", "sub-I3CR0287/", "sub-I3CR0356/", "sub-I3CR0495/", ...
-                    "sub-I3CR0639/", "sub-I3CR0821/", "sub-I3CR1318/", "sub-I3CR1656/"]
-                opts.source_physio = ["CE", "edema"]
+                globbed = { ...
+                    'sub-I3CR0123', 'sub-I3CR0386', 'sub-I3CR0853', 'sub-I3CR0898', ...
+                    'sub-I3CR1030', 'sub-I3CR1066', 'sub-I3CR1119', 'sub-I3CR1137', 
+                }
+                % 'sub-I3CR0266', 'sub-I3CR0639', 'sub-I3CR1023', 'sub-I3CR1837' ...
+                % globbed = [ ...
+                %     "sub-I3CR0111/", "sub-I3CR0201/", "sub-I3CR0287/", "sub-I3CR0356/", "sub-I3CR0495/", ...
+                %     "sub-I3CR0639/", "sub-I3CR0821/", "sub-I3CR1318/", "sub-I3CR1656/"]
+                opts.source_physio = "edema"  % ["CE", "edema"]
             end
             globbed = convertStringsToChars(globbed);
 
@@ -472,7 +486,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
             %     'CurrentFolder', '.', ...
             %     'AutoAddClientPath', false);
  
-            subs = {'sub-I3CR0266', 'sub-I3CR0483', 'sub-I3CR0639', 'sub-I3CR1023', 'sub-I3CR1318', 'sub-I3CR1837'};
+            subs = {'sub-I3CR0266', 'sub-I3CR0639', 'sub-I3CR1023', 'sub-I3CR1837'};
 
             for s = subs
                 j = c.batch( ...
