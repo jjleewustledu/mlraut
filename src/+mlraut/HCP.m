@@ -54,10 +54,12 @@ classdef HCP < handle & mlsystem.IHandle
         function g = get.current_subject(this)
             if ~isempty(this.current_subject_)
                 g = this.current_subject_;
+                g = strrep(g, filesep, '');  % kludge for legacy .mat
                 return
             end
             if ~isempty(this.subjects)
                 g = this.subjects{1};
+                g = strrep(g, filesep, '');  % kludge for legacy .mat
                 return
             end
             g = [];
@@ -72,10 +74,12 @@ classdef HCP < handle & mlsystem.IHandle
         function g = get.current_task(this)
             if ~isempty(this.current_task_)
                 g = this.current_task_;
+                g = strrep(g, filesep, '');  % kludge for legacy .mat
                 return
             end
             if ~isempty(this.tasks)
                 g = this.tasks{1};
+                g = strrep(g, filesep, '');  % kludge for legacy .mat
                 return
             end
             g = [];
@@ -275,8 +279,10 @@ classdef HCP < handle & mlsystem.IHandle
                 opts.subjects {mustBeText} = {}
                 opts.tasks {mustBeText} = {}
             end
+            opts.subjects = strrep(opts.subjects, filesep, "");
             opts.subjects = convertStringsToChars(opts.subjects);
             opts.subjects = ensureCell(opts.subjects);
+            opts.tasks = strrep(opts.tasks, filesep, "");
             opts.tasks = convertStringsToChars(opts.tasks);
             opts.tasks = ensureCell(opts.tasks);
             

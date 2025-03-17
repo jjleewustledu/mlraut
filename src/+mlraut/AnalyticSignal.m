@@ -429,6 +429,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi./d;
         end
 
+        function concat_frames(this, that)
+            arguments
+                this mlraut.AnalyticSignal
+                that mlraut.AnalyticSignal
+            end
+
+            this.global_signal_ = [this.global_signal_; that.global_signal_];
+            this.bold_signal_ = [this.bold_signal_; that.bold_signal_];
+            this.physio_signal_ = [this.physio_signal_; that.physio_signal_];
+        end
+
         function fqfn = mat_fqfn(this, opts)
             %% see also tags()
 

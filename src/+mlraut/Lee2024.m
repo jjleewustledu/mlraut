@@ -1,7 +1,23 @@
 classdef Lee2024 < handle
     %% line1
-    %  line2
+    %
+    % [~,min_idx] = min(t.OS_Diagnosis)
+    % min_idx =
+    %    115
+    %
+    % [~,max_idx] = max(t.OS_Diagnosis)
+    % max_idx =
+    %     41
+    %
+    % [t.I3CRID(115), t.I3CRID(41)]
+    % ans =
+    %   1×2 string array
+    %     "I3CR1156"    "I3CR0433"
     %  
+    % [t.OS_Diagnosis(115), t.OS_Diagnosis(41)]
+    % ans =
+    %           18        2696
+    %
     %  Created 10-Feb-2024 13:43:26 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
@@ -50,6 +66,10 @@ classdef Lee2024 < handle
         end
 
         function build_mean_for_gbm(this, opts)
+            %  Lee2024_build_mean_for_gbm: Nerr->0, Nsubs->203, for iFV
+            %  Lee2024_build_mean_for_gbm: Nerr->46, Nsubs->203, for CE
+            %  Lee2024_build_mean_for_gbm: Nerr->47, Nsubs->203, for edema
+
             arguments
                 this mlraut.Lee2024
                 opts.physio {mustBeTextScalar} = "iFV"
@@ -84,6 +104,35 @@ classdef Lee2024 < handle
             this.write_mean_ciftis(ld, data, "Z", physio=opts.physio);
         end
 
+        function concat_frames_and_save(this, srcdir, destdir, opts)
+            %% assumes run-01, run-02, run-all may exist
+
+            arguments
+                this mlraut.Lee2024  %#ok<INUSA>
+                srcdir {mustBeFolder} = pwd
+                destdir {mustBeFolder} = this.matlabout_dir
+                opts.physios {mustBeText} = ["CE", "edema", "iFV"]
+            end
+
+            pwd0 = pushd(srcdir);
+            for phys = opts.physios
+                g = mglob(sprintf("sub-*-run-0*%s*.mat", phys));
+                if length(g) ~= 2
+                    continue
+                end
+                ld1 = load(g(1));
+                ld2 = load(g(2));
+                that = ld1.this;
+                that.do_save_ciftis = true;
+                that.do_save_dynamic = false;
+                that.out_dir = destdir;
+                that.tags_user = that.tags_user + "-concat";
+                that.concat_frames(ld2.this);
+                that.meta_save();
+            end
+            popd(pwd0)
+        end
+
         function tag = i3cr(this)
             subs_tag = ascol(extractAfter(this.subs, "-"));
             tag = subs_tag;
@@ -101,6 +150,41 @@ classdef Lee2024 < handle
             tag(is_kind_RT) = t.I3CR(loc(is_kind_RT));            
         end
 
+        function m = similarity_physios(this, p1, p2, opts)
+            arguments
+                this mlraut.Lee2024 %#ok<INUSA>
+                p1 {mustBeTextScalar}
+                p2 {mustBeTextScalar}
+                opts.measure {mustBeTextScalar} = "connectivity"
+            end
+
+            if contains(p1, "*") && contains(p2, "*")
+                g1 = mglob(p1);
+                g2 = mglob(p2);
+                Ng = min(length(g1), length(g2));
+                p1 = [];
+                p2 = [];
+                for ig = 1:Ng
+                    ld1 = load(g1(ig));
+                    ld2 = load(g2(ig));
+                    p1 = [p1; mean(ld1.this.physio_signal, 2)]; %#ok<AGROW>
+                    p2 = [p2; mean(ld2.this.physio_signal, 2)]; %#ok<AGROW>
+                end
+                that = ld2.this;
+            end
+
+            if istext(p1) && istext(p2) && isfile(p1) && isfile(p2)
+                ld1 = load(p1);
+                ld2 = load(p2);
+                p1 = mean(ld1.this.physio_signal, 2);
+                p2 = mean(ld2.this.physio_signal, 2);
+                that = ld2.this;
+            end
+
+            assert(isa(that, "mlraut.AnalyticSignal"))
+            m = that.(opts.measure)(p1, p2);
+        end
+
         function s = subs(this)
             s = asrow(mglob(fullfile(this.matlabout_dir, "sub-*")));
         end
@@ -110,13 +194,94 @@ classdef Lee2024 < handle
             t = ld.found_RT_I3CR;
         end
 
+        function t = table_gbm_ce(this)
+            if ~isempty(this.table_gbm_ce_)
+                t = this.table_gbm_ce_;
+                return
+            end
+
+            % filter sub with physio CE
+            t = this.table_gbm_datashare();
+            filter = ismember(t.I3CRID, extractAfter(mybasename(this.unique_subs_with_ce), "-"));
+            t = t(filter, :);
+            Nrows = size(t, 1);
+
+            % new variables for table
+            angle = nan(Nrows, 1);
+            correlation = nan(Nrows, 1);
+            T = nan(Nrows, 1);
+            X = nan(Nrows, 1);
+            Y = nan(Nrows, 1);
+            Z = nan(Nrows, 1);
+
+            % build new variables for table
+            for row = 1:Nrows
+                try
+                    pwd_ = pushd(fullfile(this.matlabout_dir, "sub-"+t.I3CRID(row)));
+                    angle(row) = mean(this.similarity_physios( ...
+                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        measure="angle" ...
+                    ));
+                    correlation(row) = this.similarity_physios( ...
+                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        measure="connectivity" ...
+                    );
+                    T(row) = mean(this.similarity_physios( ...
+                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        measure="T" ...
+                    ));
+                    X(row) = mean(this.similarity_physios( ...
+                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        measure="X" ...
+                    ));
+                    Y(row) = mean(this.similarity_physios( ...
+                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        measure="Y" ...
+                    ));
+                    Z(row) = mean(this.similarity_physios( ...
+                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        measure="Z" ...
+                    ));
+                    popd(pwd_);
+                catch ME
+                    handwarning(ME);
+                end
+            end
+            t.angle = angle;
+            t.correlation = correlation;
+            t.T = T;
+            t.X = X;
+            t.Y = Y;
+            t.Z = Z;
+
+            % cache table
+            this.table_gbm_ce_ = t;
+        end
+
         function t = table_gbm_datashare(this)
             ld = load(fullfile(this.gbm_datashare_dir, "GBMClinicalDatabasesorted.mat"));
             t = ld.GBMClinicalDatabasesorted;
+
+            % rename RT089 -> I3CR0000
+            row_rt089 = contains(t.I3CRID, "RT089");
+            t.I3CRID(row_rt089) = "I3CR0000";
+            t = sortrows(t, "I3CRID");
         end
 
         function s = unique_subs(this)
+            % returns ~ "/Users/jjlee/Singularity/AnalyticSignalGBM/analytic_signal/matlabout/sub-I3CR0000"
+            % mybasename(unique_subs()) ~ "sub-I3CR0000"
+
             s = asrow(mglob(fullfile(this.matlabout_dir, "sub-*", "*.mat")));
+            s = fileparts(s);
+            s = unique(s);
+        end
+
+        function s = unique_subs_with_ce(this)
+            % returns ~ "/Users/jjlee/Singularity/AnalyticSignalGBM/analytic_signal/matlabout/sub-I3CR0000"
+            % mybasename(unique_subs()) ~ "sub-I3CR0000"
+
+            s = asrow(mglob(fullfile(this.matlabout_dir, "sub-*", "*CE*.mat")));
             s = fileparts(s);
             s = unique(s);
         end
@@ -206,6 +371,10 @@ classdef Lee2024 < handle
             snr.cdata  = metric_mu ./ metric_sig;
             cifti_write(snr, convertStringsToChars(metric_lbl+"_snr.dscalar.nii"));
         end
+    end
+    
+    properties (Access = protected)
+        table_gbm_ce_
     end
 
     methods (Access = protected)

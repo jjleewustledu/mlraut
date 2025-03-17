@@ -201,6 +201,23 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
         end
 
+        function concat_frames(this, that)
+            arguments
+                this mlraut.AnalyticSignalHCP
+                that mlraut.AnalyticSignalHCP
+            end
+
+            concat_frames@mlraut.AnalyticSignal(this, that);
+            for fld = asrow(fieldnames(this.HCP_signals_))  % cbm, ctx, str, thal, gbm
+                fld_ = fld{1};
+                this.HCP_signals_.(fld_).psi = [this.HCP_signals_.(fld_).psi; that.HCP_signals_.(fld_).psi];
+                this.HCP_signals_.(fld_).phi = [this.HCP_signals_.(fld_).phi; that.HCP_signals_.(fld_).phi];
+            end
+
+            % update comparator
+            this.comparator_ = this.connectivity(this.bold_signal_, mean(this.physio_signal_, 2));
+        end
+
         function mat = connectivity(~, bold, seed)
             bold = real(bold)';  % Nx x Nt
             seed = real(seed)';  % 1 x Nt
@@ -295,6 +312,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                         do_save_dynamic=this.do_save_dynamic);
                 end  
 
+                tags = this.tags();
                 this.write_ciftis( ...
                     this.T(this.bold_signal_, this.physio_signal_), ...
                     sprintf('T_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
