@@ -35,6 +35,8 @@ classdef CHPC3
             arguments
                 account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
                 opts.partition = 'tier2_cpu'
+                opts.mempercpu {mustBeTextScalar} = '100gb'
+                opts.walltime {mustBeTextScalar} = '08:00:00'
             end
             if ~strcmp(account_name, 'aristeidis_sotiras')
                 opts.partition = 'tier1_cpu';
@@ -49,14 +51,14 @@ classdef CHPC3
             c.AdditionalProperties.EmailAddress = '';
             c.AdditionalProperties.EnableDebug = false;
             c.AdditionalProperties.GpusPerNode = 0;
-            c.AdditionalProperties.MemPerCPU = '100gb';
+            c.AdditionalProperties.MemPerCPU = opts.mempercpu;
             % c.AdditionalProperties.Node = '';
             c.AdditionalProperties.Partition = opts.partition;
             c.AdditionalProperties.RemoteJobStorageLocation = '/home/jjlee/.matlab/3p_cluster_jobs/chpc/twistor.attlocal.net.dhcp.wustl.edu/R2024b/nonshared';
             c.AdditionalProperties.UseIdentityFile = false;
             c.AdditionalProperties.UseSmpd = false;
             c.AdditionalProperties.Username = 'jjlee';
-            c.AdditionalProperties.WallTime = '04:00:00';
+            c.AdditionalProperties.WallTime = opts.walltime;
             disp(c.AdditionalProperties)
         end
 
@@ -89,33 +91,22 @@ classdef CHPC3
             disp(c.AdditionalProperties)
         end
 
+        function c = propcluster_16gb_100h(account_name, opts)
+            arguments
+                account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
+                opts.partition = 'tier2_cpu'
+            end
+            c = mlraut.CHPC3.propcluster(account_name, ...
+                partition=opts.partition, mempercpu='16gb', walltime='100:00:00');
+        end
+
         function c = propcluster_16gb_1h(account_name, opts)
             arguments
                 account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
                 opts.partition = 'tier2_cpu'
             end
-            if ~strcmp(account_name, 'aristeidis_sotiras')
-                opts.partition = 'tier1_cpu';
-            end
-            account_name = convertStringsToChars(account_name);
-            opts.partition = convertStringsToChars(opts.partition);
-
-            c = parcluster;
-            c.AdditionalProperties.AccountName = account_name;
-            c.AdditionalProperties.AdditionalSubmitArgs = sprintf('--account=%s', account_name);
-            c.AdditionalProperties.ClusterHost = 'login3.chpc.wustl.edu';
-            c.AdditionalProperties.EmailAddress = '';
-            c.AdditionalProperties.EnableDebug = false;
-            c.AdditionalProperties.GpusPerNode = 0;
-            c.AdditionalProperties.MemPerCPU = '16gb';
-            % c.AdditionalProperties.Node = '';
-            c.AdditionalProperties.Partition = opts.partition;
-            c.AdditionalProperties.RemoteJobStorageLocation = '/home/jjlee/.matlab/3p_cluster_jobs/chpc/twistor.attlocal.net.dhcp.wustl.edu/R2024b/nonshared';
-            c.AdditionalProperties.UseIdentityFile = false;
-            c.AdditionalProperties.UseSmpd = false;
-            c.AdditionalProperties.Username = 'jjlee';
-            c.AdditionalProperties.WallTime = '01:00:00';
-            disp(c.AdditionalProperties)
+            c = mlraut.CHPC3.propcluster(account_name, ...
+                partition=opts.partition, mempercpu='16gb', walltime='01:00:00');
         end
 
         function setenvs()
