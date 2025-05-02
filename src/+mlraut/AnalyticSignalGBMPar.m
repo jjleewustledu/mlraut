@@ -43,7 +43,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
             out = toc;
         end
 
-        function this = median_twistor(physio)
+        function this = mean_twistor(physio)
             arguments
                 physio {mustBeTextScalar} = 'physio_iFV'
             end

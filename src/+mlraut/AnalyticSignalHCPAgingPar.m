@@ -328,18 +328,6 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 do_save_dynamic=false);
         end
 
-        function cdata = sample_rsn(cdata, parts)
-            arguments
-                cdata
-                parts logical = true(size(cdata, 1), 1)
-            end
-
-            %% Nt x Nx => 1 x Nx
-
-            cdata = cdata(parts, :);  % select t interesting
-            cdata = mean(cdata, 1);  % average over t
-        end
-
         function ret = var_element(nlim, ele)
             arguments
                 nlim = 4
@@ -1131,6 +1119,20 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 fprintf("tic-toc duration: %s seconds", duration);
                 diary("off");
             end
+        end
+
+        %% utilities
+
+        function cdata = sample_rsn(cdata, parts)
+            arguments
+                cdata
+                parts logical = true(size(cdata, 1), 1)
+            end
+
+            %% Nt x Nx => 1 x Nx
+
+            cdata = cdata(parts, :);  % select t interesting
+            cdata = mean(cdata, 1);  % average over t
         end
     end
 

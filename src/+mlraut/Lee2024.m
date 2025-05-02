@@ -104,6 +104,50 @@ classdef Lee2024 < handle
             this.write_mean_ciftis(ld, data, "Z", physio=opts.physio);
         end
 
+        function build_var_for_gbm(this, opts)
+            arguments
+                this mlraut.Lee2024
+                opts.physio {mustBeTextScalar} = "iFV"
+            end
+
+            build_mean_for_gbm_mat = fullfile(this.matlabout_dir, "Lee2024_build_mean_for_gbm.mat");
+            assert(isfile(build_mean_for_gbm_mat))
+            ld_ = load(build_mean_for_gbm_mat, "data");
+            data = ld_.data;
+            ld = load( ...
+                fullfile(this.matlabout_dir, ...
+                "sub-I3CR0000", ...
+                "sub-RT089_ses-1-task-rest-run-01-desc-preproc_proc-v50-"+opts.physio+"-AnalyticSignalGBMPar.mat"));
+
+            this.write_var_ciftis(ld, data, "connex", physio=opts.physio);
+            this.write_var_ciftis(ld, data, "angle", physio=opts.physio);
+            this.write_var_ciftis(ld, data, "T", physio=opts.physio);
+            this.write_var_ciftis(ld, data, "X", physio=opts.physio);
+            this.write_var_ciftis(ld, data, "Y", physio=opts.physio);
+            this.write_var_ciftis(ld, data, "Z", physio=opts.physio);
+        end
+
+        function build_uthr_dscalar(this, fn, alpha)
+            arguments
+                this mlraut.Lee2024 %#ok<INUSA>
+                fn {mustBeFile}
+                alpha {mustBeScalarOrEmpty}
+            end
+            fn1 = extractBefore(fn, "Lee2024");
+            alpha_str = strrep(num2str(alpha), ".", "p");
+            fn1 = sprintf("%s%s-alpha%s.dscalar.nii", fn1, stackstr(use_dashes=true), alpha_str);
+            if alpha > 1
+                alpha = 0.01*alpha;
+            end
+
+            cifti = cifti_read(convertStringsToChars(fn));
+            c = cifti.cdata';
+            uthr = prctile(c, 100*(1 - alpha), method="exact");
+            c1 = c > uthr;
+            cifti.cdata = c1';
+            cifti_write(cifti, convertStringsToChars(fn1))
+        end
+
         function concat_frames_and_save(this, srcdir, destdir, opts)
             %% assumes run-01, run-02, run-all may exist
 
@@ -112,23 +156,26 @@ classdef Lee2024 < handle
                 srcdir {mustBeFolder} = pwd
                 destdir {mustBeFolder} = this.matlabout_dir
                 opts.physios {mustBeText} = ["CE", "edema", "iFV"]
+                opts.do_save_ciftis logical = true
             end
 
             pwd0 = pushd(srcdir);
             for phys = opts.physios
                 g = mglob(sprintf("sub-*-run-0*%s*.mat", phys));
-                if length(g) ~= 2
+                g = g(~contains(g, "-concat"));
+                if length(g) < 2
                     continue
                 end
                 ld1 = load(g(1));
-                ld2 = load(g(2));
                 that = ld1.this;
-                that.do_save_ciftis = true;
-                that.do_save_dynamic = false;
+                that.do_save_ciftis = opts.do_save_ciftis;
                 that.out_dir = destdir;
                 that.tags_user = that.tags_user + "-concat";
-                that.concat_frames(ld2.this);
-                that.meta_save();
+                for gidx = 2:length(g)
+                    ld_ = load(g(gidx));
+                    that.concat_frames(ld_.this);
+                    that.meta_save();
+                end
             end
             popd(pwd0)
         end
@@ -148,6 +195,98 @@ classdef Lee2024 < handle
             % Replace only the kind RT tags with their corresponding I3CR values
             % loc(is_kind_RT) gives the indices in t where matches were found
             tag(is_kind_RT) = t.I3CR(loc(is_kind_RT));            
+        end
+
+        function [ts1,ts2,Fs] = match_time_series(this, this1, this2)
+            arguments
+                this mlraut.Lee2024
+                this1 mlraut.AnalyticSignalHCP
+                this2 mlraut.AnalyticSignalHCP
+            end
+
+            physio1 = mean(this1.physio_signal, 2);
+            physio2 = mean(this2.physio_signal, 2);
+            tr = max(this1.tr, this2.tr);
+            Fs = min(this1.Fs, this2.Fs);
+            Nt1 = size(physio1, 1);
+            Nt2 = size(physio2, 1);
+            Nt = min(Nt1, Nt2);
+            t = 0:tr:tr*(Nt - 1);
+
+            % immediately return if time series are already matched
+            if this1.tr == this2.tr && Nt1 == Nt2
+                ts1 = physio1;
+                ts2 = physio2;
+                Fs = this1.Fs;
+                return
+            end
+
+            % interpolate to worst case tr and Nt
+            t1 = 0:this1.tr:this1.tr*(Nt1 - 1);
+            ts1 = interp1(t1, physio1, t);
+
+            t2 = 0:this2.tr:this2.tr*(Nt2 - 1);
+            ts2 = interp1(t2, physio2, t);
+        end
+
+        function psi = measure_uthr_avgxyzt(~, mat_fn, uthr_fn, meas)
+            if ~isfile(mat_fn) || ~contains(mat_fn, "concat")
+                psi = nan;
+                return
+            end
+            ld = load(mat_fn);
+            psi = ld.this.(meas)(ld.this.bold_signal, ld.this.physio_signal);  % Nt x Nx
+            psi = squeeze(psi);
+
+            if ~isfile(uthr_fn) || ~contains(uthr_fn, "uthr")
+                psi = nan;
+                return
+            end
+            cifti = cifti_read(convertStringsToChars(uthr_fn));
+            select = logical(cifti.cdata');  % 1 x Nx
+            if isvector(psi)
+                psi = asrow(psi);
+                psi = mean(psi(select), "all");
+            else
+                psi = mean(psi(:, select), "all");
+            end
+        end
+
+        function h = plot_table(this, t, opts)
+            arguments
+                this mlraut.Lee2024
+                t = []
+                opts.var2 {mustBeTextScalar}
+                opts.var1 {mustBeTextScalar} = "OS_Diagnosis"
+                opts.f function_handle = @identity
+                opts.measure {mustBeTextScalar} = ""
+            end
+            if isempty(t)
+                ld = load(fullfile(this.matlabout_dir, "table_gbm_ifv.mat"));
+                t = ld.t;
+            end
+
+            h = figure;
+            var2 = opts.f(t.(opts.var2));
+            scatter( ...
+                t.(opts.var1), var2, 100, var2, 'filled', ...
+                MarkerFaceAlpha=0.6, MarkerEdgeAlpha=0.6, MarkerEdgeColor=[0.1 0.1 0.1] ...
+            )
+
+            if any(var2 < 0)
+                colormap(by_bc_bl)
+                caxis([-max(var2), max(var2)])
+            else
+                colormap(magma)
+                caxis([0, max(var2)])
+            end
+            xlabel("overall survival (days)")
+            if isequal(opts.f, @abs)
+                ylabel("|" + opts.measure + "(\psi_{\alpha=0.01}, \phi_{iFV})|")
+            else
+                ylabel(opts.measure + "(\psi_{\alpha=0.01}, \phi_{iFV})")
+            end
+            fontsize(scale=1.618)
         end
 
         function m = similarity_physios(this, p1, p2, opts)
@@ -185,6 +324,134 @@ classdef Lee2024 < handle
             m = that.(opts.measure)(p1, p2);
         end
 
+        function s = spectra(this, mat1, mat2, opts)
+            arguments
+                this mlraut.Lee2024
+                mat1 {mustBeFile}
+                mat2 {mustBeFile}
+                opts.do_plot logical = true
+                opts.Nf {mustBeScalarOrEmpty} = 256
+            end
+
+            ld1 = load(mat1);
+            ld2 = load(mat2);
+            [physio1,physio2,Fs] = this.match_time_series(ld1.this, ld2.this);            
+
+            range_f = linspace(0.01, 0.05, opts.Nf);
+            [Pxy, Pf] = cpsd(physio1, physio2, [], [], range_f, Fs);
+
+            % Extract magnitude and phase
+            magnitude = abs(Pxy);
+            phase = angle(Pxy);
+
+            % Plot
+            if opts.do_plot
+                figure;
+                subplot(2,1,1);
+                plot(Pf, magnitude);
+                % xlim([.01, .05]);
+                grid on;
+                xlabel('Frequency (Hz)');
+                ylabel('Magnitude');
+                title('Cross-Spectral Magnitude');
+                subplot(2,1,2);
+                plot(Pf, phase);
+                % xlim([.01, .05]);
+                grid on;
+                xlabel('Frequency (Hz)');
+                ylabel('Phase (radians)');
+                title('Cross-Spectral Phase');
+            end
+
+            [Cxy, Cf] = mscohere(physio1, physio2, [], [], range_f, Fs);
+
+            % Plot coherence
+            if opts.do_plot
+                figure;
+                plot(Cf, Cxy);
+                % xlim([.01, .05]);
+                grid on;
+                xlabel('Frequency (Hz)');
+                ylabel('Magnitude-Squared Coherence');
+                title('Coherence Spectrum');
+            end
+
+            % return data struct
+            s.Pxy = Pxy;
+            s.Pf = Pf;
+            s.Cxy = Cxy;
+            s.Cf = Cf;
+        end
+
+        function spectra_by_os_dx(this)
+            linew = 1;  % linewidth
+            alpha = 0.5;  % alpha of line
+            t = this.table_gbm_ce;  % N = 149
+            t = sortrows(t, "OS_Diagnosis", "descend");  % survivors first
+            os_dx = t.OS_Diagnosis;
+            colors = flip(magma(max(t.OS_Diagnosis)));  % brighter first
+
+            pwd0 = pushd(this.matlabout_dir);
+            Nrows = size(t, 1);
+            valid = true(1, Nrows);
+            for idx = 1:Nrows
+                i3cr = t.I3CRID(idx);
+                try
+                    g_ifv = mglob(sprintf("sub-%s/sub-%s*-iFV-*-concat.mat", i3cr, i3cr));
+                    assert(~isempty(g_ifv));
+                    g_ce = mglob(sprintf("sub-%s/sub-%s*-CE-*-concat.mat", i3cr, i3cr));
+                    assert(~isempty(g_ce));
+                    s_ = this.spectra(g_ifv(1), g_ce(1), do_plot=false); %#ok<AGROW>
+                    s(idx).Pxy = s_.Pxy;
+                    s(idx).Pf = s_.Pf;
+                    s(idx).Cxy = s_.Cxy;
+                    s(idx).Cf = s_.Cf;
+                    s(idx).color = colors(os_dx(idx), :); %#ok<AGROW>
+                catch ME
+                    valid(idx) = false;
+                    handwarning(ME)
+                end
+            end
+            popd(pwd0);
+            s = s(valid);
+            Ns = sum(valid);
+
+            figure;
+
+            subplot(3,1,1);
+            hold on;
+            for idx = 1:Ns
+                plot(s(idx).Pf, abs(s(idx).Pxy), Color=[s(idx).color, alpha], LineWidth=linew);
+            end
+            hold off;
+            grid on;
+            xlabel('Frequency (Hz)');
+            ylabel('Magnitude');
+            title('Cross-Spectral Magnitude');
+
+            subplot(3,1,2);
+            hold on;
+            for idx = 1:Ns
+                plot(s(idx).Pf, angle(s(idx).Pxy), Color=[s(idx).color, alpha], LineWidth=linew);
+            end
+            hold off;
+            grid on;
+            xlabel('Frequency (Hz)');
+            ylabel('Phase (radians)');
+            title('Cross-Spectral Phase');
+
+            subplot(3,1, 3);
+            hold on;
+            for idx = 1:Ns
+                plot(s(idx).Cf, s(idx).Cxy, Color=[s(idx).color, alpha], LineWidth=linew);
+            end
+            hold off;
+            grid on;
+            xlabel('Frequency (Hz)');
+            ylabel('Magnitude-Squared Coherence');
+            title('Coherence Spectrum');
+        end
+
         function s = subs(this)
             s = asrow(mglob(fullfile(this.matlabout_dir, "sub-*")));
         end
@@ -197,6 +464,13 @@ classdef Lee2024 < handle
         function t = table_gbm_ce(this)
             if ~isempty(this.table_gbm_ce_)
                 t = this.table_gbm_ce_;
+                return
+            end
+
+            fqfn = fullfile(this.gbm_datashare_dir, "table_gbm_ce.mat");
+            if isfile(fqfn)
+                ld = load(fqfn);
+                t = ld.t;
                 return
             end
 
@@ -256,6 +530,86 @@ classdef Lee2024 < handle
 
             % cache table
             this.table_gbm_ce_ = t;
+        end
+
+        function t = table_gbm_ifv(this)
+            if ~isempty(this.table_gbm_ifv_)
+                t = this.table_gbm_ifv_;
+                return
+            end
+
+            % filter sub with physio CE
+            t = this.table_gbm_datashare();
+            filter = ismember(t.I3CRID, extractAfter(mybasename(this.unique_subs), "-"));
+            t = t(filter, :);
+            Nrows = size(t, 1);
+
+            % new variables for table
+            angle = nan(Nrows, 1);
+            correlation = nan(Nrows, 1);
+            T = nan(Nrows, 1);
+            X = nan(Nrows, 1);
+            Y = nan(Nrows, 1);
+            Z = nan(Nrows, 1);
+
+            angle_uthr_fn = fullfile(this.matlabout_dir, ...
+                "mean_angle_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+            connex_uthr_fn = fullfile(this.matlabout_dir, ...
+                "mean_connex_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+            T_uthr_fn = fullfile(this.matlabout_dir, ...
+                "mean_T_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+            X_uthr_fn = fullfile(this.matlabout_dir, ...
+                "mean_X_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+            Y_uthr_fn = fullfile(this.matlabout_dir, ...
+                "mean_Y_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+            Z_uthr_fn = fullfile(this.matlabout_dir, ...
+                "mean_Z_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+
+            % build new variables for table
+            for row = 1:Nrows
+                try
+                    fprintf("working in %s ...\n", t.I3CRID(row));
+                    pwd_ = pushd(fullfile(this.matlabout_dir, "sub-"+t.I3CRID(row)));
+                    globbed = mglob("sub-*iFV*concat.mat");
+                    mat_fn = globbed(1);                    
+                    angle(row) = this.measure_uthr_avgxyzt( ...
+                        mat_fn, angle_uthr_fn, ...
+                        "angle" ...
+                    );
+                    correlation(row) = this.measure_uthr_avgxyzt( ...
+                        mat_fn, connex_uthr_fn, ...
+                        "connectivity" ...
+                    );
+                    T(row) = this.measure_uthr_avgxyzt( ...
+                        mat_fn, T_uthr_fn, ...
+                        "T" ...
+                    );
+                    X(row) = this.measure_uthr_avgxyzt( ...
+                        mat_fn, X_uthr_fn, ...
+                        "X" ...
+                    );
+                    Y(row) = this.measure_uthr_avgxyzt( ...
+                        mat_fn, Y_uthr_fn, ...
+                        "Y" ...
+                    );
+                    Z(row) = this.measure_uthr_avgxyzt( ...
+                        mat_fn, Z_uthr_fn, ...
+                        "Z" ...
+                    );
+                    popd(pwd_);
+                catch ME
+                    handwarning(ME);
+                end
+            end
+            t.angle = angle;
+            t.correlation = correlation;
+            t.T = T;
+            t.X = X;
+            t.Y = Y;
+            t.Z = Z;
+
+            % cache table
+            this.table_gbm_ifv_ = t;
         end
 
         function t = table_gbm_datashare(this)
@@ -371,14 +725,51 @@ classdef Lee2024 < handle
             snr.cdata  = metric_mu ./ metric_sig;
             cifti_write(snr, convertStringsToChars(metric_lbl+"_snr.dscalar.nii"));
         end
+            
+        function write_var_ciftis(this, ld, data, field, opts)
+            arguments
+                this mlraut.Lee2024
+                ld struct
+                data cell
+                field {mustBeTextScalar}
+                opts.physio {mustBeTextScalar} = "iFV"
+                opts.rsn {mustBeScalarOrEmpty} = -1
+            end
+            valid_rsn = 1 <= opts.rsn && opts.rsn <= 9;
+            rsn_tag = "rsn" + opts.rsn;
+
+            Nd = numel(data);
+            cdata = [];
+            for id = 1:Nd                
+                cdata = [cdata; data{id}.(field)]; %#ok<AGROW>
+            end
+            cdata = var(cdata, 0, 1);  % norm by Nsubs - 1; var over subs
+
+            caller = strrep(stackstr(3, use_dashes=true), "Lee2024-", "");
+            if valid_rsn && (contains(field, "X") || contains(field, "Y"))
+                fn = fullfile( ...
+                    this.matlabout_dir, ...
+                    "var_"+field+"_as_sub-all_ses-all_proc-v50-"+opts.physio+"-Lee2024-"+caller+"-"+rsn_tag+".dscalar.nii");
+            else
+                fn = fullfile( ...
+                    this.matlabout_dir, ...
+                    "var_"+field+"_as_sub-all_ses-all_proc-v50-"+opts.physio+"-Lee2024-"+caller+".dscalar.nii");
+            end
+            ld.this.write_cifti(cdata, fn);
+        end
     end
+
+    %% PROTECTED
     
     properties (Access = protected)
         table_gbm_ce_
+        table_gbm_ifv_
     end
 
     methods (Access = protected)
         function [datum,ld] = gather_signals(this, subdir, opts)
+            %% excludes *-concat.mat
+
             arguments
                 this mlraut.Lee2024
                 subdir {mustBeFolder}
@@ -390,6 +781,7 @@ classdef Lee2024 < handle
             use_rsn = 1 <= opts.rsn && opts.rsn <= 9;
 
             m = mglob(fullfile(subdir, "*"+opts.physio+"*.mat"));
+            m = m(~contains(m, "-concat.mat"));
             if isempty(m)
                 error("mlraut:RuntimeError", stackstr(use_dashes=true) + "-data-missing")
             end
@@ -474,6 +866,11 @@ classdef Lee2024 < handle
                 datum.Z = weight * datum.Z;
                 data{id} = datum;
             end
+        end
+    end
+
+    methods (Static, Access = private)
+        function obj = identity(obj)
         end
     end
     
