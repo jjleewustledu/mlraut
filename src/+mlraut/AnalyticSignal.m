@@ -22,7 +22,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         force_band  % force bandpass to [0.01 0.1] Hz
         force_legacy_butter  
-        final_normalization
         frac_ext_physio  % fraction of external physio power
         source_physio
         v_physio  % velocity of physio signal, m/s
@@ -304,25 +303,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             psi = this.build_centered(psi, varargin{:});
             psi = this.build_rescaled(psi, varargin{:});
-        end
-        
-        function as = build_final_normalization(this, as)
-            %% provides final normalization by max(abs()) for more interpretable visualization at group level;
-            %  as ~ Nt x Nxyz
-
-            switch convertStringsToChars(this.final_normalization)
-                case 'normt'
-                    % allowing fluctuations in xyz, equalize t
-                    as = as ./ this.build_norm(as, dim=1);
-                case 'normxyz'
-                    % allowing fluctuations in t, equalize xyz
-                    as = as ./ this.build_norm(as, dim=2);
-                case 'normxyzt'
-                    % allowing fluctuations in xyz & t
-                    as = as / this.build_norm(as, dim="all");
-                otherwise
-                    return
-            end
         end
 
         function [gs,beta] = build_global_signal_for(this, sig)
@@ -660,9 +640,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     this.build_band_passed( ...
                     this.build_centered_and_rescaled( ...
                     this.build_global_signal_regressed(bold_))));
-                bold_ = ...                    
-                    this.build_final_normalization( ...
-                        bold_(1:opts.num_frames, :));
 
                 opts.z = bold_;
             end
@@ -900,13 +877,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 more_tags {mustBeTextScalar} = ""
             end
 
-            if isempty(this.final_normalization) && strcmp(this.source_physio, "iFV") && ...
-                    ~isempty(this.hp_thresh) && ~isempty(this.lp_thresh)
-                % provide legacy compatibility
-                g = "";
-                return
-            end
-
             g = "proc";
             if ~isempty(this.v_physio)
                 g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
@@ -920,8 +890,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if isfinite(this.max_frames)
                 g = g + "-maxframes" + num2str(this.max_frames);
             end
-            if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
-                g = g + "-" + this.final_normalization;
             if ~isemptytext(this.rescaling)
                 g = g + "-scale" + this.rescaling;
             end
@@ -984,7 +952,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_save_ciftis logical = false: save ciftis of {abs,angle} of analytic_signal.
             %      opts.do_save_ciftis_of_diffs logical = false: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
-            %      opts.final_normalization {mustBeTextScalar} = 'normxyzt': also: 'normt' | 'normxyz' | ''
             %      opts.force_band logical = false: force bandpass to Nyquist limits of available data
             %      opts.force_legacy_butter logical = false: 
             %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
@@ -1023,7 +990,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_save_ciftis logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
-                opts.final_normalization {mustBeTextScalar} = "none"
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
                 opts.frac_ext_physio double = 1
@@ -1073,7 +1039,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.hp_thresh_ = opts.hp_thresh;
             this.lp_thresh_ = opts.lp_thresh;
             this.max_frames = opts.max_frames;
-            this.final_normalization = opts.final_normalization;
             this.cohort_data_.out_dir = opts.out_dir;
             this.rescaling_ = opts.rescaling;
             this.scale_to_hcp_ = opts.scale_to_hcp;

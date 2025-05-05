@@ -562,9 +562,8 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             bold_signal_ = ...
                 hilbert(bold_);
-            bold_signal__ = ...
-                as.build_final_normalization( ...
-                bold_signal_(1:num_frames, :));
+            bold_signal__ = ...                
+                bold_signal_(1:num_frames, :);
             as.plot3(num_frames=num_frames, t=t, z=bold_signal__, title="")
             as.fit_power_law(t=t, x=bold_signal__, title="power law:  BOLD cortical " + select_rsn)
 
@@ -580,16 +579,12 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             physio_signal_ = ...
                 hilbert(physio_);
             physio_signal__ = ...
-                as.build_final_normalization( ...
-                physio_signal_(1:num_frames, :));
+                physio_signal_(1:num_frames, :);
             as.plot3(num_frames=num_frames, t=t, z=physio_signal__, title="")
             as.fit_power_law(t=t, x=physio_signal__, title="power law:  Arousal iFV")
 
             analytic_signal_ = conj(physio_signal_).*bold_signal_;
 
-            analytic_signal_ = ...
-                as.build_final_normalization( ...
-                analytic_signal_(1:num_frames, :));
             as.plot3(num_frames=num_frames, t=t, z=analytic_signal_, title="")
             as.fit_power_law(t=t, x=analytic_signal_, title="power law:  Analytic cortical " + select_rsn)
 
