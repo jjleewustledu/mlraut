@@ -36,8 +36,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         global_signal_regression  % logical
         hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
         json
-        lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz
+        lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz, for CSF studies ~ 0.1 Hz
         plot_range
+        rescaling
         rsn_list
         scale_to_hcp  % adjust norm by time of scanning
         tags_user  % for filenames
@@ -106,6 +107,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.plot_range(this)
             g = this.plotting_.plot_range;
+        end  
+
+        function g = get.rescaling(this)
+            g = this.rescaling_;
         end
 
         function g = get.rsn_list(~)
@@ -468,6 +473,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             if isfinite(this.max_frames)
                 t = t + "-maxframes" + num2str(this.max_frames);
+            end
+            if ~isemptytext(this.rescaling)
+                t = t + "-scale" + this.rescaling;
             end
             if ~isemptytext(this.tags_user_) 
                 t = t + "-" + this.tags_user_;
@@ -914,6 +922,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
                 g = g + "-" + this.final_normalization;
+            if ~isemptytext(this.rescaling)
+                g = g + "-scale" + this.rescaling;
             end
             if ~isemptytext(this.source_physio)
                 g = g + "-" + this.source_physio;
@@ -985,6 +995,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                                             nan =: 1/2
             %      opts.max_frames {mustBeScalarOrEmpty} = nan: try 158 for assessing GBM rsfMRI
             %      opts.out_dir {mustBeFolder} = pwd
+            %      opts.rescaling {mustBeTextScalar} = 'iqr' : rescales bold and physio before creating twistor [X,Y,Z,T]
             %      opts.roi = []:  e.g. fqfn;
             %                      ImagingContext2 for "WT_on_T1w", "CE_on_T1w", "ROI", for files found in sub-*/MNINonLinear; 
             %                      double row_vec for mlraut.PhysioRoi(from_wmparc_indices=row_vec)
@@ -1022,6 +1033,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
                 opts.plot_range double = []
+                opts.rescaling {mustBeTextScalar} = "iqr"
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV"
@@ -1063,6 +1075,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.max_frames = opts.max_frames;
             this.final_normalization = opts.final_normalization;
             this.cohort_data_.out_dir = opts.out_dir;
+            this.rescaling_ = opts.rescaling;
             this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
             this.tags_user_ = opts.tags;
@@ -1084,6 +1097,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         hp_thresh_
         lp_thresh_
         plotting_
+        rescaling_
         scale_to_hcp_
         tags_user_
         task_signal_mask_

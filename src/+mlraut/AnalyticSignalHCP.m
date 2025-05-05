@@ -376,6 +376,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.do_save_dynamic = this.do_save_dynamic;
             this_subset.force_band = this.force_band;
             this_subset.final_normalization = this.final_normalization;
+            this_subset.rescaling = this.rescaling;
             this_subset.roi = this.roi;
             this_subset.source_physio = this.source_physio;
             this_subset.global_signal = this.global_signal;
