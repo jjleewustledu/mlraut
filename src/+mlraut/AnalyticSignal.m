@@ -811,6 +811,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 case 'iFV'  % propagated
                     iFV = mlraut.IFourthVentricle(this, bold);
                     [physio, physio_vec] = this.build_physio_from_ROI(iFV, opts.size_reference);
+                case 'iFV-brightest'  % propagated
+                    iFV = mlraut.IFourthVentricle(this, bold, best_voxels=true);
+                    [physio, physio_vec] = this.build_physio_from_ROI(iFV, opts.size_reference);
                 case 'CE'  % obtains CE_on_T1w.nii.gz
                     assert(isa(this, "mlraut.AnalyticSignalGBM"))                    
                     pROI = mlraut.PhysioRoi(this, bold, ...
@@ -834,12 +837,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     physio_vec = ones(opts.size_reference(1), 1);
                     physio = ones(opts.size_reference).*physio_vec;
                     assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
+                case {'gray', 'grey'}
+                    wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
+                    ic = wmparc.select_gray();
+                    pROI = mlraut.PhysioRoi(this, bold, from_imaging_context=ic, flipLR=opts.flipLR);                    
+                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
                 otherwise  % other wmparc regions, propagated
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
-                    n = wmparc.label_to_num(convertStringsToChars(this.source_physio));
-                    assert(~all(n == 0), stackstr())
-                    pROI = mlraut.PhysioRoi(this, bold, ...
-                        from_wmparc_indices=n, flipLR=opts.flipLR);
+                    nn = wmparc.label_to_num(convertStringsToChars(this.source_physio));
+                    assert(~all(nn == 0), stackstr())
+                    pROI = mlraut.PhysioRoi(this, bold, from_wmparc_indices=nn, flipLR=opts.flipLR);
                     [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
             end
             physio_vec = single(physio_vec);

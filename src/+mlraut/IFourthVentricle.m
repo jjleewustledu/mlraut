@@ -26,6 +26,10 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
             else
                 ifc.fileprefix = 'ifv.2';  %% mm of voxels
             end
+            if this.best_voxel_
+                ifc = this.build_best_voxels_ifc(ifc);
+                ifc.fileprefix = strrep(ifc.fileprefix, 'ifv', 'ifv1voxel');
+            end
             this.ifv_mask_ = mlfourd.ImagingContext2(ifc);
             g = this.ifv_mask_;
         end
@@ -35,6 +39,20 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
     end
 
     methods
+        function mask_ifc = build_best_voxels_ifc(this, mask_ifc)
+            %% select best voxels in mask corresponding to inferior-most 4 slices of mask_ifc;
+            %  rationale follows Fultz, et al.  https://www.science.org/doi/10.1126/science.aax5440
+            
+            % Fultz' 4 slices spanned 10 mm.
+            Nslices = ceil(10 / mask_ifc.mmppix(3));
+            idx_inferior = this.find_idx_inferior(mlfourd.ImagingContext2(mask_ifc));
+            indices = (0:(Nslices-1)) + idx_inferior;
+            
+            newmask = zeros(size(mask_ifc.img));
+            newmask(:,:,indices) = mask_ifc.img(:,:,indices);
+
+            mask_ifc.img = newmask;
+        end
         function bold = call(this)
             bold = call(this.physio_roi_);
         end
@@ -46,9 +64,11 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
             arguments
                 ihcp mlraut.HCP {mustBeNonempty}
                 bold mlfourd.ImagingContext2
+                opts.best_voxels logical = false
                 opts.flipLR logical = false
             end
             this = this@mlraut.PhysioData(ihcp, bold);
+            this.best_voxel_ = opts.best_voxels;
             this.physio_roi_ = mlraut.PhysioRoi(ihcp, bold, ...
                 flipLR=opts.flipLR, ...
                 from_imaging_context=this.ifv_mask);
@@ -58,6 +78,7 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
     %% PRIVATE
 
     properties (Access = private)
+        best_voxel_
         ifv_mask_
         physio_roi_    
     end
@@ -75,6 +96,12 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
             idx_median = ceil(1 + idxL + (idxR - idxL)/2);  % idx_median of 4th ventricle along z
 
             idx = max(idx_, idx_median);
+        end
+        function idx = find_idx_inferior(~, ic)
+            ic = max(max(ic, [], 1), [], 2);  % mip projected to z
+            img_z = squeeze(ic.imagingFormat.img);
+            idx = find(img_z, 1, 'first');
+            assert(~isempty(idx))
         end
     end
     
