@@ -92,8 +92,8 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
                 this.HCP_signals_.thal.psi = this.average_network_signal(this.bold_signal_, network_type="thalamic");
                 this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
 
-                this.HCP_signals_.gbm.psi = this.average_gbm_signal();
-                this.HCP_signals_.gbm.phi = this.average_gbm_physio_signal();
+                % this.HCP_signals_.gbm.psi = this.average_gbm_signal();
+                % this.HCP_signals_.gbm.phi = this.average_gbm_physio_signal();
 
                 psis = this.HCP_signals_;
             catch ME
