@@ -20,6 +20,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_save_ciftis_of_diffs
         do_save_dynamic
 
+        filter_order  % >= 2
         force_band  % force bandpass to [0.01 0.1] Hz
         force_legacy_butter  
         frac_ext_physio  % fraction of external physio power
@@ -73,7 +74,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             N = this.num_frames - this.num_frames_to_trim;
             Nyquist = (this.Fs/2)*(1/N); % Nyquist limited Hz
             if this.force_band
-                g = max(0.01, Nyquist);
+                g = Nyquist;
                 return
             end
             if ~isempty(this.hp_thresh_)
@@ -94,7 +95,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         function g = get.lp_thresh(this)
             Nyquist = this.Fs/2 - 1e-6; % Nyquist limited Hz
             if this.force_band
-                g = min(0.1, Nyquist);
+                g = Nyquist;
                 return
             end
             if ~isempty(this.lp_thresh_)
@@ -224,19 +225,20 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             try
                 if isempty(this.digital_filter_)
+                    % default design is 'butter'
                     if isempty(this.lp_thresh) && ~isempty(this.hp_thresh)
                         this.digital_filter_ = designfilt("highpassiir", ...
-                            FilterOrder=8, ...
+                            FilterOrder=this.filter_order, ...
                             HalfPowerFrequency=this.hp_thresh, ...
                             SampleRate=this.Fs);
                     elseif ~isempty(this.lp_thresh) && isempty(this.hp_thresh)
                         this.digital_filter_ = designfilt("lowpassiir", ...
-                            FilterOrder=8, ...
+                            FilterOrder=this.filter_order, ...
                             HalfPowerFrequency=this.lp_thresh, ...
                             SampleRate=this.Fs);
                     else
                         this.digital_filter_ = designfilt("bandpassiir", ...
-                            FilterOrder=8, ...
+                            FilterOrder=this.filter_order, ...
                             HalfPowerFrequency1=this.hp_thresh, HalfPowerFrequency2=this.lp_thresh, ...
                             SampleRate=this.Fs);
                     end
@@ -272,7 +274,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 dat1 = dat;
                 return
             end
-            [z,p,k] = butter(2, [this.hp_thresh, this.lp_thresh - eps('single')]/(this.Fs/2)); % digital Wn in [0, 1]
+            [z,p,k] = butter(this.filter_order, [this.hp_thresh, this.lp_thresh - eps('single')]/(this.Fs/2)); % digital Wn in [0, 1]
             [sos,g] = zp2sos(z, p, k);
             this.digital_filter_ = sos;
             dat1 = filtfilt(sos, g, double(dat));
@@ -445,8 +447,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
                 t = t + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
             end
-            if ~isemptytext(this.final_normalization) && ~contains(this.final_normalization, "none")
-                t = t + "-" + this.final_normalization;
+            if isempty(this.lp_thresh)
+                t = t + "-lpnone";
+            end
+            if isempty(this.hp_thresh)
+                t = t + "-hpnone";
             end
             if ~isemptytext(opts.source_physio)
                 t = t + "-" + opts.source_physio;
@@ -837,10 +842,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function ic = task_signal_mask(this)
-            % if ~isempty(this.task_signal_mask_)
-            %     ic = this.task_signal_mask_;
-            %     return
-            % end
+            if ~isempty(this.task_signal_mask_)
+                ic = this.task_signal_mask_;
+                return
+            end
 
             ic = this.task_signal_reference();
             ic = ic.binarized();
@@ -886,6 +891,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
                 g = g + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
+            end
+            if isempty(this.lp_thresh)
+                g = g + "-lpnone";
+            end
+            if isempty(this.hp_thresh)
+                g = g + "-hpnone";
             end
             if isfinite(this.max_frames)
                 g = g + "-maxframes" + num2str(this.max_frames);
@@ -952,6 +963,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_save_ciftis logical = false: save ciftis of {abs,angle} of analytic_signal.
             %      opts.do_save_ciftis_of_diffs logical = false: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
+            %      opts.filter_order double = 8
             %      opts.force_band logical = false: force bandpass to Nyquist limits of available data
             %      opts.force_legacy_butter logical = false: 
             %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
@@ -990,6 +1002,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_save_ciftis logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
+                opts.filter_order double = 8
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
                 opts.frac_ext_physio double = 1
@@ -1032,12 +1045,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_save_ciftis_of_diffs = opts.do_save_ciftis_of_diffs;
             this.do_save_dynamic = opts.do_save_dynamic;
 
+            this.filter_order = opts.filter_order;
             this.force_band = opts.force_band;
             this.force_legacy_butter = opts.force_legacy_butter;
             this.frac_ext_physio = opts.frac_ext_physio;
             this.global_signal_regression_ = opts.global_signal_regression;
             this.hp_thresh_ = opts.hp_thresh;
             this.lp_thresh_ = opts.lp_thresh;
+            if ~isempty(this.lp_thresh) && ~isempty(this.hp_thresh)
+                assert(this.hp_thresh < this.lp_thresh, "hp_thresh < lp_thresh is required")
+            end
             this.max_frames = opts.max_frames;
             this.cohort_data_.out_dir = opts.out_dir;
             this.rescaling_ = opts.rescaling;

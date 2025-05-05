@@ -16,6 +16,21 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+        function test_build_band_passed(this)
+            obj = this.testObj;
+            size_bold = [1196, 91282];
+            obj.filter_order = 8;
+            obj.force_legacy_butter = false;
+
+            try
+                obj.malloc();
+                obj.current_task = obj.tasks{1};
+                [~,physio__] = obj.task_physio(size_reference=size_bold);
+                figure; plot(physio__); 
+            catch ME
+                handexcept(ME)
+            end
+        end
         function test_ctor(this)
             as = mlraut.AnalyticSignalHCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
             this.verifyEqual(as.num_nets, 9);
@@ -456,7 +471,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             % Optional: Fit a power law
             % Select a range for fitting (adjust as needed)
-            fit_range = f > 0.01 & f < 0.05;
+            fit_range = f > 0.01 & f < 0.1;
 
             % Perform linear regression on log-log data
             p = polyfit(log10(f(fit_range)), log10(P(fit_range)), 1);
