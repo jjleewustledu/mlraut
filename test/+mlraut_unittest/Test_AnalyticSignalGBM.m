@@ -158,7 +158,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
         end
         
         function test_call_I3CR1488_iFV(this)   
-            %% left insula, no midline shift
+            %% right temporo-parietal, no midline shift
 
             % SUB = {'sub-I3CR0023'};  % legaacy
             % SUB = {'sub-I3CR0668'};  % OS ~ 2568 days, 46 yo

@@ -17,12 +17,20 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             this.assertEqual(1,1);
         end
         
+        function test_call_precuneus(this)
+            as = this.testObj;
+            as.do_save=true;
+            as.do_save_ciftis=true;
+            as.source_physio="precuneus";
+            
+            disp(as)            
+            call(as);
+        end
+        
         function test_call_no_physio(this)
             as = this.testObj;
             as.do_save=true;
-            as.do_save_dynamic=true;
             as.do_save_ciftis=true;
-            as.do_plot_networks=true;
             as.source_physio="none";
             
             disp(as)            
@@ -32,9 +40,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
         function test_call_iFV(this)
             as = this.testObj;
             as.do_save=true;
-            as.do_save_dynamic=true;
             as.do_save_ciftis=true;
-            as.do_plot_networks=true;
             as.source_physio="iFV";
            
             disp(as)            
@@ -52,9 +58,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
         function test_call_HRV(this)
             as = this.testObj;
             as.do_save=true;
-            as.do_save_dynamic=true;
             as.do_save_ciftis=true;
-            as.do_plot_networks=true;
             as.source_physio="HRV";
             
             disp(as)            
@@ -72,9 +76,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
         function test_call_RV(this)
             as = this.testObj;
             as.do_save=true;
-            as.do_save_dynamic=true;
             as.do_save_ciftis=true;
-            as.do_plot_networks=true;
             as.source_physio="RV";
             
             disp(as)            
@@ -151,14 +153,9 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             this.testObj = mlraut.AnalyticSignalHCP( ...
                 subjects={'996782'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
-                do_7T=false, ...
-                do_resting=true, ...
-                do_task=false, ...
                 do_save=false, ...
                 do_save_dynamic=false, ...
                 do_save_ciftis=false, ...
-                final_normalization="none", ...
-                force_band=false, ...
                 hp_thresh=0.01, ...
                 lp_thresh=0.05, ...
                 v_physio=50, ...
