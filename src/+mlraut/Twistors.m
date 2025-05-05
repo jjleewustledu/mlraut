@@ -166,10 +166,13 @@ classdef Twistors < handle & mlsystem.IHandle
         end
 
         function theta = angle(~, psi, phi)
-            theta = angle(psi./phi);
+            theta = angle(psi./phi);            
         end
 
         function theta = unwrap(this, psi, phi)
+            %% floating-point equivalent to:
+            %  theta = unwrap(angle(psi)) - unwrap(angle(phi))
+
             theta = unwrap(this.angle(psi, phi));
         end
 
