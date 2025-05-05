@@ -11,8 +11,8 @@ classdef Physio < handle
         source_physio
         gs_subtract % false -> normalize by global signal
 
-        hp_thresh = 0.01; % lower bound, Ryan ~ 0.01, units of 1/tr
-        lp_thresh = 0.05; % higher bound, Ryan ~ 0.05, units of 1/tr
+        hp_thresh = 0.01; % lower bound, Ryan ~ 0.01, converted to units of 1/tr
+        lp_thresh = 0.05; % higher bound, Ryan ~ 0.05, CSF ~ 0.1, converted to units of 1/tr
 
         abs_h1 % amplitude of arousal
         abs_h2 % amplitude of phase-locked analytic signal

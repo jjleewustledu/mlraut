@@ -38,7 +38,7 @@ classdef Test_Physio < matlab.unittest.TestCase
         end
         function test_call_iFV_multi(this)
             pwd1 = pushd(fullfile(getenv('HCP_HOME'), '995174'));
-            lp_thr = [0.1 0.2 ];
+            lp_thr = [0.05 0.1 0.2 ];
             hp_thr = [0.01 0.005 ];
             %lp_thr = 0.5;
             %hp_thr = 1/512;
