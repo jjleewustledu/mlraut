@@ -86,10 +86,20 @@ classdef BOLDData < handle & mlsystem.IHandle
             %     return
             % end   % caching is risky if BOLDData is re-used for multiple tasks per sub
 
+            fqfn_avgt = strrep(this.ihcp_.task_signal_reference_fqfn, ".nii.gz", "_avgt.nii.gz");
+            if isfile(fqfn_avgt)
+                ic = mlfourd.ImagingContext2(fqfn_avgt);
+                return
+            end
+
             ic = mlfourd.ImagingContext2(this.ihcp_.task_signal_reference_fqfn);
             if 4 == ndims(ic)
+                % very slow
+                fprintf("%s:  time-averaging %s\n", stackstr(), ic.fqfn)
+                fprintf("\tplease wait...\n")
                 ic = ic.timeAveraged();
                 ic.save();
+                fprinf("\tcomplete!\n")
             end
             % this.task_signal_reference_ = copy(ic);   % caching is risky if BOLDData is re-used for multiple tasks per sub
         end

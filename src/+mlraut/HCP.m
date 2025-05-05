@@ -263,7 +263,13 @@ classdef HCP < handle & mlsystem.IHandle
         end
 
         function ic = task_signal_reference(this)
+            if ~isempty(this.task_signal_reference_)
+                ic = this.task_signal_reference_;
+                return
+            end
+
             ic = this.bold_data_.task_signal_reference();
+            this.task_signal_reference_ = ic;
         end
 
         function this = HCP(opts)
@@ -321,6 +327,7 @@ classdef HCP < handle & mlsystem.IHandle
         cohort_data_
         subjects_
         tasks_
+        task_signal_reference_
     end
 
     methods (Access = protected)

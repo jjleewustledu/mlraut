@@ -247,6 +247,10 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this.HCP_signals_.str.phi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.thal.psi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.thal.phi = complex(nan(this.num_frames,this.num_nets));
+
+            % reset for new tasks
+            this.task_signal_mask_ = [];
+            this.task_signal_reference_ = [];
         end 
 
         function meta_plot(this)
