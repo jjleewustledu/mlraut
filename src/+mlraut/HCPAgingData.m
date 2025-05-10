@@ -12,7 +12,6 @@ classdef HCPAgingData < handle & mlraut.CohortData
     end
 
     properties (Dependent)
-        atlas_fqfn
         extended_task
         extended_task_dir
         json_fqfn
@@ -21,16 +20,13 @@ classdef HCPAgingData < handle & mlraut.CohortData
         stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn  
+        task_signal_reference_fqfn
+        thickness_dscalar_fqfn
         t1w_fqfn
         wmparc_fqfn      
     end
 
     methods %% GET
-        function g = get.atlas_fqfn(this)
-            mg = mglob(fullfile(this.task_dir+"*", this.task + "*_Atlas_MSMAll_hp0_vn.dscalar.nii"));
-            g = mg(end);
-        end
         function g = get.extended_task(this)
             if strcmp(this.task, "rfMRI_REST")
                 g = "fMRI_CONCAT_ALL";
@@ -137,6 +133,10 @@ classdef HCPAgingData < handle & mlraut.CohortData
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
+        end
+        function g = get.thickness_dscalar_fqfn(this)
+            g = fullfile(this.mninonlinear_dir, this.sub + ".thickness_MSMAll.164k_fs_LR.dscalar.nii");
+            assert(isfile(g), stackstr())
         end
         function g = get.t1w_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "T1w_restore.2.nii.gz");  % mm voxels

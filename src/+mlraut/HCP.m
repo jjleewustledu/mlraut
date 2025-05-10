@@ -23,7 +23,6 @@ classdef HCP < handle & mlsystem.IHandle
         bold_data
         cohort_data
 
-        cifti_last  % configures cifti historically
         extended_task_dir  % supports HCPAging/rfMRIExtended/fmriresults01/HCA*
         Fs  % BOLD sampling rate (Hz)
         num_frames
@@ -37,6 +36,9 @@ classdef HCP < handle & mlsystem.IHandle
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn
+        template_cifti
+        template_niigz
+        thickness_dscalar_fqfn
         t1w_fqfn
         tr  % sampling interval (s), 0.72 for HCP Y.A., 0.8 for HCP Aging, 2.71 for RT GBM
         waves_dir
@@ -135,20 +137,11 @@ classdef HCP < handle & mlsystem.IHandle
             end
             g = this.tasks_;
         end
-
-        function g = get.cifti_last(this)
-            if ~isempty(this.cifti_last_)
-                g = this.cifti_last_;
-                return
-            end
-
-            this.cifti_last_ = cifti_read(this.task_dtseries_fqfn);
-            g = this.cifti_last_;
+        function set.tasks(this, s)
+            assert(istext(s))
+            this.tasks_ = s;
         end
-        function     set.cifti_last(this, s)
-            assert(isstruct(s));
-            this.cifti_last_ = s;
-        end
+
         function g = get.extended_task_dir(this)
             g = this.cohort_data_.extended_task_dir;
         end
@@ -191,6 +184,33 @@ classdef HCP < handle & mlsystem.IHandle
         end
         function g = get.task_signal_reference_fqfn(this)
             g = this.cohort_data_.task_signal_reference_fqfn;
+        end
+        function g = get.template_cifti(this)
+            if ~isempty(this.template_cifti_) && isstruct(this.template_cifti_)
+                g = this.template_cifti_;
+                return
+            end
+            g = cifti_read(this.thickness_dscalar_fqfn);
+            this.template_cifti_ = g;
+        end
+        function     set.template_cifti(this, s)
+            assert(isstruct(s))
+            this.template_cifti_ = s;
+        end
+        function g = get.thickness_dscalar_fqfn(this)
+            g = this.cohort_data_.thickness_dscalar_fqfn;
+        end
+        function g = get.template_niigz(this)
+            if ~isempty(this.template_niigz_) && isa(this.template_niigz_, 'mlfourd.ImagingContext2')
+                g = this.template_niigz_;
+                return
+            end
+            g = mlfourd.ImagingContext2(this.wmparc_fqfn);
+            this.template_niigz_ = g;
+        end
+        function     set.template_niigz(this, s)
+            s = mlfourd.ImagingContext2(s);
+            this.template_niigz_ = s;
         end
         function g = get.t1w_fqfn(this)
             g = this.cohort_data_.t1w_fqfn;
@@ -323,11 +343,12 @@ classdef HCP < handle & mlsystem.IHandle
         current_task_  % defers to tasks{1} as needed
 
         bold_data_
-        cifti_last_
         cohort_data_
         subjects_
         tasks_
         task_signal_reference_
+        template_cifti_
+        template_niigz_
     end
 
     methods (Access = protected)

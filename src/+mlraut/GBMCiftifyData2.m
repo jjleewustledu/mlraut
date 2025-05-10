@@ -10,7 +10,6 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
     end
 
     properties (Dependent)
-        atlas_fqfn
         CE_fqfn
         CE_ic
         ciftify_subject_fmri_log_fqfn
@@ -25,7 +24,8 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
         stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn   
+        task_signal_reference_fqfn
+        thickness_dscalar_fqfn
         t1w_fqfn
         tr
         wmparc_fqfn
@@ -39,9 +39,6 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
     end
 
     methods %% GET
-        function g = get.atlas_fqfn(this)
-            g = this.task_dtseries_fqfn;
-        end
         function g = get.CE_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "CE_on_T1w.nii.gz");  % mm voxels
             % assert(isfile(g), stackstr() + ": " + g + "not found")
@@ -153,6 +150,10 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
             mg = mglob(fullfile(this.task_dir, sprintf("%s*.nii.gz", this.task)));
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
+        end
+        function g = get.thickness_dscalar_fqfn(this)
+            g = fullfile(this.mninonlinear_dir, this.sub + ".thickness.164k_fs_LR.dscalar.nii");
+            assert(isfile(g), stackstr())
         end
         function g = get.t1w_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "T1w.nii.gz");  % mm voxels

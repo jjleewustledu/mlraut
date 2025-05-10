@@ -9,7 +9,7 @@ classdef Cifti < handle & mlsystem.IHandle
     properties (Dependent)
         is_7T
         out_dir
-        template_dscalar
+        template_cifti
         template_niigz
     end
 
@@ -20,11 +20,11 @@ classdef Cifti < handle & mlsystem.IHandle
         function g = get.out_dir(this)
             g = this.ihcp_.out_dir;
         end
-        function g = get.template_dscalar(this)
-            g = this.ihcp_.task_dtseries_fqfn;
+        function g = get.template_cifti(this)
+            g = this.ihcp_.template_cifti;
         end
         function g = get.template_niigz(this)
-            g = this.ihcp_.wmparc_fqfn;
+            g = this.ihcp_.template_niigz;
         end
     end
 
@@ -44,8 +44,6 @@ classdef Cifti < handle & mlsystem.IHandle
             cii = cifti_read(fn);
         end
         function c_ = write_cifti(this, c1_data, fn)
-            cifti_last = cifti_read(this.template_dscalar);
-            
             sz = size(c1_data);
             if sz(2) > sz(1)
                 c1_data = c1_data'; % grey-ordinates x series
@@ -72,7 +70,7 @@ classdef Cifti < handle & mlsystem.IHandle
             fn = strrep(fn, 'sub-sub', 'sub');  % clean-up legacy nomenclature
             fn = strrep(fn, 'ses-ses', 'ses');
 
-            c_ = cifti_last;
+            c_ = this.template_cifti;
             c_.cdata = c1_data;
             if contains(fn, '.dtseries')
                 c_.diminfo{2} = cifti_diminfo_make_series(sz(2), 0, this.ihcp_.tr, 'SECOND');
@@ -81,38 +79,6 @@ classdef Cifti < handle & mlsystem.IHandle
             end
             cifti_write(c_, convertStringsToChars(fn));
         end 
-        function c_ = write_cifti_previous(this, c1_data, fn)
-            sz = size(c1_data);
-            if sz(2) > sz(1)
-                c1_data = c1_data'; % grey-ordinates x series
-                sz = sort(sz, 'descend');
-            end
-            if sz(2) > 1 && ~contains(fn, '.dtseries')
-                [pth,fp,ext] = myfileparts(fn);
-                if isempty(pth) || "" == pth
-                    pth = this.out_dir;
-                end
-                fn = strcat(fullfile(pth, fp), '.dtseries', ext);
-            end
-            if sz(2) == 1 && ~contains(fn, '.dscalar')
-                [pth,fp,ext] = myfileparts(fn);
-                if isempty(pth) || "" == pth
-                    pth = this.out_dir;
-                end
-                fn = strcat(fullfile(pth, fp), '.dscalar', ext);
-            end
-            if ~contains(fn, '.nii')
-                fn = strcat(fn, '.nii');
-            end
-            c_ = this.cifti_last;
-            c_.cdata = c1_data;
-            if contains(fn, '.dtseries')
-                c_.diminfo{2} = cifti_diminfo_make_series(sz(2), 0, this.ihcp_.tr, 'SECOND');
-            else
-                c_.diminfo{2} = cifti_diminfo_make_scalars(1);
-            end
-            cifti_write(c_, convertStringsToChars(fn));
-        end
         function [cdata,cdata1] = write_ciftis(this, cdata, fp, opts)
             arguments
                 this mlraut.Cifti
@@ -150,7 +116,7 @@ classdef Cifti < handle & mlsystem.IHandle
             end
 
             try
-                ifc = mlfourd.ImagingFormatContext2(this.template_niigz);
+                ifc = this.template_niigz.imagingFormat;
                 ifc.img = img;
                 [pth,fp] = myfileparts(fp);
                 if isempty(pth) || "" == pth

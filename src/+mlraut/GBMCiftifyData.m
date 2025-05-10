@@ -10,7 +10,6 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
     end
 
     properties (Dependent)
-        atlas_fqfn
         CE_fqfn
         ciftify_subject_fmri_log_fqfn
         datashare_dir
@@ -35,9 +34,6 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
     end
 
     methods %% GET
-        function g = get.atlas_fqfn(this)
-            g = this.task_dtseries_fqfn;
-        end
         function g = get.CE_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "CE_on_T1w.nii.gz");  % mm voxels
             assert(isfile(g), stackstr())
@@ -152,10 +148,8 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
     methods
         function this = GBMCiftifyData(varargin)            
             this = this@mlraut.CohortData(varargin{:});
-            % 
-            % if ~isfile(this.json_fqfn)
-            %     this.build_gbm_json();
-            % end
+
+            error("mlraut:DeprecationError", stackstr());
         end
 
         function build_gbm_json(this)

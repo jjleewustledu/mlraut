@@ -13,6 +13,54 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
     end
     
     methods (Test)
+
+        function test_templates(this)
+
+            % SUB = {'sub-I3CR0023'};  % legaacy
+            % SUB = {'sub-I3CR0433'};  % OS ~ 2696 days, 35 yo
+            % SUB = {'sub-I3CR0668'};  % OS ~ 2568 days, 46 yo
+            % SUB = {'sub-I3CR0311'};  % OS ~ 2246 days, 36 yo
+            % SUB = {'sub-I3CR0111'};  % OS ~ 2246 days   
+            % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
+            SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
+
+            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
+            cd(root_dir);
+
+            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
+            ensuredir(out_dir);
+
+            as = mlraut.AnalyticSignalGBM( ...
+                subjects=SUB, ...
+                tasks={'ses-1_task-rest_run-all_desc-preproc'}, ...
+                do_resting=true, ...
+                out_dir=out_dir, ...
+                v_physio=50, ...
+                plot_range=1:69, ...
+                do_plot_networks=false, ...
+                do_plot_wavelets=false, ...
+                source_physio="none");
+
+            % template_cifti ~ thickness
+            this.verifyTrue(isfile(as.thickness_dscalar_fqfn));
+            this.verifyTrue(isstruct(as.template_cifti.metadata));
+            this.verifyTrue(iscell(as.template_cifti.diminfo));
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 149141);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.struct, 'CORTEX_LEFT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{1}.vertlist), [1, 149141]);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.count, 149120);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.struct, 'CORTEX_RIGHT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{2}.vertlist), [1, 149120]);
+            this.verifyEqual(as.template_cifti.diminfo{2}.maps.name, 'sub-I3CR1488_Thickness')
+            this.verifyEqual(size(as.template_cifti.cdata), [298261, 1]);
+            
+            % template_niigz ~ wmparc
+            this.verifyTrue(isfile(as.wmparc_fqfn))
+            this.verifyInstanceOf(as.template_niigz, "mlfourd.ImagingContext2")
+            this.verifyEqual(as.template_niigz.filename, "wmparc.nii.gz")
+        end
         function test_afun(this)
             import mlraut.*
             this.assumeEqual(1,1);

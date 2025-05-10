@@ -12,23 +12,19 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
     end
 
     properties (Dependent)
-        atlas_fqfn
         json_fqfn
         out_dir
         root_dir
         stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn    
+        task_signal_reference_fqfn
+        thickness_dscalar_fqfn
         t1w_fqfn
         wmparc_fqfn
     end
 
     methods %% GET, SET
-        function g = get.atlas_fqfn(this)
-            mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp2000_clean_vn.dscalar.nii"));
-            g = mg(1);
-        end
         function g = get.json_fqfn(this)
             g = fullfile(this.out_dir, this.sub + ".json");  % mm voxels
             %ensuredir(myfileparts(g))
@@ -132,6 +128,10 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             mg = mglob(fullfile(this.task_dir, this.task + "_SBRef*.nii.gz"));
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
+        end
+        function g = get.thickness_dscalar_fqfn(this)
+            g = fullfile(this.mninonlinear_dir, this.sub + ".thickness_MSMAll.164k_fs_LR.dscalar.nii");
+            assert(isfile(g), stackstr())
         end
         function g = get.t1w_fqfn(this)
             if this.is_7T

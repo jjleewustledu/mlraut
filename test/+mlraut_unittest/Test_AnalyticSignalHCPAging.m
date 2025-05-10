@@ -17,6 +17,30 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.assertEqual(1,1);
         end
 
+        function test_templates(this)
+            as = this.testObj;
+
+            % template_cifti ~ thickness
+            this.verifyTrue(isfile(as.thickness_dscalar_fqfn));
+            this.verifyTrue(isstruct(as.template_cifti.metadata));
+            this.verifyTrue(iscell(as.template_cifti.diminfo));
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 149141);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.struct, 'CORTEX_LEFT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{1}.vertlist), [1, 149141]);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.count, 149120);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.struct, 'CORTEX_RIGHT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{2}.vertlist), [1, 149120]);
+            this.verifyEqual(as.template_cifti.diminfo{2}.maps.name, 'HCA9992517_V1_MR_Thickness')
+            this.verifyEqual(size(as.template_cifti.cdata), [298261, 1]);
+            
+            % template_niigz ~ wmparc
+            this.verifyTrue(isfile(as.wmparc_fqfn))
+            this.verifyInstanceOf(as.template_niigz, "mlfourd.ImagingContext2")
+            this.verifyEqual(as.template_niigz.filename, "wmparc.2.nii.gz")
+        end
+
         function test_memory_footprint(this)
             tic
             as = this.testObj;

@@ -16,6 +16,32 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+
+        function test_templates(this)
+            as = this.testObj;
+            as.current_subject = '995174';
+            as.current_task = 'rfMRI_REST1_RL';
+
+            % template_cifti ~ thickness
+            this.verifyTrue(isfile(as.thickness_dscalar_fqfn));
+            this.verifyTrue(isstruct(as.template_cifti.metadata));
+            this.verifyTrue(iscell(as.template_cifti.diminfo));
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 149141);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.struct, 'CORTEX_LEFT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{1}.vertlist), [1, 149141]);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.count, 149120);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.struct, 'CORTEX_RIGHT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{2}.vertlist), [1, 149120]);
+            this.verifyEqual(as.template_cifti.diminfo{2}.maps.name, '995174_Thickness')
+            this.verifyEqual(size(as.template_cifti.cdata), [298261, 1]);
+            
+            % template_niigz ~ wmparc
+            this.verifyTrue(isfile(as.wmparc_fqfn))
+            this.verifyInstanceOf(as.template_niigz, "mlfourd.ImagingContext2")
+            this.verifyEqual(as.template_niigz.filename, "wmparc.2.nii.gz")
+        end
         
         function test_call_precuneus(this)
             as = this.testObj;

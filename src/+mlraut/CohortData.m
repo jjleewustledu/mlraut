@@ -7,7 +7,6 @@ classdef CohortData < handle & mlsystem.IHandle
     
 
     properties (Abstract)
-        atlas_fqfn
         json_fqfn
         num_frames_to_trim
         out_dir
@@ -16,6 +15,7 @@ classdef CohortData < handle & mlsystem.IHandle
         task_dtseries_fqfn
         task_niigz_fqfn
         task_signal_reference_fqfn
+        thickness_dscalar_fqfn
         tr
         t1w_fqfn        
         wmparc_fqfn

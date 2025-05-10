@@ -402,7 +402,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.tasks = this.tasks;
             % this_subset.bold_data = this.bold_data;
             % this_subset.cohort_data = this.cohort_data;
-            % this_subset.cifti_last = this.cifti_last;
+            % this_subset.template_cifti = this.template_cifti;
             this_subset.Fs = this.Fs;
             this_subset.num_frames = this.num_frames;
             this_subset.num_frames_ori = this.num_frames_ori;
@@ -414,6 +414,9 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
             this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
             this_subset.task_signal_reference_fqfn = this.task_signal_reference_fqfn;
+            this_subset.template_cifti = this.template_cifti;
+            this_subset.template_niigz = this.template_niigz;
+            this_subset.thickness_dscalar_fqfn = this.thickness_dscalar_fqfn;
             this_subset.t1w_fqfn = this.t1w_fqfn;
             this_subset.tr = this.tr;
             this_subset.waves_dir = this.waves_dir;
