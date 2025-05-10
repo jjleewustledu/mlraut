@@ -337,7 +337,7 @@ classdef Lee2024 < handle
             ld2 = load(mat2);
             [physio1,physio2,Fs] = this.match_time_series(ld1.this, ld2.this);            
 
-            range_f = linspace(0.01, 0.05, opts.Nf);
+            range_f = linspace(0.01, 0.1, opts.Nf);
             [Pxy, Pf] = cpsd(physio1, physio2, [], [], range_f, Fs);
 
             % Extract magnitude and phase

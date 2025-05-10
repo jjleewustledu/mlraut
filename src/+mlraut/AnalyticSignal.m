@@ -36,7 +36,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         global_signal_regression  % logical
         hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
         json
-        lp_thresh  % high freq. bound, Ryan ~ 0.05 Hz, for CSF studies ~ 0.1 Hz
+        lp_thresh  % high freq. bound, Ryan ~ 0.05-0.1 Hz, for CSF studies ~ 0.1 Hz
         plot_range
         rescaling
         rsn_list
@@ -447,7 +447,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isempty(opts.v_physio)
                 t = t + "-v" + strrep(num2str(opts.v_physio), ".", "p");
             end
-            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.05
+            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
                 t = t + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
             end
             if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
@@ -899,7 +899,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isempty(this.v_physio)
                 g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
             end
-            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.05
+            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
                 g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
             end
             if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
@@ -983,7 +983,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.global_signal_regression logical = true
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
-            %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05.
+            %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05-0.1.
             %                                             nan =: 1/2
             %      opts.max_frames {mustBeScalarOrEmpty} = nan: try 158 for assessing GBM rsfMRI
             %      opts.out_dir {mustBeFolder} = pwd
@@ -1021,7 +1021,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.frac_ext_physio double = 1
                 opts.global_signal_regression logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
-                opts.lp_thresh {mustBeScalarOrEmpty} = 0.05
+                opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
                 opts.plot_range double = []

@@ -12,7 +12,7 @@ classdef Physio < handle
         gs_subtract % false -> normalize by global signal
 
         hp_thresh = 0.01; % lower bound, Ryan ~ 0.01, converted to units of 1/tr
-        lp_thresh = 0.05; % higher bound, Ryan ~ 0.05, CSF ~ 0.1, converted to units of 1/tr
+        lp_thresh = 0.1; % higher bound, Ryan ~ 0.05-0.1, CSF ~ 0.1, converted to units of 1/tr
 
         abs_h1 % amplitude of arousal
         abs_h2 % amplitude of phase-locked analytic signal
@@ -254,7 +254,7 @@ classdef Physio < handle
             %  Args:
             %      out_dir (folder): for physiological data intermediates, default is pwd.
             %      hp_thresh (isnumeric): default := 0.01 from Ryan.
-            %      lp_thresh (isnumeric): default := 0.05 from Ryan.
+            %      lp_thresh (isnumeric): default := 0.05-0.1 from Ryan.
             %      do_save (logical): save mlraut.Pysio to mat ~ 10 GB.
             %      tasks (cell of text): '', 'iFV', 'RV', 'HRV'
             %      source_physio (logical)

@@ -9,7 +9,7 @@ classdef FieldTrip
     properties
         Fs = 508.6275  % from *_rmegpreproc.mat:  data.fsample
         hp_thresh = 0.01
-        lp_thresh = 0.05
+        lp_thresh = 0.1
         sub
     end
 
