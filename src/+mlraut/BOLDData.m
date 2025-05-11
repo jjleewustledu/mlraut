@@ -99,9 +99,69 @@ classdef BOLDData < handle & mlsystem.IHandle
                 fprintf("\tplease wait...\n")
                 ic = ic.timeAveraged();
                 ic.save();
-                fprinf("\tcomplete!\n")
+                fprintf("\tcomplete!\n")
             end
             % this.task_signal_reference_ = copy(ic);   % caching is risky if BOLDData is re-used for multiple tasks per sub
+        end
+    end
+
+    methods (Static)
+        function ifc = concat_nii(fn1, fn2, fn, opts)
+            arguments
+                fn1 {mustBeFile}
+                fn2 {mustBeFile}
+                fn {mustBeTextScalar} = ""
+                opts.do_save logical = true
+            end
+            assert(endsWith(fn1, ".nii.gz"))
+            assert(endsWith(fn2, ".nii.gz"))
+            if isemptytext(fn)
+                fn = regexprep(fn1, 'run-\d+', 'run-all');
+            end
+
+            ifc1 = mlfourd.ImagingFormatContext2(fn1);            
+            ifc2 = mlfourd.ImagingFormatContext2(fn2);
+            ifc = copy(ifc1);
+            ifc.img = cat(4, ifc1.img, ifc2.img);
+            ifc.fileprefix = mybasename(fn);
+
+            if opts.do_save
+                ifc.save();
+            end            
+        end
+
+        function c = concat_dtseries(fn1, fn2, fn, opts)
+            arguments
+                fn1 {mustBeFile}
+                fn2 {mustBeFile}
+                fn {mustBeTextScalar} = ""
+                opts.do_save logical = true
+            end
+            assert(endsWith(fn1, ".dtseries.nii"))
+            assert(endsWith(fn2, ".dtseries.nii"))
+            if isemptytext(fn)
+                fn = regexprep(fn1, 'run-\d+', 'run-all');
+            end
+
+            c1 = cifti_read(fn1);
+            c2 = cifti_read(fn2);
+            seriesStep1 = c1.diminfo{2}.seriesStep;
+            seriesStep2 = c2.diminfo{2}.seriesStep;
+            assert(seriesStep1 == seriesStep2)
+            seriesUnit1 = c1.diminfo{2}.seriesUnit;
+            seriesUnit2 = c2.diminfo{2}.seriesUnit;
+            assert(seriesUnit1 == seriesUnit2)
+            length1 = c1.diminfo{2}.length;
+            length2 = c2.diminfo{2}.length;
+            
+            c = c1;
+            c.cdata = [c1.cdata, c2.cdata];
+            c.diminfo{2} = cifti_diminfo_make_series( ...
+                length1 + length2, 0, seriesStep1, seriesUnit1);
+
+            if opts.do_save
+                cifti_write(c, convertStringsToChars(fn));
+            end
         end
     end
 
