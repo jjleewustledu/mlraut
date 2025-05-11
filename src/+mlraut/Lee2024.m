@@ -665,6 +665,22 @@ classdef Lee2024 < handle
             s = unique(s);
         end
 
+        function view_physio_roi(~, sub)
+            %% start in ciftify folder
+            
+            globbed = mglob( ...
+                fullfile(sub, "MNINonLinear", "Results", "ses-1_task-rest_run-0*", "ses*.nii.gz"));
+            globbed = globbed(~contains(globbed, "_avgt"));
+            for g = globbed
+                fprintf("%s: viewing %s\n", stackstr(), g);
+                bold = mlfourd.ImagingContext2(g);
+                wmp = mlsurfer.Wmparc( ...
+                    fullfile(sub, "MNINonLinear", "wmparc.nii.gz"));
+                roi = wmp.select_4th_ventricle + wmp.select_3rd_ventricle;
+                bold.view_qc([roi, wmp.T1], cache_memory=false, options='');
+            end
+        end
+
         function write_mean_ciftis(this, ld, data, field, opts)
             arguments
                 this mlraut.Lee2024

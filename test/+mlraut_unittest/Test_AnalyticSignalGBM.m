@@ -62,6 +62,28 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             this.verifyInstanceOf(as.template_niigz, "mlfourd.ImagingContext2")
             this.verifyEqual(as.template_niigz.filename, "wmparc.nii.gz")
         end
+
+        function test_view_physio_roi(this)
+            ld = load(fullfile( ...
+                getenv("SINGULARITY_HOME"), "AnalyticSignalGBM/GBM_datashare/GBMClinicalDatabaseCiftify.mat"));
+            db_sorted_osd = sortrows(ld.GBMClinicalDatabaseCiftify, "OS_Diagnosis");
+            i3crid = db_sorted_osd.I3CRID;
+            subs = "sub-" + i3crid;
+
+            % reduce subs to subjects needing assessment
+            first_sub = "sub-I3CR0178";
+            index = find(contains(subs, first_sub), 1, 'first');
+            assert(~isempty(index))
+            subs = subs(index:end);
+
+            % assess
+            cd(fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalGBM/analytic_signal/dockerout/ciftify"))
+            for sub = asrow(subs)
+                lee = mlraut.Lee2024;
+                lee.view_physio_roi(sub);
+            end
+        end
+
         function test_afun(this)
             import mlraut.*
             this.assumeEqual(1,1);
