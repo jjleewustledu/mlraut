@@ -776,10 +776,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             ic.fileprefix = stackstr(use_dashes=true);
         end
 
-        function [physio,physio_vec] = task_physio(this, opts)
+        function [physio,physio_vec,pROI] = task_physio(this, opts)
             %  Returns:
             %      physio numeric Nt x 1
             %      physio_0 numeric Nt x 1
+            %      pROI mlraut.PhysioData : for view_qc(), prop. roi_mask 
             %  Throws:
             %      mlraut:ValueError if this.source_physio not supported
 
