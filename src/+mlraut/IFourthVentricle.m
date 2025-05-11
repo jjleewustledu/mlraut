@@ -6,6 +6,10 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
     %  Created 05-Oct-2022 14:21:11 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 9.13.0.2049777 (R2022b) for MACI64.  Copyright 2022 John J. Lee.
     
+    properties
+        prefer_brightest  % if there exists file MNINonLinear/brightest.nii.gz, manually created, preferentially use it.
+    end
+
     properties (Dependent)
         ifv_mask
         roi_mask
@@ -13,24 +17,50 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
 
     methods %% GET/SET
         function g = get.ifv_mask(this)
-            % if ~isempty(this.ifv_mask_)
-            %     g = this.ifv_mask_;
-            % end
+
+            if ~isempty(this.ifv_mask_)
+                g = this.ifv_mask_;
+                return
+            end
 
             ic = this.wmparc.numeq(15); % [0 1]; FS index 15 is 4th ventricle
-            idx_girth = this.find_idx_girth(ic);
             ifc = ic.imagingFormat;
-            ifc.img(:,:,idx_girth+2:end) = 0;
+            switch char(this.selected_voxels_)
+                case 'brightest'
+                    newifc = this.build_brightest_voxels(ifc);
+                    newifc.fileprefix = strrep(newifc.fileprefix, 'ifv', 'ifvbrightest');
+                case 'inferior-quantile'
+                    brightest = this.build_brightest_voxels(ifc);
+                    brightest_msk = logical(brightest.img);
+
+                    idx_girth = this.find_idx_girth(ic);
+                    inferior_msk = logical(ifc.img);
+                    inferior_msk(:,:,idx_girth+1:end) = false;  % remove superior half
+
+                    newifc = copy(ifc);
+                    newifc.img = single(inferior_msk & ~brightest_msk);
+                    newifc.fileprefix = strrep(newifc.fileprefix, 'ifv', 'ifviq');
+                case 'inferior-half'
+                    idx_girth = this.find_idx_girth(ic);
+                    newifc = copy(ifc);
+                    newifc.img(:,:,idx_girth+1:end) = 0;  % remove superior half
+                case 'superior-half'
+                    idx_girth = this.find_idx_girth(ic);
+                    newifc = copy(ifc);
+                    newifc.img(:,:,1:idx_girth) = 0;  % remove inferior half
+                    newifc.fileprefix = strrep(newifc.fileprefix, 'ifv', 'sfv');
+                case 'all'
+                    newifc = copy(ifc);
+                    newifc.fileprefix = strrep(newifc.fileprefix, 'ifv', 'fv');
+                otherwise
+                    error("mlraut:ValueError", stackstr())
+            end
             if this.is_7T
-                ifc.fileprefix = 'ifv.1.60';  %% mm of voxels
+                newifc.fileprefix = 'ifv.1.60';  %% mm of voxels
             else
-                ifc.fileprefix = 'ifv.2';  %% mm of voxels
+                newifc.fileprefix = 'ifv.2';  %% mm of voxels
             end
-            if this.best_voxel_
-                ifc = this.build_best_voxels_ifc(ifc);
-                ifc.fileprefix = strrep(ifc.fileprefix, 'ifv', 'ifv1voxel');
-            end
-            this.ifv_mask_ = mlfourd.ImagingContext2(ifc);
+            this.ifv_mask_ = mlfourd.ImagingContext2(newifc);
             g = this.ifv_mask_;
         end
         function g = get.roi_mask(this)
@@ -39,9 +69,21 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
     end
 
     methods
-        function mask_ifc = build_best_voxels_ifc(this, mask_ifc)
+        function newmask_ifc = build_brightest_voxels(this, mask_ifc)
             %% select best voxels in mask corresponding to inferior-most 4 slices of mask_ifc;
-            %  rationale follows Fultz, et al.  https://www.science.org/doi/10.1126/science.aax5440
+            %  rationale follows Fultz, et al.  https://www.science.org/doi/10.1126/science.aax5440.
+
+            b_fqfn = fullfile(this.ihcp_.cohort_data.mninonlinear_dir, "brightest.nii.gz");
+            if this.prefer_brightest && isfile(b_fqfn)
+                b1_fqfn = strrep(b_fqfn, "brightest", "brightest_nifti1");
+                mlbash(sprintf("fslchfiletype NIFTI1_GZ %s %s", b_fqfn, b1_fqfn));
+                newmask_ifc = mlfourd.ImagingFormatContext2(b1_fqfn);
+                if dipmax(newmask_ifc.img) > 1
+                    newmask_ifc.img = single(newmask_ifc.img > 0);  % precautionary
+                end
+                assert(dipmax(newmask_ifc.img) == 1)
+                return
+            end
             
             % Fultz' 4 slices spanned 10 mm.
             Nslices = ceil(10 / mask_ifc.mmppix(3));
@@ -51,24 +93,46 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
             newmask = zeros(size(mask_ifc.img));
             newmask(:,:,indices) = mask_ifc.img(:,:,indices);
 
-            mask_ifc.img = newmask;
+            newmask_ifc = copy(mask_ifc);
+            newmask_ifc.img = newmask;
+            newmask_ifc.fileprefix = mask_ifc.fileprefix + "_" + stackstr();
         end
+
         function bold = call(this)
             bold = call(this.physio_roi_);
         end
-        function view_qc(this)
-            this.ifv_mask.view_qc(this.ihcp_.task_signal_reference)
+
+        function view_qc(this, ref)
+            arguments
+                this mlraut.IFourthVentricle
+                ref = this.ihcp_.task_signal_reference
+            end
+
+            this.ifv_mask.view_qc(ref)
         end
 
         function this = IFourthVentricle(ihcp, bold, opts)
+            %% ROIs for arousal signals
+            %  arguments:
+            %      ihcp mlraut.HCP {mustBeNonempty}
+            %      bold mlfourd.ImagingContext2
+            %      opts.prefer_brightest logical = true
+            %      opts.best_voxels {mustBeTextScalar} = "brightest"  % "inferior-quantile", "inferior-half", "superior-half", "all"
+            %      opts.flipLR logical = false
+            %  returns:
+            %      this
+                 
             arguments
                 ihcp mlraut.HCP {mustBeNonempty}
                 bold mlfourd.ImagingContext2
-                opts.best_voxels logical = false
+                opts.prefer_brightest logical = true
+                opts.selected_voxels {mustBeTextScalar} = "brightest"  % "inferior-quantile", "inferior-half", "superior-half", "all"
                 opts.flipLR logical = false
             end
             this = this@mlraut.PhysioData(ihcp, bold);
-            this.best_voxel_ = opts.best_voxels;
+
+            this.prefer_brightest = opts.prefer_brightest;
+            this.selected_voxels_ = opts.selected_voxels;
             this.physio_roi_ = mlraut.PhysioRoi(ihcp, bold, ...
                 flipLR=opts.flipLR, ...
                 from_imaging_context=this.ifv_mask);
@@ -78,9 +142,9 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
     %% PRIVATE
 
     properties (Access = private)
-        best_voxel_
         ifv_mask_
         physio_roi_    
+        selected_voxels_
     end
 
     methods (Access = private)
@@ -97,6 +161,7 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
 
             idx = max(idx_, idx_median);
         end
+
         function idx = find_idx_inferior(~, ic)
             ic = max(max(ic, [], 1), [], 2);  % mip projected to z
             img_z = squeeze(ic.imagingFormat.img);

@@ -67,7 +67,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as = this.testObj;
             as.do_save=true;
             as.do_save_ciftis=true;
-            as.source_physio="iFV";
+            as.source_physio="iFV-brightest";
            
             disp(as)            
             call(as);

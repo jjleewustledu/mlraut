@@ -72,7 +72,7 @@ classdef Lee2024 < handle
 
             arguments
                 this mlraut.Lee2024
-                opts.physio {mustBeTextScalar} = "iFV"
+                opts.physio {mustBeTextScalar} = "iFV-brightest"
             end
 
             data = {};
@@ -107,7 +107,7 @@ classdef Lee2024 < handle
         function build_var_for_gbm(this, opts)
             arguments
                 this mlraut.Lee2024
-                opts.physio {mustBeTextScalar} = "iFV"
+                opts.physio {mustBeTextScalar} = "iFV-brightest"
             end
 
             build_mean_for_gbm_mat = fullfile(this.matlabout_dir, "Lee2024_build_mean_for_gbm.mat");
@@ -518,27 +518,27 @@ classdef Lee2024 < handle
                 try
                     pwd_ = pushd(fullfile(this.matlabout_dir, "sub-"+t.I3CRID(row)));
                     angle(row) = mean(this.similarity_physios( ...
-                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        "sub-*-CE*.mat", "sub-*-iFV-brightest*.mat", ...
                         measure="angle" ...
                     ));
                     correlation(row) = this.similarity_physios( ...
-                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        "sub-*-CE*.mat", "sub-*-iFV-brightest*.mat", ...
                         measure="connectivity" ...
                     );
                     T(row) = mean(this.similarity_physios( ...
-                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        "sub-*-CE*.mat", "sub-*-iFV-brightest*.mat", ...
                         measure="T" ...
                     ));
                     X(row) = mean(this.similarity_physios( ...
-                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        "sub-*-CE*.mat", "sub-*-iFV-brightest*.mat", ...
                         measure="X" ...
                     ));
                     Y(row) = mean(this.similarity_physios( ...
-                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        "sub-*-CE*.mat", "sub-*-iFV-brightest*.mat", ...
                         measure="Y" ...
                     ));
                     Z(row) = mean(this.similarity_physios( ...
-                        "sub-*-CE*.mat", "sub-*-iFV*.mat", ...
+                        "sub-*-CE*.mat", "sub-*-iFV-brightest*.mat", ...
                         measure="Z" ...
                     ));
                     popd(pwd_);
@@ -671,7 +671,7 @@ classdef Lee2024 < handle
                 ld struct
                 data cell
                 field {mustBeTextScalar}
-                opts.physio {mustBeTextScalar} = "iFV"
+                opts.physio {mustBeTextScalar} = "iFV-brightest"
                 opts.rsn {mustBeScalarOrEmpty} = -1
             end
             valid_rsn = 1 <= opts.rsn && opts.rsn <= 9;
@@ -757,7 +757,7 @@ classdef Lee2024 < handle
                 ld struct
                 data cell
                 field {mustBeTextScalar}
-                opts.physio {mustBeTextScalar} = "iFV"
+                opts.physio {mustBeTextScalar} = "iFV-brightest"
                 opts.rsn {mustBeScalarOrEmpty} = -1
             end
             valid_rsn = 1 <= opts.rsn && opts.rsn <= 9;
@@ -798,14 +798,14 @@ classdef Lee2024 < handle
             arguments
                 this mlraut.Lee2024
                 subdir {mustBeFolder}
-                opts.physio {mustBeTextScalar} = "iFV"
+                opts.physio {mustBeTextScalar} = "iFV-brightest"
                 opts.rsn {mustBeInteger} = -1
                 opts.weight {mustBeScalarOrEmpty} = 1
-                opts.build_residuals logical = true
+                opts.build_residuals logical = false
             end
             use_rsn = 1 <= opts.rsn && opts.rsn <= 9;
 
-            m = mglob(fullfile(subdir, "*"+opts.physio+"*.mat"));
+            m = mglob(fullfile(subdir, "*run-all*"+opts.physio+"*.mat"));
             m = m(~contains(m, "-concat.mat"));
             if isempty(m)
                 error("mlraut:RuntimeError", stackstr(use_dashes=true) + "-data-missing")

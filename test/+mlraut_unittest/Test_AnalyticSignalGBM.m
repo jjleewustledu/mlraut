@@ -136,7 +136,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 hp_thresh=0.01, ...
                 lp_thresh=0.1, ...
                 out_dir=out_dir, ...
-                source_physio="iFV", ...
+                source_physio="iFV-brightest", ...
                 tags=stackstr(), ...                
                 v_physio=50); 
             disp(this.testObj_)
@@ -288,6 +288,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
 
             v_physio_gbm = 0.05;
+            source_physio = 'iFV-brightest';
             v_physio_iFV = 50;
 
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
@@ -358,7 +359,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_plot_wavelets=true, ...
                 roi=ce);
             call(this.testObj_);
-            % call_superposition(this.testObj_, ["iFV", "CE_on_T1w"], [v_physio_iFV, v_physio_gbm]);
+            % call_superposition(this.testObj_, ["iFV-brightest", "CE_on_T1w"], [v_physio_iFV, v_physio_gbm]);
 
             % qc
             pwd0 = pushd(this.testObj_.out_dir);
@@ -412,7 +413,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_plot_wavelets=true, ...
                 roi=edema);
             call(this.testObj_);
-            % call_superposition(this.testObj_, ["iFV", "edema_on_T1w"], [v_physio_iFV, v_physio_gbm]);
+            % call_superposition(this.testObj_, ["iFV-brightest", "edema_on_T1w"], [v_physio_iFV, v_physio_gbm]);
         end
 
         function test_call_I3CR1488_wt(this)
@@ -450,7 +451,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_plot_wavelets=true, ...
                 roi=wt);
             call(this.testObj_);
-            % call_superposition(this.testObj_, ["iFV", "WT_on_T1w"], [v_physio_iFV, v_physio_gbm]);
+            % call_superposition(this.testObj_, ["iFV-brightest", "WT_on_T1w"], [v_physio_iFV, v_physio_gbm]);
         end
         
         function test_edema(this)
@@ -488,7 +489,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_plot_networks=true, ...
                 roi=edema);
             call(this.testObj_);
-            call_superposition(this.testObj_, 1, ["iFV", "edema_on_T1w"]);
+            call_superposition(this.testObj_, 1, ["iFV-brightest", "edema_on_T1w"]);
         end
 
         function test_call_I3CR0479_no_physio(this)   

@@ -171,7 +171,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                         do_save=true, ...
                         do_save_ciftis=true, ...
                         out_dir=out_dir, ...
-                        source_physio='iFV');
+                        source_physio='iFV-brightest');
                     call(this);
 
                     out_dir = fullfile( ...
@@ -220,7 +220,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
 
             arguments
                 sub {mustBeText} = "sub-I3CR0015"
-                opts.source_physio {mustBeText} = "iFV"
+                opts.source_physio {mustBeText} = "iFV-brightest"
             end
             sub = {convertStringsToChars(sub)};
 

@@ -16,6 +16,23 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+        function test_physio(this)
+
+            this.verifyEqual(this.testObj.current_subject, this.testObj.subjects{1});
+
+            size_bold = [1196, 91282];
+            T = 1195 * this.testObj.tr;
+            times = 0:this.testObj.tr:T;
+            physios = "latV";
+            %physios = [ ...
+            %    "iFV-brightest", "iFV-quantile", "iFV", "sFV", "4thV", "3rdV", "latV"];
+            for phys = physios
+                this.testObj.source_physio = phys;
+                [~,physio_vec,pROI] = this.testObj.task_physio(size_reference=size_bold);
+                figure; plot(times, asrow(real(physio_vec)))
+                pROI.view_qc();  % (this.testObj.t1w_fqfn);
+            end
+        end
         function test_build_band_passed(this)
             obj = this.testObj;
             size_bold = [1196, 91282];
@@ -117,7 +134,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             % Elapsed time is 327.790908 seconds.
         end
         function test_call_dphysio(this)
-            for p = ["iFV" "RV", "HRV"]
+            for p = ["iFV-brightest" "RV", "HRV"]
                 as = mlraut.AnalyticSignalHCP( ...
                     subjects={'995174'}, ...
                     tasks={'rfMRI_REST1_RL'}, ...
@@ -183,7 +200,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
                 hp_thresh=0.005, ...
                 lp_thresh=0.1, ...
                 tags=stackstr(use_dashes=true), ...
-                source_physio="iFV");
+                source_physio="iFV-brightest");
             call(as);
             disp(as)
 
@@ -201,7 +218,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
                 hp_thresh=0.005, ...
                 lp_thresh=0.1, ...
                 tags=stackstr(use_dashes=true), ...
-                source_physio="iFV");
+                source_physio="iFV-brightest");
             call(as);
             disp(as)
 
@@ -223,7 +240,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
                     hp_thresh=0.005, ...
                     lp_thresh=0.1, ...
                     tags=stackstr(use_dashes=true), ...
-                    source_physio="iFV");
+                    source_physio="iFV-brightest");
                 call(as);
                 disp(as.tasks)
             end
@@ -236,7 +253,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
                 do_save=true, ...
-                source_physio="iFV");
+                source_physio="iFV-brightest");
             call(as, do_qc=true)
             disp(as)
 
@@ -333,7 +350,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         function test_physio_iFV(this)
             as = this.testObj;
             as.tags_user=stackstr(use_dashes=true);
-            as.source_physio = "iFV";
+            as.source_physio = "iFV-brightest";
 
             bold = as.task_niigz();
             iFV = mlraut.IFourthVentricle(as, bold);
@@ -536,7 +553,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
                 hp_thresh=0.005, ...
                 lp_thresh=0.1, ...
                 tags=stackstr(use_dashes=true), ...
-                source_physio="iFV", ...
+                source_physio="iFV-brightest", ...
                 global_signal_regression=true);
 
             as.current_subject = as.subjects{1};

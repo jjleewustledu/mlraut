@@ -892,6 +892,24 @@ classdef AnalyticSignal < handle & mlraut.HCP
             assert(~isempty(physio))
         end
 
+        % function [physio,physio_vec,pROI] = task_physios(this, opts)
+        %     %  Returns:
+        %     %      physio numeric Nt x 1
+        %     %      physio_0 numeric Nt x 1
+        %     %      pROI mlraut.PhysioData : for view_qc(), prop. roi_mask 
+        %     %  Throws:
+        %     %      mlraut:ValueError if this.source_physio not supported
+        % 
+        %     arguments
+        %         this mlraut.AnalyticSignal
+        %         opts.roi = this.roi
+        %         opts.flipLR logical = false
+        %         opts.source_physio {mustBeText} = this.source_physio
+        %         opts.size_reference {mustBeNumeric} = []
+        %     end
+        % 
+        % end
+
         function ic = task_signal_mask(this)
             if ~isempty(this.task_signal_mask_)
                 ic = this.task_signal_mask_;
@@ -1032,7 +1050,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                      double row_vec for mlraut.PhysioRoi(from_wmparc_indices=row_vec)
             %                      used with this.task_physio()
             %      opts.scale_to_hcp {mustBeScalar,mustBePositive} = 1: scaling factor
-            %      opts.source_physio {mustBeTextScalar} = 'iFV'
+            %      opts.source_physio {mustBeTextScalar} = 'iFV-brightest'
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
             %      opts.tasks cell {mustBeText} = {}
@@ -1068,7 +1086,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.rescaling {mustBeTextScalar} = "iqr"
                 opts.roi = []
                 opts.scale_to_hcp double {mustBePositive} = 1
-                opts.source_physio = "iFV"
+                opts.source_physio = "iFV-brightest"
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}

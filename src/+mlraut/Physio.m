@@ -195,7 +195,7 @@ classdef Physio < handle
                 case 'HRV'
                     physio = this.physio_hrv(subj, task, BOLD);
                     physio = this.trim_frames(physio);
-                case 'iFV'
+                case {'iFV', 'iFV-brightest'}
                     physio = this.physio_iFV(subj, task);
                     physio = this.trim_frames(physio);
                 otherwise
@@ -256,7 +256,7 @@ classdef Physio < handle
             %      hp_thresh (isnumeric): default := 0.01 from Ryan.
             %      lp_thresh (isnumeric): default := 0.05-0.1 from Ryan.
             %      do_save (logical): save mlraut.Pysio to mat ~ 10 GB.
-            %      tasks (cell of text): '', 'iFV', 'RV', 'HRV'
+            %      tasks (cell of text): '', 'iFV-brightest', 'iFV', 'RV', 'HRV'
             %      source_physio (logical)
             %      gs_subtract (logical)
             
@@ -270,7 +270,7 @@ classdef Physio < handle
             addParameter(ip, "lp_thresh", this.lp_thresh, @isnumeric);
             addParameter(ip, "do_save", true, @islogical);
             addParameter(ip, "tasks", this.tasks_, @iscell);
-            addParameter(ip, "source_physio", 'iFV', @istext)
+            addParameter(ip, "source_physio", 'iFV-brightest', @istext)
             addParameter(ip, "gs_subtract", true, @islogical)
             parse(ip, varargin{:})
             ipr = ip.Results;
@@ -307,15 +307,15 @@ classdef Physio < handle
         function this = sweep_spectral_range(varargin)
             %  Params:
             %      tag (text): folders are named "arousal-waves-<tag>-0p01-0p05"
-            %      physio (text): '', 'iFV', 'RV'
+            %      physio (text): '', 'iFV-brightest', 'iFV', 'HRV', 'RV'
             %      gs_subtract (logical)
             %      fmin (scalar): > 0, units of 1/tr.
             %      fmax (scalar): < inf, units of 1/tr.
             %      N (optional scalar): num. of requested samples of f, default is 9.
 
             ip = inputParser;
-            addParameter(ip, "tag", "iFV", @istext);
-            addParameter(ip, "physio", "iFV", @istext);
+            addParameter(ip, "tag", "iFV-brightest", @istext);
+            addParameter(ip, "physio", "iFV-brightest", @istext);
             addParameter(ip, "gs_subtract", true, @islogical)
             addParameter(ip, "fmin", 0, @isscalar);
             addParameter(ip, "fmax", inf, @isscalar);
