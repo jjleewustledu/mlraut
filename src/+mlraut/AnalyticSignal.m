@@ -25,6 +25,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         force_band  % force bandpass to [0.01 0.1] Hz
         force_legacy_butter  
         frac_ext_physio  % fraction of external physio power
+        norm  % see also this.rescaling for kind of norm
         source_physio
         v_physio  % velocity of physio signal, m/s
         v_physio_iFV  % velocity of physio signal, m/s
@@ -406,6 +407,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 otherwise
                     n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
             end
+            this.norm = n;
         end
 
         function psi = build_rescaled(this, psi, opts)
