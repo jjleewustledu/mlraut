@@ -67,6 +67,52 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+
+        function test_physio(this)
+
+            % SUB = {'sub-I3CR0023'};  % legaacy
+            % SUB = {'sub-I3CR0433'};  % OS ~ 2696 days, 35 yo
+            % SUB = {'sub-I3CR0668'};  % OS ~ 2568 days, 46 yo
+            % SUB = {'sub-I3CR0311'};  % OS ~ 2246 days, 36 yo
+            % SUB = {'sub-I3CR0111'};  % OS ~ 2246 days   
+            % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
+            SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
+
+            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
+            cd(root_dir);
+
+            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
+            ensuredir(out_dir);
+
+            this.testObj = mlraut.AnalyticSignalGBM( ...
+                subjects=SUB, ...
+                tasks={'ses-1_task-rest_run-all_desc-preproc'}, ...
+                do_resting=true, ...
+                out_dir=out_dir, ...
+                v_physio=50, ...
+                plot_range=1:69, ...
+                do_plot_networks=false, ...
+                do_plot_wavelets=false, ...
+                source_physio="none");
+
+            size_bold = [320, 91282];
+            T = 319 * this.testObj.tr;
+            times = 0:this.testObj.tr:T;
+
+            % this.testObj.source_physio = "ROI";
+            % this.testObj.task_physio(size_reference=size_bold);
+            % must throw RuntimeError
+
+            physios = [ ...
+                "iFV-brightest", "iFV-quantile", "iFV", "sFV", "4thV", "3rdV", "latV", "CE"];
+            for phys = physios
+                this.testObj.source_physio = phys;
+                [~,physio_vec,pROI] = this.testObj.task_physio(size_reference=size_bold);
+                figure; plot(times, asrow(real(physio_vec)))
+                title(phys + ", averaged time-series");
+                pROI.view_qc();  % (this.testObj.t1w_fqfn);
+            end
+        end
         
         function test_ctor_I3CR0002(this)
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';

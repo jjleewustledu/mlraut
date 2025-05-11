@@ -54,10 +54,8 @@ classdef PhysioRoi < handle & mlraut.PhysioData
                 end
                 return
             end
-
-            % return trivial unit mask
-            wmp = mlfourd.ImagingContext2(this.ihcp_.wmparc_fqfn);
-            ic = ones(wmp);
+            
+            error("mlraut:RunTimeError", stackstr())
         end
 
         function bold = call(this)

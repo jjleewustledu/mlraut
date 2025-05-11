@@ -167,15 +167,27 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             %% flip maps on T1w for use with sets of central & right-sided GBMs
 
             mnl_dir = this.cohort_data.mninonlinear_dir;
-            ce = mlfourd.ImagingContext2(fullfile(mnl_dir, "CE_on_T1w.nii.gz"));
-            ce = flip(ce, 1);
-            ce.save;
-            wt = mlfourd.ImagingContext2(fullfile(mnl_dir, "WT_on_T1w.nii.gz"));
-            wt = flip(wt, 1);
-            wt.save;
-            t1w = mlfourd.ImagingContext2(fullfile(mnl_dir, "T1w.nii.gz"));
-            t1w = flip(t1w, 1);
-            t1w.save;
+            try
+                ce = mlfourd.ImagingContext2(fullfile(mnl_dir, "CE_on_T1w.nii.gz"));
+                ce = flip(ce, 1);
+                ce.save;
+            catch ME
+                handwarning(ME)
+            end
+            try
+                wt = mlfourd.ImagingContext2(fullfile(mnl_dir, "WT_on_T1w.nii.gz"));
+                wt = flip(wt, 1);
+                wt.save;
+            catch ME
+                handwarning(ME)
+            end
+            try
+                t1w = mlfourd.ImagingContext2(fullfile(mnl_dir, "T1w.nii.gz"));
+                t1w = flip(t1w, 1);
+                t1w.save;
+            catch ME
+                handwarning(ME)
+            end
         end
 
         function this = call(this, opts)
