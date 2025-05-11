@@ -289,6 +289,31 @@ classdef Lee2024 < handle
             fontsize(scale=1.618)
         end
 
+        function save_ciftis(this, asobj, opts)
+            arguments
+                this mlraut.Lee2024 %#ok<INUSA>
+                asobj mlraut.AnalyticSignalHCP  % minimally must understand cifti
+                opts.out_dir {mustBeFolder} = pwd
+                opts.do_save_bias_to_rsns logical = true
+                opts.do_save_dynamic logical = false
+                opts.template_cifti {mustBeFile} = cifti_read( ...
+                    fullfile( ...
+                    getenv("SINGULARITY_HOME"), ...
+                    "AnalyticSignalGBM", "analytic_signal", "tmp", ...
+                    "connectivity_sub-I3CR1488_ses-1_task-rest_run-all_desc-preproc_proc-v50-scaleiqr-iFV-brightest.dscalar.nii")) 
+            end
+
+            %% KLUDGE
+            asobj.template_cifti = opts.template_cifti;
+            
+            asobj.out_dir = opts.out_dir;
+            asobj.do_save = false;
+            asobj.do_save_bias_to_rsns = opts.do_save_bias_to_rsns;
+            asobj.do_save_ciftis = true;
+            asobj.do_save_dynamic = opts.do_save_dynamic;
+            meta_save(asobj);
+        end
+
         function m = similarity_physios(this, p1, p2, opts)
             arguments
                 this mlraut.Lee2024 %#ok<INUSA>

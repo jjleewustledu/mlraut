@@ -15,10 +15,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_radar
         do_plot_wavelets
         do_save
-        do_save_subset
+        do_save_bias_to_rsns  % see also meta_save()
         do_save_ciftis
         do_save_ciftis_of_diffs
         do_save_dynamic
+        do_save_subset
 
         filter_order  % >= 2
         force_band  % force bandpass to [0.01 0.1] Hz
@@ -1007,10 +1008,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_radar logical = false
             %      opts.do_plot_wavelets logical = false
             %      opts.do_save logical = true : save fully populated this to mlraut_AnalyticSignal.mat
-            %      opts.do_save_subset logical = false : save only subset of this to decrease storage
+            %      opts.do_save_bias_to_rsns logical = true
             %      opts.do_save_ciftis logical = false: save ciftis of {abs,angle} of analytic_signal.
             %      opts.do_save_ciftis_of_diffs logical = false: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
+            %      opts.do_save_subset logical = false : save only subset of this to decrease storage
             %      opts.filter_order double = 8
             %      opts.force_band logical = false: force bandpass to Nyquist limits of available data
             %      opts.force_legacy_butter logical = false: 
@@ -1046,10 +1048,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_radar logical = false
                 opts.do_plot_wavelets logical = false
                 opts.do_save logical = false
-                opts.do_save_subset logical = false
+                opts.do_save_bias_to_rsns logical = true
                 opts.do_save_ciftis logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
+                opts.do_save_subset logical = false
                 opts.filter_order double = 8
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
@@ -1088,10 +1091,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_radar = opts.do_plot_radar;
             this.do_plot_wavelets = opts.do_plot_wavelets;
             this.do_save = opts.do_save;
-            this.do_save_subset = opts.do_save_subset;
+            this.do_save_bias_to_rsns = opts.do_save_bias_to_rsns;
             this.do_save_ciftis = opts.do_save_ciftis;
             this.do_save_ciftis_of_diffs = opts.do_save_ciftis_of_diffs;
             this.do_save_dynamic = opts.do_save_dynamic;
+            this.do_save_subset = opts.do_save_subset;
 
             this.filter_order = opts.filter_order;
             this.force_band = opts.force_band;

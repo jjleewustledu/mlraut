@@ -252,6 +252,32 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
         end
         
         function test_call_I3CR1488_iFV(this)   
+        function test_concat_frames_and_save(this)
+            SUB = "sub-I3CR0433";  % OS ~ 2696 days, 35 yo
+            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
+
+            lee = mlraut.Lee2024();
+            lee.concat_frames_and_save( ...
+                fullfile(out_dir, SUB), ...
+                do_save=false, ...
+                do_save_ciftis=true, ...
+                do_save_dynamic=true);
+        end
+
+        function test_save_ciftis(this)
+            SUB = "sub-I3CR0311";  % OS ~ 2696 days, 35 yo
+            out_dir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalGBM", "analytic_signal", "matlabout");
+
+            lee = mlraut.Lee2024();
+            globbed = mglob(fullfile(out_dir, SUB, "*run-all*.mat"));
+            for g = globbed
+                ld = load(g);
+                lee.save_ciftis( ...
+                    ld.this, ...
+                    out_dir=fullfile(out_dir, SUB), ...
+                    do_save_bias_to_rsns=false);
+            end
+        end
             %% right temporo-parietal, no midline shift
 
             % SUB = {'sub-I3CR0023'};  % legaacy
