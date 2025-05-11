@@ -252,7 +252,6 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             call(this.testObj_);
         end
         
-        function test_call_I3CR1488_iFV(this)   
         function test_concat_frames_and_save(this)
             SUB = "sub-I3CR0433";  % OS ~ 2696 days, 35 yo
             out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
@@ -279,17 +278,20 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                     do_save_bias_to_rsns=false);
             end
         end
+
+        function test_call(this)   
             %% right temporo-parietal, no midline shift
 
             % SUB = {'sub-I3CR0023'};  % legaacy
+            SUB = {'sub-I3CR0433'};  % OS ~ 2696 days, 35 yo
             % SUB = {'sub-I3CR0668'};  % OS ~ 2568 days, 46 yo
             % SUB = {'sub-I3CR0311'};  % OS ~ 2246 days, 36 yo
             % SUB = {'sub-I3CR0111'};  % OS ~ 2246 days   
             % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
-            SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
+            % SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
 
-            v_physio_gbm = 0.05;
             source_physio = 'iFV-brightest';
+            v_physio_gbm = 0.451e-3;
             v_physio_iFV = 50;
 
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
@@ -298,31 +300,61 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
             ensuredir(out_dir);
 
+            tic  
+            % run-all, run-01, run-02
             this.testObj_ = mlraut.AnalyticSignalGBM( ...
                 subjects=SUB, ...
                 tasks={'ses-1_task-rest_run-all_desc-preproc'}, ...
                 do_resting=true, ...
                 do_save=true, ...
-                do_save_dynamic=false, ...
+                do_save_dynamic=true, ...
                 do_save_ciftis=true, ...
                 out_dir=out_dir, ...
                 v_physio=v_physio_iFV, ...
                 plot_range=1:69, ...
                 do_plot_networks=false, ...
-                do_plot_wavelets=true, ...
-                source_physio='iFV');
+                do_plot_wavelets=false, ...
+                source_physio=source_physio);
             call(this.testObj_);
+            toc
 
             % qc
-            pwd0 = pushd(this.testObj_.out_dir);
-            zeta = this.testObj_.HCP_signals.ctx.psi(:,9) ./ this.testObj_.HCP_signals.ctx.phi(:,9);
-            this.testObj_.fit_power_law(x=zeta, title="\zeta = \psi / \phi");
-            this.testObj_.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
-            this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
-            this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
-            % figure; imagesc(angle(this.testObj_.physio_signal));
-            this.testObj_.plotting.saveFigures("qc");
-            popd(pwd0);
+            % pwd0 = pushd(this.testObj_.out_dir);
+            % zeta = this.testObj_.HCP_signals.ctx.psi(:,9) ./ this.testObj_.HCP_signals.ctx.phi(:,9);
+            % this.testObj_.fit_power_law(x=zeta, title="\zeta = \psi / \phi");
+            % this.testObj_.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
+            % this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
+            % this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
+            % % figure; imagesc(angle(this.testObj_.physio_signal));
+            % this.testObj_.plotting.saveFigures("qc");
+            % popd(pwd0);
+        end
+
+        function test_call_I3CR0002_ce(this)
+
+            SUB = {'sub-I3CR0002'};
+
+            v_physio_gbm = 0.451e-3;  % 451 um/s ~ 0.451e-3 m/s by gap junctions
+            v_physio_iFV = 50;
+
+            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
+            cd(root_dir);
+
+            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
+            ensuredir(out_dir);
+
+            tic
+            this.testObj_ = mlraut.AnalyticSignalGBM( ...
+                subjects=SUB, ...
+                tasks={'ses-1_task-rest_run-01_desc-preproc'}, ...
+                do_resting=true, ...
+                do_save=true, ...
+                out_dir=out_dir, ...
+                source_physio='CE_on_T1w', ...
+                v_physio=v_physio_gbm, ...
+                plot_range=1:69);
+            call(this.testObj_);
+            toc
         end
 
         function test_call_I3CR1488_ce(this)
@@ -335,7 +367,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
             SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
 
-            v_physio_gbm = 0.05;  % 5 cm/s by gap junctions
+            v_physio_gbm = 0.451e-3;  % 451 um/s ~ 0.451e-3 m/s by gap junctions
             v_physio_iFV = 50;
 
             root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
@@ -344,8 +376,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
             ensuredir(out_dir);
 
-            ce = mlfourd.ImagingContext2( ...
-                fullfile(root_dir, SUB{1}, 'MNINonLinear', 'CE_on_T1w.nii.gz'));
+            tic
             this.testObj_ = mlraut.AnalyticSignalGBM( ...
                 subjects=SUB, ...
                 tasks={'ses-1_task-rest_run-all_desc-preproc'}, ...
@@ -354,24 +385,25 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_save_dynamic=true, ...
                 do_save_ciftis=true, ...
                 out_dir=out_dir, ...
+                source_physio='CE_on_T1w', ...
                 v_physio=v_physio_gbm, ...
                 plot_range=1:69, ...
                 do_plot_networks=false, ...
-                do_plot_wavelets=true, ...
-                roi=ce);
+                do_plot_wavelets=true);
             call(this.testObj_);
             % call_superposition(this.testObj_, ["iFV-brightest", "CE_on_T1w"], [v_physio_iFV, v_physio_gbm]);
+            toc
 
             % qc
-            pwd0 = pushd(this.testObj_.out_dir);
-            zeta = this.testObj_.HCP_signals.ctx.psi(:,9) ./ this.testObj_.HCP_signals.ctx.phi(:,9);
-            this.testObj_.fit_power_law(x=zeta, title="\zeta = \psi / \phi");
-            this.testObj_.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
-            this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
-            this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
-            % figure; imagesc(angle(this.testObj_.physio_signal));
-            this.testObj_.plotting.saveFigures("qc");
-            popd(pwd0);
+            % pwd0 = pushd(this.testObj_.out_dir);
+            % zeta = this.testObj_.HCP_signals.ctx.psi(:,9) ./ this.testObj_.HCP_signals.ctx.phi(:,9);
+            % this.testObj_.fit_power_law(x=zeta, title="\zeta = \psi / \phi");
+            % this.testObj_.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
+            % this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
+            % this.testObj_.plot3(z=this.testObj_.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
+            % % figure; imagesc(angle(this.testObj_.physio_signal));
+            % this.testObj_.plotting.saveFigures("qc");
+            % popd(pwd0);
         end
 
         function test_call_I3CR1488_edema(this)

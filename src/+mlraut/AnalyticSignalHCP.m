@@ -90,7 +90,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
             for t = 1:this.num_tasks     
                 try
-                    this.malloc();
+                    this.malloc();  % resets caches for each task
                     this.current_task = this.tasks{t};
 
                     % BOLD

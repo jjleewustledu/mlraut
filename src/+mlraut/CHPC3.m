@@ -33,10 +33,10 @@ classdef CHPC3
 
         function c = propcluster(account_name, opts)
             arguments
-                account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
-                opts.partition = 'tier2_cpu'
-                opts.mempercpu {mustBeTextScalar} = '100gb'
-                opts.walltime {mustBeTextScalar} = '08:00:00'
+                account_name = 'joshua_shimony'  % 'aristeidis_sotiras' 'joshua_shimony' 'manu_goyal' 'john_lee'
+                opts.partition = 'tier1_cpu'  % 'tier2_cpu' 'tier1_cpu'
+                opts.mempercpu {mustBeTextScalar} = '128gb'
+                opts.walltime {mustBeTextScalar} = '02:00:00'
             end
             if ~strcmp(account_name, 'aristeidis_sotiras')
                 opts.partition = 'tier1_cpu';
@@ -91,6 +91,15 @@ classdef CHPC3
             disp(c.AdditionalProperties)
         end
 
+        function c = propcluster_64gb_2h(account_name, opts)
+            arguments
+                account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
+                opts.partition = 'tier2_cpu'
+            end
+            c = mlraut.CHPC3.propcluster(account_name, ...
+                partition=opts.partition, mempercpu='64gb', walltime='2:00:00');
+        end
+
         function c = propcluster_16gb_100h(account_name, opts)
             arguments
                 account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
@@ -100,13 +109,31 @@ classdef CHPC3
                 partition=opts.partition, mempercpu='16gb', walltime='100:00:00');
         end
 
-        function c = propcluster_16gb_1h(account_name, opts)
+        function c = propcluster_16gb_24h(account_name, opts)
             arguments
                 account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
                 opts.partition = 'tier2_cpu'
             end
             c = mlraut.CHPC3.propcluster(account_name, ...
-                partition=opts.partition, mempercpu='16gb', walltime='01:00:00');
+                partition=opts.partition, mempercpu='16gb', walltime='24:00:00');
+        end
+
+        function c = propcluster_16gb_4h(account_name, opts)
+            arguments
+                account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
+                opts.partition = 'tier2_cpu'
+            end
+            c = mlraut.CHPC3.propcluster(account_name, ...
+                partition=opts.partition, mempercpu='16gb', walltime='04:00:00');
+        end
+
+        function c = propcluster_4gb_1h(account_name, opts)
+            arguments
+                account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'
+                opts.partition = 'tier2_cpu'
+            end
+            c = mlraut.CHPC3.propcluster(account_name, ...
+                partition=opts.partition, mempercpu='4gb', walltime='01:00:00');
         end
 
         function setenvs()

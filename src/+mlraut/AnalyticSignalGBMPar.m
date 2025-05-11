@@ -44,6 +44,8 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
         end
 
         function this = mean_twistor(physio)
+            %% see also mlraut.Lee2024.build_mean_for_gbm()
+
             arguments
                 physio {mustBeTextScalar} = 'physio_iFV'
             end
@@ -375,6 +377,72 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
         function [j,c] = cluster_batch_call_2(globbing_mat, opts)
             %% for clusters running Matlab parallel server
             %  globbing_mat (text): on local machine calling parallel server
+            %  globbing_var (text) = "globbed": the object name of interest in globbing_mat
+
+            arguments
+                globbing_mat {mustBeFile} = ...
+                    fullfile( ...
+                    filesep, 'Users', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify', ...
+                    'mlraut_AnalyticSignalGBMPar_globbing.mat')
+                opts.globbing_var = "globbed"
+                opts.source_physio = "CE_on_T1w"
+                opts.v_physio double = 50
+            end
+            ld = load(globbing_mat);
+            globbed = convertStringsToChars(ld.(opts.globbing_var));
+            globbed = asrow(globbed);
+
+            % % find matlabout/sub-* which may need recovery
+            % out_dir = fullfile( ...
+            %     getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout');
+            % sub_dirs = mglob(fullfile(out_dir, 'sub-*'));
+            % deselect = false(size(sub_dirs));
+            % for idx = 1:length(sub_dirs)
+            %     deselect(idx) = ~isempty(mglob(fullfile(sub_dirs(idx), '*iFV-brightest*.mat')));
+            % end
+            % sub_dirs(deselect) = [];
+            % [~,subs] = fileparts(sub_dirs);
+            % 
+            % % select the subset of globbed that contains subs
+            % select = false(size(globbed));
+            % for idx = 1:length(subs)
+            %     select = select | contains(globbed, subs(idx));
+            % end
+            % globbed = globbed(select);
+
+            % pad and reshape globbed
+            Ncol = 10;
+            Nrow = ceil(numel(globbed)/Ncol);
+            padding = repmat("", [1, Ncol*Nrow - numel(globbed)]);
+            globbed = [globbed, padding];
+            globbed = reshape(globbed, Nrow, Ncol);
+            globbed = convertStringsToChars(globbed);
+            fprintf("%s:globbed:\n", stackstr())
+            disp(size(globbed))
+            disp(ascol(globbed))
+
+            % contact cluster slurm
+
+            c = mlraut.CHPC3.propcluster();
+            disp(c.AdditionalProperties)
+            for irow = 1:Nrow
+                try
+                    j = c.batch( ...
+                        @mlraut.AnalyticSignalGBMPar.construct_and_call, ...
+                        1, ...
+                        {globbed(irow, :), "source_physio", opts.source_physio, "v_physio", opts.v_physio}, ...
+                        'Pool', Ncol, ...
+                        'CurrentFolder', tempdir, ...
+                        'AutoAddClientPath', false);
+                catch ME
+                    handwarning(ME)
+                end
+            end
+        end
+
+        function [j,c] = cluster_batch_call_fultz(globbing_mat, opts)
+            %% for clusters running Matlab parallel server
+            %  globbing_mat (text): on local machine calling parallel server
             %  sub_indices (double): nonempty for selecting subjects
             %  globbing_var (text) = "globbed": the object name of interest in globbing_mat
 
@@ -385,80 +453,23 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                     'mlraut_AnalyticSignalGBMPar_globbing.mat')
                 opts.sub_indices double = []
                 opts.globbing_var = "globbed"
-                opts.source_physio = "iFV"
             end
             ld = load(globbing_mat);
             globbed = convertStringsToChars(ld.(opts.globbing_var));
             globbed = asrow(globbed);
-
-            % find matlabout/sub-* which need recovery
-            out_dir = fullfile( ...
-                getenv('SINGULARITY_HOME'), 'AnalyticSignalGBM', 'analytic_signal', 'matlabout');
-            sub_dirs = mglob(fullfile(out_dir, 'sub-*'));
-            deselect = false(size(sub_dirs));
-            for idx = 1:length(sub_dirs)
-                deselect(idx) = ~isempty(mglob(fullfile(sub_dirs(idx), '*.mat')));
+            if ~isempty(opts.sub_indices)
+                globbed = globbed(opts.sub_indices);
             end
-            sub_dirs(deselect) = [];
-            [~,subs] = fileparts(sub_dirs);
-            
-            % find the subset of globbed that contains subs
-            select = false(size(globbed));
-            for idx = 1:length(subs)
-                select = select | contains(globbed, subs(idx));
-            end
-            globbed = globbed(select);
 
-            c = mlraut.CHPC3.propcluster();
+            c = mlraut.CHPC3.propcluster_4gb_1h();
             disp(c.AdditionalProperties)
-            globbed = globbed(2:end);
-            fprintf("%s:globbed:\n", stackstr())
-            disp(size(globbed))
-            disp(ascol(globbed))
             for g = globbed
-                % g = globbed(1);
-                try
-                    j = c.batch( ...
-                        @mlraut.AnalyticSignalGBMPar.construct_and_call, ...
-                        1, ...
-                        {g(1), "source_physio", opts.source_physio}, ...
-                        'CurrentFolder', '.', ...
-                        'AutoAddClientPath', false);
-                catch ME
-                    handwarning(ME)
-                end
-            end
-        end
-
-        function [j,c] = cluster_batch_call_3(globbed, opts)
-            %% for clusters running Matlab parallel server
-            %  globbed (text): ["sub-I3CR0000/", "sub-I3CR0015/", ...] | {'sub-I3CR0000/', 'sub-I3CR0015/', ...}
-
-            arguments
-                globbed = { ...
-                    'sub-I3CR0123', 'sub-I3CR0386', 'sub-I3CR0853', 'sub-I3CR0898', ...
-                    'sub-I3CR1030', 'sub-I3CR1066', 'sub-I3CR1119', 'sub-I3CR1137', 
-                }
-                % 'sub-I3CR0266', 'sub-I3CR0639', 'sub-I3CR1023', 'sub-I3CR1837' ...
-                % globbed = [ ...
-                %     "sub-I3CR0111/", "sub-I3CR0201/", "sub-I3CR0287/", "sub-I3CR0356/", "sub-I3CR0495/", ...
-                %     "sub-I3CR0639/", "sub-I3CR0821/", "sub-I3CR1318/", "sub-I3CR1656/"]
-                opts.source_physio = "edema"  % ["CE", "edema"]
-            end
-            globbed = convertStringsToChars(globbed);
-
-            c = mlraut.CHPC3.propcluster();
-            disp(c.AdditionalProperties)
-            fprintf("%s:globbed:\n", stackstr())
-            disp(size(globbed))
-            disp(ascol(globbed))
-            for g = globbed
-                for sp = opts.source_physio
+                for phys = {'iFV-brightest', 'CE_on_T1w', 'gray'}
                     try
                         j = c.batch( ...
-                            @mlraut.AnalyticSignalGBMPar.construct_and_call, ...
+                            @mlraut.AnalyticSignalGBMPar.construct_and_call_fultz, ...
                             1, ...
-                            {g(1), "source_physio", sp}, ...
+                            {g(1), "source_physio", phys{1}}, ...
                             'CurrentFolder', '.', ...
                             'AutoAddClientPath', false);
                     catch ME
@@ -466,6 +477,8 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                     end
                 end
             end
+
+            % j = c.batch(@mlraut.AnalyticSignalHCPAgingPar.construct_and_call, 1, {}, 'CurrentFolder', '.', 'AutoAddClientPath', false);
         end
 
         function cluster_batch_link_kiyun()
@@ -492,16 +505,73 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
             end
         end
 
-        function duration = construct_and_call(subjects, opts)
+        function durations = construct_and_call(subjects, opts)
+            %% must be called by batch()
+
+            arguments
+                subjects cell = {'sub-I3CR1488'}
+                opts.tags {mustBeTextScalar} = "AnalyticSignalGBMPar"
+                opts.out_dir {mustBeFolder} = fullfile( ...
+                    filesep, 'scratch', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'matlabout')
+                opts.source_physio {mustBeTextScalar} = "CE"  % "iFV" "CE" "edema"
+                opts.v_physio double = 50
+            end
+            durations = nan(1, length(subjects));
+            diary(fullfile(opts.out_dir, subjects{1}, "diary.log"));
+
+            parfor sidx = 1:length(subjects)
+
+                tic;
+
+                % populate tasks for each subject
+                root_dir = fullfile( ...
+                    filesep, 'scratch', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'dockerout', 'ciftify');
+                globbed_tasks = asrow(glob(fullfile(root_dir, subjects{sidx}, 'MNINonLinear', 'Results', '*rest*')));
+                globbed_tasks = mybasename(globbed_tasks);
+
+                % setup
+                mlraut.CHPC3.setenvs();
+                setenv("VERBOSITY", "1");
+                ensuredir(opts.out_dir); %#ok<*PFBNS>
+                ensuredir(fullfile(opts.out_dir, subjects{sidx}));
+
+                % construct & call
+                fprintf("constructing mlraut.AnalyticSignalGBMPar for %s\n", subjects{sidx});
+                this = mlraut.AnalyticSignalGBMPar( ...
+                    subjects=subjects{sidx}, ...
+                    tasks=globbed_tasks, ...
+                    do_resting=true, ...
+                    do_task=false, ...
+                    do_save=true, ...
+                    do_save_dynamic=false, ...
+                    do_save_ciftis=false, ...
+                    do_save_subset=false, ...
+                    global_signal_regression=true, ...
+                    hp_thresh=0.01, ...
+                    lp_thresh=0.1, ...
+                    out_dir=opts.out_dir, ...
+                    source_physio=opts.source_physio, ...
+                    tags=opts.tags, ...
+                    v_physio=opts.v_physio);                
+                call(this);
+
+                durations(sidx) = toc;
+                fprintf("duration for %s: %s seconds", durations(sidx), subjects{sidx});
+            end
+
+            diary("off");
+        end
+
+        function duration = construct_and_call_fultz(subjects, opts)
             %% must be called by batch()
 
             arguments
                 subjects cell = {'sub-I3CR1488'}
                 opts.tasks cell = {}  % {'ses-1_task-rest_run-all_desc-preproc'}
-                opts.tags {mustBeTextScalar} = "AnalyticSignalGBMPar"
+                opts.tags {mustBeTextScalar} = "fultz"
                 opts.out_dir {mustBeFolder} = fullfile( ...
-                    filesep, 'scratch', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'matlabout')
-                opts.source_physio {mustBeTextScalar} = "iFV"  % "iFV" "CE" "edema"
+                    filesep, 'scratch', 'jjlee', 'Singularity', 'AnalyticSignalGBM', 'analytic_signal', 'fultz')
+                opts.source_physio {mustBeTextScalar} = "iFV-brightest"  % "iFV" "CE" "edema"
             end
 
             % populate opts.tasks as needed
@@ -523,24 +593,16 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
             this = mlraut.AnalyticSignalGBMPar( ...
                 subjects=subjects, ...
                 tasks=opts.tasks, ...
-                do_7T=false, ...
-                do_plot_networks=false, ...
-                do_resting=true, ...
-                do_task=false, ...
                 do_save=true, ...
-                do_save_dynamic=false, ...
-                do_save_ciftis=false, ...
-                do_save_subset=false, ...
-                force_band=false, ...
-                global_signal_regression=true, ...
-                hp_thresh=0.01, ...
-                lp_thresh=0.05, ...
-                out_dir=opts.out_dir, ...
+                out_dir=opts.out_dir, ...   
+                v_physio=50, ...
+                plot_range=1:69, ...
                 source_physio=opts.source_physio, ...
-                tags=opts.tags, ...                
-                v_physio=50);
                 hp_thresh=[], ...
                 lp_thresh=0.1, ...
+                rescaling="iqr", ...
+                global_signal_regression=false, ...
+                tag=opts.tags);
             disp("calling this")
             call(this);
             duration = toc;

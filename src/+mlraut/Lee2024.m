@@ -47,26 +47,26 @@ classdef Lee2024 < handle
 
             this.hcpaging_connex = fullfile( ...
                 this.analytic_signal_hcpaging_dir, ...
-                "mean_comparator_as_sub-all_ses-all_proc-v50-iFV-mean-twistor-nlim725_avgt.dscalar.nii");
+                "mean_comparator_as_sub-all_ses-all_proc-v50-iFV-brightest-mean-twistor-nlim725_avgt.dscalar.nii");
             this.hcpaging_angle = fullfile(  ...
                 this.analytic_signal_hcpaging_dir, ...
-                "mean_angle_as_sub-all_ses-all_proc-v50-iFV-mean-element-nlim725_avgt.dscalar.nii");
+                "mean_angle_as_sub-all_ses-all_proc-v50-iFV-brightest-mean-element-nlim725_avgt.dscalar.nii");
             this.hcpaging_T = fullfile( ...
                 this.analytic_signal_hcpaging_dir, ...
-                "mean_T_as_sub-all_ses-all_proc-v50-iFV-mean-element-nlim725_avgt.dscalar.nii");
+                "mean_T_as_sub-all_ses-all_proc-v50-iFV-brightest-mean-element-nlim725_avgt.dscalar.nii");
             this.hcpaging_X = fullfile( ...
                 this.analytic_signal_hcpaging_dir, ...
-                "mean_X_as_sub-all_ses-all_proc-v50-iFV-mean-twistor-rsn7-nlim725_avgt.dscalar.nii");
+                "mean_X_as_sub-all_ses-all_proc-v50-iFV-brightest-mean-twistor-rsn7-nlim725_avgt.dscalar.nii");
             this.hcpaging_Y = fullfile( ...
                 this.analytic_signal_hcpaging_dir, ...
-                "mean_Y_as_sub-all_ses-all_proc-v50-iFV-mean-twistor-rsn7-nlim725_avgt.dscalar.nii");
+                "mean_Y_as_sub-all_ses-all_proc-v50-iFV-brightest-mean-twistor-rsn7-nlim725_avgt.dscalar.nii");
             this.hcpaging_Z = fullfile( ...
                 this.analytic_signal_hcpaging_dir, ...
-                "mean_Z_as_sub-all_ses-all_proc-v50-iFV-mean-element-nlim725_avgt.dscalar.nii");
+                "mean_Z_as_sub-all_ses-all_proc-v50-iFV-brightest-mean-element-nlim725_avgt.dscalar.nii");
         end
 
         function build_mean_for_gbm(this, opts)
-            %  Lee2024_build_mean_for_gbm: Nerr->0, Nsubs->203, for iFV
+            %  Lee2024_build_mean_for_gbm: Nerr->0, Nsubs->203, for iFV-brightest
             %  Lee2024_build_mean_for_gbm: Nerr->46, Nsubs->203, for CE
             %  Lee2024_build_mean_for_gbm: Nerr->47, Nsubs->203, for edema
 
@@ -422,7 +422,7 @@ classdef Lee2024 < handle
             for idx = 1:Nrows
                 i3cr = t.I3CRID(idx);
                 try
-                    g_ifv = mglob(sprintf("sub-%s/sub-%s*-iFV-*-concat.mat", i3cr, i3cr));
+                    g_ifv = mglob(sprintf("sub-%s/sub-%s*-iFV-brightest-*-concat.mat", i3cr, i3cr));
                     assert(~isempty(g_ifv));
                     g_ce = mglob(sprintf("sub-%s/sub-%s*-CE-*-concat.mat", i3cr, i3cr));
                     assert(~isempty(g_ce));
@@ -578,24 +578,24 @@ classdef Lee2024 < handle
             Z = nan(Nrows, 1);
 
             angle_uthr_fn = fullfile(this.matlabout_dir, ...
-                "mean_angle_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+                "mean_angle_as_sub-all_ses-all_proc-v50-iFV-brightest-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
             connex_uthr_fn = fullfile(this.matlabout_dir, ...
-                "mean_connex_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+                "mean_connex_as_sub-all_ses-all_proc-v50-iFV-brightest-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
             T_uthr_fn = fullfile(this.matlabout_dir, ...
-                "mean_T_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+                "mean_T_as_sub-all_ses-all_proc-v50-iFV-brightest-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
             X_uthr_fn = fullfile(this.matlabout_dir, ...
-                "mean_X_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+                "mean_X_as_sub-all_ses-all_proc-v50-iFV-brightest-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
             Y_uthr_fn = fullfile(this.matlabout_dir, ...
-                "mean_Y_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+                "mean_Y_as_sub-all_ses-all_proc-v50-iFV-brightest-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
             Z_uthr_fn = fullfile(this.matlabout_dir, ...
-                "mean_Z_as_sub-all_ses-all_proc-v50-iFV-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
+                "mean_Z_as_sub-all_ses-all_proc-v50-iFV-brightest-Lee2024-build-uthr-dscalar-alpha0p01.dscalar.nii");
 
             % build new variables for table
             for row = 1:Nrows
                 try
                     fprintf("working in %s ...\n", t.I3CRID(row));
                     pwd_ = pushd(fullfile(this.matlabout_dir, "sub-"+t.I3CRID(row)));
-                    globbed = mglob("sub-*iFV*concat.mat");
+                    globbed = mglob("sub-*iFV-brightest*concat.mat");
                     mat_fn = globbed(1);                    
                     angle(row) = this.measure_uthr_avgxyzt( ...
                         mat_fn, angle_uthr_fn, ...

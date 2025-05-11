@@ -119,7 +119,7 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
 
         function build_conc(this)
 
-            %% for AnalyticSignalGBM, concat BOLD runs to have 320 frames available
+            %% for AnalyticSignalGBM, concat BOLD runs to have 320 frames available in Results folders
 
             ciftis = mglob(fullfile(this.cohort_data.mninonlinear_dir, "Results", "*", "ses-*.dtseries.nii"));
             niftis = mglob(fullfile(this.cohort_data.mninonlinear_dir, "Results", "*", "ses-*.nii.gz"));

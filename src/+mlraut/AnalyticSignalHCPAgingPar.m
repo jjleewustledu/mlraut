@@ -1,6 +1,5 @@
 classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
-    %% line1
-    %  line2
+    %% nlim = 10, 689
     %  
     %  Created 07-Feb-2024 23:37:28 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
@@ -8,7 +7,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
     methods (Static)
         function ret = mean_twistor_comparator(nlim)
             arguments
-                nlim = 4;
+                nlim = 10;
             end
 
             %%
@@ -27,7 +26,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 plot_range=1:225, ...
                 tags="mean-twistor");
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -67,8 +66,10 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
         end
 
         function ret = mean_element(nlim, ele)
+            %% hand select measure in string ele
+
             arguments
-                nlim = 4
+                nlim = 10
                 ele {mustBeTextScalar} = "T"
             end
 
@@ -90,7 +91,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 plot_range=1:225, ...
                 tags="mean-element");
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV--brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -136,7 +137,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
         function ret = mean_twistor(nlim, rsn)
             arguments
-                nlim = 4
+                nlim = 10
                 rsn = 7
             end
 
@@ -156,7 +157,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 plot_range=1:225, ...
                 tags="mean-twistor");
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -257,8 +258,10 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
         end
 
         function ret = mean_twistor_Y(nlim, rsn)
+            %% only Y
+
             arguments
-                nlim = 4
+                nlim = 10
                 rsn = 7
             end
 
@@ -278,7 +281,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 plot_range=1:225, ...
                 tags="mean-twistor");
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV--brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -330,7 +333,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
         function ret = var_element(nlim, ele)
             arguments
-                nlim = 4
+                nlim = 10
                 ele {mustBeTextScalar} = "T"
             end
 
@@ -353,12 +356,12 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 tags="mean-element");
 
             tags_ = this.tags(sprintf('nlim%i', nlim));
-            %tags_ = this.tags(sprintf('nlim%i', 725));  % DEBUGGING
+            %tags_ = this.tags(sprintf('nlim%i', 689));  % DEBUGGING
             mu = cifti_read( ...
                 fullfile(char(this.out_dir), ...
                 sprintf('mean_%s_as_sub-all_ses-all_%s_avgt.dscalar.nii', char(ele), char(tags_))));
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV--brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -405,7 +408,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
         function ret = var_twistor_comparator(nlim)
             arguments
-                nlim = 725;
+                nlim = 689;
             end
 
             %%
@@ -425,11 +428,11 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 tags="mean-twistor");
 
             tags_ = this.tags(sprintf('nlim%i', nlim));
-            %tags_ = this.tags(sprintf('nlim%i', 725));  % DEBUGGING
+            %tags_ = this.tags(sprintf('nlim%i', 689));  % DEBUGGING
             mu = cifti_read( ...
                 fullfile(this.out_dir, sprintf('mean_comparator_as_sub-all_ses-all_%s_avgt.dscalar.nii', tags_)));
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV--brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -471,7 +474,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
         function ret = var_twistor(nlim, rsn)
             arguments
-                nlim = 4
+                nlim = 10
                 rsn = 7
             end
 
@@ -492,7 +495,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 tags="mean-twistor");
 
             tags_ = this.tags(sprintf('rsn%i-nlim%i', rsn, nlim));
-            %tags_ = this.tags(sprintf('rsn%i-nlim%i', rsn, 725));  % DEBUGGING
+            %tags_ = this.tags(sprintf('rsn%i-nlim%i', rsn, 689));  % DEBUGGING
             mu_T = cifti_read( ...
                 fullfile(this.out_dir, ...
                 sprintf('mean_T_as_sub-all_ses-all_%s_avgt.dscalar.nii', tags_)));
@@ -512,7 +515,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 fullfile(this.out_dir, ...
                 sprintf('mean_unwrap_as_sub-all_ses-all_%s_avgt.dscalar.nii', tags_)));
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV--brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -614,7 +617,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
         function ret = var_twistor_Y(nlim, rsn)
             arguments
-                nlim = 4
+                nlim = 10
                 rsn = 7
             end
 
@@ -635,7 +638,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 tags="mean-twistor");
 
             tags_ = this.tags(sprintf('rsn%i-nlim%i', rsn, nlim));
-            %tags_ = this.tags(sprintf('rsn%i-nlim%i', rsn, 725));  % DEBUGGING
+            %tags_ = this.tags(sprintf('rsn%i-nlim%i', rsn, 689));  % DEBUGGING
             mu_T = cifti_read( ...
                 fullfile(this.out_dir, ...
                 sprintf('mean_T_as_sub-all_ses-all_%s_avgt.dscalar.nii', tags_)));
@@ -655,7 +658,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                 fullfile(this.out_dir, ...
                 sprintf('mean_unwrap_as_sub-all_ses-all_%s_avgt.dscalar.nii', tags_)));
 
-            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV-AnalyticSignalHCPAgingPar.mat"))));
+            mats = flip(asrow(mglob(fullfile(this.out_dir, "HCA*_MR/sub-*_ses-*-iFV--brightest-scaleiqr-AnalyticSignalHCPAgingPar.mat"))));
             mats = mats(1:nlim);
             nsub = length(mats);
             nx = this.num_nodes;
@@ -762,9 +765,9 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
             arguments
                 do_var logical = false
-                opts.nlim double = 4
+                opts.nlim double = 10
                 opts.only_comparator logical = false
-                opts.include_comparator logical = false
+                opts.include_comparator logical = true
             end
             if opts.only_comparator
                 opts.include_comparator = true;
@@ -839,7 +842,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
             arguments
                 do_var logical = false
-                opts.nlim double = 4
+                opts.nlim double = 10
                 opts.elements {mustBeText} = ["X", "Y"]  % ["T", "Z", "angle", "unwrap"]
             end
 
@@ -882,7 +885,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
             arguments
                 do_var logical = false
-                opts.nlim double = 4
+                opts.nlim double = 10
                 opts.elements {mustBeText} = 7  % rsn
             end
 
@@ -927,7 +930,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
             arguments
                 cores {mustBeScalarOrEmpty} = 2
-                opts.N_sub {mustBeScalarOrEmpty} = 725
+                opts.N_sub {mustBeScalarOrEmpty} = 689
                 opts.flip_globbed logical = true
             end
 
@@ -975,23 +978,41 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
                     fullfile( ...
                     getenv('SINGULARITY_HOME'), 'HCPAging', 'HCPAgingRec', 'fmriresults01', ...
                     'mlraut_AnalyticSignalHCPAgingPar_globbing.mat')
-                opts.sub_indices double = [1,3:100]
+                opts.sub_indices double = []
                 opts.globbing_var = "globbed"
             end
             ld = load(globbing_mat);
             globbed = convertStringsToChars(ld.(opts.globbing_var));
             globbed = asrow(globbed);
-            globbed = globbed(opts.sub_indices);
+            if ~isempty(opts.sub_indices)
+                globbed = globbed(opts.sub_indices);
+            end
+
+            % pad and reshape globbed
+            Ncol = 3;
+            Nrow = ceil(numel(globbed)/Ncol);
+            padding = repmat("", [1, Ncol*Nrow - numel(globbed)]);
+            globbed = [globbed, padding];
+            globbed = reshape(globbed, Nrow, Ncol);
+            globbed = convertStringsToChars(globbed);
+            fprintf("%s:globbed:\n", stackstr())
+            disp(size(globbed))
+            disp(ascol(globbed))
+
+            % contact cluster slurm
+
+            warning('off', 'MATLAB:legacy:batchSyntax');
 
             c = mlraut.CHPC3.propcluster();
             disp(c.AdditionalProperties)
-            for g = globbed
+            for irow = 1:Nrow
                 try
                     j = c.batch( ...
                         @mlraut.AnalyticSignalHCPAgingPar.construct_and_call, ...
                         1, ...
-                        {g(1)}, ...
-                        'CurrentFolder', '.', ...
+                        {globbed(irow, :)}, ...
+                        'Pool', Ncol, ...
+                        'CurrentFolder', tempdir, ...
                         'AutoAddClientPath', false);
                 catch ME
                     handwarning(ME)
@@ -1001,44 +1022,50 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
             % j = c.batch(@mlraut.AnalyticSignalHCPAgingPar.construct_and_call, 1, {}, 'CurrentFolder', '.', 'AutoAddClientPath', false);
         end
 
-        function duration = construct_and_call(subjects, opts)
+        function durations = construct_and_call(subjects, opts)
             arguments
                 subjects cell = {'HCA6002236_V1_MR'}
                 opts.tasks cell = {'fMRI_CONCAT_ALL'}
                 opts.tags {mustBeTextScalar} = "AnalyticSignalHCPAgingPar"
                 opts.out_dir {mustBeFolder} = "/scratch/jjlee/Singularity/AnalyticSignalHCPAging"
             end
-            
-            mlraut.CHPC3.setenvs();
-            setenv("VERBOSITY", "1");
-            ensuredir(opts.out_dir);
-            ensuredir(fullfile(opts.out_dir, subjects{1}));
+            durations = nan(1, length(subjects));
             diary(fullfile(opts.out_dir, subjects{1}, "diary.log"));
-            tic;
-            disp("constructing mlraut.AnalyticSignalHCPAgingPar")
-            this = mlraut.AnalyticSignalHCPAgingPar( ...
-                subjects=subjects, ...
-                tasks=opts.tasks, ...
-                do_7T=false, ...
-                do_plot_networks=false, ...
-                do_resting=true, ...
-                do_task=false, ...
-                do_save=true, ...
-                do_save_dynamic=false, ...
-                do_save_ciftis=false, ...
-                do_save_subset=false, ...
-                force_band=false, ...
-                global_signal_regression=true, ...
-                hp_thresh=0.01, ...
-                lp_thresh=0.05, ...
-                out_dir=opts.out_dir, ...
-                source_physio="iFV", ...
-                tags=opts.tags, ...                
-                v_physio=50);
-            disp("calling this")
-            call(this);
-            duration = toc;
-            fprintf("tic-toc duration: %s seconds", duration);
+
+            parfor sidx = 1:length(subjects)
+
+                tic;
+            
+                % setup
+                mlraut.CHPC3.setenvs();
+                setenv("VERBOSITY", "1");
+                ensuredir(opts.out_dir); %#ok<*PFBNS>
+                ensuredir(fullfile(opts.out_dir, subjects{sidx}));
+
+                % construct & call
+                fprintf("constructing mlraut.AnalyticSignalHCPAgingPar for %s\n", subjects{sidx});
+                this = mlraut.AnalyticSignalHCPAgingPar( ...
+                    subjects=subjects{sidx}, ...
+                    tasks=opts.tasks, ...
+                    do_resting=true, ...
+                    do_task=false, ...
+                    do_save=true, ...
+                    do_save_dynamic=false, ...
+                    do_save_ciftis=false, ...
+                    do_save_subset=false, ...
+                    global_signal_regression=true, ...
+                    hp_thresh=0.01, ...
+                    lp_thresh=0.1, ...
+                    out_dir=opts.out_dir, ...
+                    source_physio="latV", ...
+                    tags=opts.tags, ...
+                    v_physio=50);
+                call(this);
+
+                durations(sidx) = toc;
+                fprintf("duration for %s: %s seconds", durations(sidx), subjects{sidx});
+            end
+
             diary("off");
         end
 
@@ -1087,7 +1114,7 @@ classdef AnalyticSignalHCPAgingPar < handle & mlraut.AnalyticSignalHCPAging
 
             parfor sidx = 1:length(subjects)            
                 mlraut.CHPC3.setenvs();
-                ensuredir(opts.out_dir); %#ok<PFBNS>
+                ensuredir(opts.out_dir); 
                 setenv("VERBOSITY", "1");
                 ensuredir(fullfile(opts.out_dir, subjects{sidx})); 
                 diary(fullfile(opts.out_dir, subjects{sidx}, "diary.log")); 
