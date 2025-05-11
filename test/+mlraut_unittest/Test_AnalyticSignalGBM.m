@@ -6,6 +6,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
     properties
+        template_cifti
         testObj
     end
 
@@ -563,6 +564,11 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
     
     methods (TestClassSetup)
         function setupAnalyticSignalGBM(this)
+            this.template_cifti = cifti_read( ...
+                fullfile( ...
+                getenv("SINGULARITY_HOME"), ...
+                "AnalyticSignalGBM", "analytic_signal", "tmp", ...
+                "connectivity_sub-I3CR1488_ses-1_task-rest_run-all_desc-preproc_proc-v50-scaleiqr-iFV-brightest.dscalar.nii"));
         end
     end
     

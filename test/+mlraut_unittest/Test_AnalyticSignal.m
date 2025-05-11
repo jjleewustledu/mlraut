@@ -54,22 +54,22 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyFalse(isemptytext(as.current_subject));
             this.verifyFalse(isemptytext(as.current_task));
             
-            cifti_last = as.cifti_last;
-            [a,b,c] = cifti_last.metadata.value;
+            template_cifti = as.template_cifti;
+            [a,b,c] = template_cifti.metadata.value;
             this.verifyTrue(contains(a, "Commit"));
             this.verifyTrue(contains(b, "wb_command -cifti-convert"));
             this.verifyTrue(strcmp(c, '/HCP/hcpdb/build_ssd/chpc/BUILD/HCP_Staging/DeDriftAndResample_1449032106_995174/995174/MNINonLinear/Results/rfMRI_REST1_RL/rfMRI_REST1_RL_hp2000.ica'));
-            this.verifyTrue(isstruct(cifti_last.diminfo{1}));
-            this.verifyEqual(cifti_last.diminfo{1}.type, 'dense');
-            this.verifyTrue(isstruct(cifti_last.diminfo{1}.vol));
-            this.verifyTrue(iscell(cifti_last.diminfo{1}.models));
-            this.verifyEqual(cifti_last.diminfo{1}.length, 91282);
-            this.verifyEqual(cifti_last.diminfo{2}.type, 'series');
-            this.verifyEqual(cifti_last.diminfo{2}.length, 1200);
-            this.verifyEqual(cifti_last.diminfo{2}.seriesStart, 0);
-            this.verifyEqual(cifti_last.diminfo{2}.seriesStep, 0.7200);
-            this.verifyEqual(cifti_last.diminfo{2}.seriesUnit, 'SECOND');
-            this.verifyEqual(size(cifti_last.cdata), [91282, 1200]);
+            this.verifyTrue(isstruct(template_cifti.diminfo{1}));
+            this.verifyEqual(template_cifti.diminfo{1}.type, 'dense');
+            this.verifyTrue(isstruct(template_cifti.diminfo{1}.vol));
+            this.verifyTrue(iscell(template_cifti.diminfo{1}.models));
+            this.verifyEqual(template_cifti.diminfo{1}.length, 91282);
+            this.verifyEqual(template_cifti.diminfo{2}.type, 'series');
+            this.verifyEqual(template_cifti.diminfo{2}.length, 1200);
+            this.verifyEqual(template_cifti.diminfo{2}.seriesStart, 0);
+            this.verifyEqual(template_cifti.diminfo{2}.seriesStep, 0.7200);
+            this.verifyEqual(template_cifti.diminfo{2}.seriesUnit, 'SECOND');
+            this.verifyEqual(size(template_cifti.cdata), [91282, 1200]);
 
             this.verifyEqual(as.Fs, 1.38888888888889, RelTol=10*eps);
             this.verifyEqual(as.num_frames, 1192);

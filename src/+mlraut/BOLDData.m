@@ -58,7 +58,6 @@ classdef BOLDData < handle & mlsystem.IHandle
 
             try
                 cifti = cifti_read(this.ihcp_.task_dtseries_fqfn);
-                this.ihcp_.cifti_last = cifti;
                 mat = cifti.cdata';
                 this.num_frames_ori_ = size(mat, 1);
             catch ME
