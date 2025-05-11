@@ -148,35 +148,70 @@ classdef Lee2024 < handle
             cifti_write(cifti, convertStringsToChars(fn1))
         end
 
-        function concat_frames_and_save(this, srcdir, destdir, opts)
-            %% assumes run-01, run-02, run-all may exist
+        function concat_ciftify_runs(this, results_path)
+        end
+
+        function ifc = concat_nii(~, varargin)
+            ifc = mlraut.BOLDData.concat_nii(varargin{:});
+        end
+
+        function c = concat_dtseries(~, varargin)
+            c = mlraut.BOLDData.concat_dtseries(varargin{:});
+        end
+
+        function that = concat_frames_and_save(this, srcdir, opts)
+            %% assumes run-01, run-02, run-03, run-all may exist
 
             arguments
                 this mlraut.Lee2024  %#ok<INUSA>
                 srcdir {mustBeFolder} = pwd
-                destdir {mustBeFolder} = this.matlabout_dir
-                opts.physios {mustBeText} = ["CE", "edema", "iFV"]
-                opts.do_save_ciftis logical = true
+                opts.physios {mustBeText} = ["CE_on_T1w", "iFV-brightest"]
+                opts.do_save logical = true
+                opts.do_save_ciftis logical = false
+                opts.do_save_dynamic logical = false
             end
 
             pwd0 = pushd(srcdir);
+
             for phys = opts.physios
                 g = mglob(sprintf("sub-*-run-0*%s*.mat", phys));
                 g = g(~contains(g, "-concat"));
-                if length(g) < 2
+                if isempty(g)
                     continue
                 end
-                ld1 = load(g(1));
+
+                % single file -> rename to run-all
+                if isscalar(g)
+                    copyfile(g, regexprep(g, 'run-\d+', 'run-all'));
+                    continue
+                end
+
+                % multiple files -> invoke AnalyticSignalHCP.concat_frames()
+                ld1 = load(g(1));  % adjust first run
                 that = ld1.this;
-                that.do_save_ciftis = opts.do_save_ciftis;
-                that.out_dir = destdir;
-                that.tags_user = that.tags_user + "-concat";
-                for gidx = 2:length(g)
+                template_cifti_ = that.template_cifti;
+                if isscalar(that.tasks)
+                    that.tasks = ensureCell(regexprep(that.tasks, 'run-\d+', 'run-all'));
+                    that.current_task = that.tasks{1};
+                else
+                    that.tasks = ensureCell(regexprep(that.tasks{1}, 'run-\d+', 'run-all'));
+                    that.current_task = that.tasks{1};
+                end
+                for gidx = 2:length(g)  % concat subsequent runs into that
                     ld_ = load(g(gidx));
                     that.concat_frames(ld_.this);
+                end
+                
+                that.template_cifti = template_cifti_;
+                that.out_dir = srcdir;
+                that.do_save = opts.do_save;
+                that.do_save_ciftis = opts.do_save_ciftis;
+                that.do_save_dynamic = opts.do_save_dynamic;
+                if any([opts.do_save, opts.do_save_ciftis, opts.do_save_dynamic])
                     that.meta_save();
                 end
             end
+
             popd(pwd0)
         end
 
