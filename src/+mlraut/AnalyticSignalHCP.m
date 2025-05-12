@@ -376,6 +376,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.do_7T = this.do_7T;
             this_subset.do_resting = this.do_resting;
             this_subset.do_task = this.do_task;
+            this_subset.do_global_signal_regression = this.do_global_signal_regression;
             this_subset.do_save = this.do_save;
             this_subset.do_save_ciftis = this.do_save_ciftis;
             this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
@@ -386,7 +387,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.roi = this.roi;
             this_subset.source_physio = this.source_physio;
             this_subset.global_signal = this.global_signal;
-            this_subset.global_signal_regression = this.global_signal_regression;
             this_subset.hp_thresh = this.hp_thresh;
             this_subset.lp_thresh = this.lp_thresh;
             this_subset.num_nets = this.num_nets;

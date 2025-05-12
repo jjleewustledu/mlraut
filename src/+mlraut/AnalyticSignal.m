@@ -9,6 +9,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
     
 
     properties
+        do_global_signal_regression  % logical
         do_plot_emd
         do_plot_global_physio
         do_plot_networks
@@ -35,7 +36,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
         anatomy_list  % {'ctx', 'str', 'thal', 'cbm'}
         digital_filter
         global_signal
-        global_signal_regression  % logical
         hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
         json
         lp_thresh  % high freq. bound, Ryan ~ 0.05-0.1 Hz, for CSF studies ~ 0.1 Hz
@@ -63,11 +63,28 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
         
         function g = get.global_signal(this)
+            %% global_signal <- double greyordinates <- mean(this.task_niigz, "greyords")
+
+            if ~isempty(this.global_signal_)
             g = this.global_signal_;
+                return
         end
 
-        function g = get.global_signal_regression(this)
-            g = this.global_signal_regression_;
+            % task niigz in 4D
+            niigz = this.task_niigz();
+            sz = size(niigz);
+            assert(sz(4) == this.num_frames)
+            niigz = reshape(niigz, [sz(1)*sz(2)*sz(3), sz(4)])';
+            niigz = double(niigz);  % Nt x Ngo double
+
+            % task mask in 3D ~ task signal reference
+            msk = this.task_signal_mask();
+            msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1])';
+            msk = logical(msk);  % 1 x Ngo logical
+
+            g = niigz(:, msk);
+            g = mean(g, 2);  % mean over greyords
+            this.global_signal_ = g;
         end
 
         function g = get.hp_thresh(this)
@@ -299,85 +316,20 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = this.build_rescaled(psi, varargin{:});
         end
 
-        function [gs,beta] = build_global_signal_for(this, sig)
-            %% global_signal := mean(sig, "space"), then formatted for greyordinates or 4D voxels
-            %  Args:
-            %    this mlraut.AnalyticSignal
-            %    sig double = ones(this.num_frames, 1)            
-
-            arguments
-                this mlraut.AnalyticSignal
-                sig double = ones(this.num_frames, 1)
-            end
-
-            % task niigz in 4D, reshaped to 2D 
-            niigz = this.task_niigz();
-            sz = size(niigz);
-            assert(sz(4) == this.num_frames)
-            niigz = reshape(niigz, [sz(1)*sz(2)*sz(3), sz(4)]);
-
-            % mask ~ 3D task signal reference; reshaped to 2D
-            msk = this.task_signal_mask();
-            msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1]);
-
-            % img ~ task niigz masked; then mean
-            img_g = double(niigz);
-            img_g = img_g(logical(msk), :);
-            img_g = mean(img_g, 1);
-
-            % format for greyordinates
-            this.global_signal_ = ascol(img_g);
-            this.global_signal_beta_ = 1;
-
-            if isnumeric(sig)
-                assert(size(sig, 1) == this.num_frames)
-                gs = this.global_signal_;  % col
-                beta = this.global_signal_beta_;  % row
-                return
-            end
-            if isa(sig, "mlfourd.ImagingContext2")
-                sz = size(sig);
-                assert(sz(4) == this.num_frames)
-                sig = reshape(sig, [sz(1)*sz(2)*sz(3), sz(4)]);
-
-                msk = this.task_signal_mask();
-                msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1]);
-
-                img_g = double(sig);
-                img_g(logical(msk), :) = repmat(asrow(this.global_signal_), [sum(logical(msk)), 1]);
-                img_g = reshape(img_g, [sz(1), sz(2), sz(3), sz(4)]);
-  
-                img_b = double(sig);
-                img_b(logical(msk), :) = this.global_signal_beta_ * ones(sum(logical(msk), sz(4)));
-                img_b = reshape(img_b, [sz(1), sz(2), sz(3), sz(4)]);
-
-                gs = sig.selectImagingTool(img=img_g);
-                gs.fileprefix = "global-signal";
-                beta = sig.selectImagingTool(img=img_b);
-                beta.fileprefix = "global-signal-beta";
-                return
-            end
-            error("mlraut:TypeError", stackstr())
-        end
-
-        function psi = build_global_signal_regressed(this, psi, opts)
+        function psi = build_global_signal_regressed(this, psi)
             arguments
                 this mlraut.AnalyticSignal
                 psi {mustBeNumeric,mustBeNonempty}
-                opts.is_physio logical = false
             end
 
-            if ~this.global_signal_regression
-                return
-            end
-            if opts.is_physio && ~this.source_physio_is_ROI
+            if ~this.do_global_signal_regression
                 return
             end
             if all(psi == 0)
                 return
             end
 
-            psi = psi - this.build_global_signal_for(psi);
+            psi = psi - this.global_signal;
         end
 
         function n = build_norm(this, psi, opts)
@@ -569,7 +521,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
             t = opts.t;
             if isempty(opts.x)
-                opts.x = this.build_global_signal_for();
+                opts.x = this.global_signal;
             end
             x = opts.x;
 
@@ -996,6 +948,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_7T logical = false
             %      opts.do_resting logical = true
             %      opts.do_task logical = false
+            %      opts.do_global_signal_regression logical = true
             %      opts.do_plot_global_physio logical = false
             %      opts.do_plot_networks logical = false
             %      opts.do_plot_radar logical = false
@@ -1010,7 +963,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.force_band logical = false: force bandpass to Nyquist limits of available data
             %      opts.force_legacy_butter logical = false: 
             %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
-            %      opts.global_signal_regression logical = true
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05-0.1.
@@ -1035,6 +987,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_7T logical = false
                 opts.do_resting logical = true
                 opts.do_task logical = false
+                opts.do_global_signal_regression logical = true
                 opts.do_plot_emd logical = false
                 opts.do_plot_global_physio logical = false
                 opts.do_plot_networks logical = false
@@ -1050,7 +1003,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
                 opts.frac_ext_physio double = 1
-                opts.global_signal_regression logical = true
                 opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
                 opts.max_frames double = Inf
@@ -1078,6 +1030,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_7T = opts.do_7T;
             this.do_resting = opts.do_resting;
             this.do_task = opts.do_task;
+            this.do_global_signal_regression = opts.do_global_signal_regression;
             this.do_plot_emd = opts.do_plot_emd;
             this.do_plot_global_physio = opts.do_plot_global_physio;
             this.do_plot_networks = opts.do_plot_networks;
@@ -1094,7 +1047,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.force_band = opts.force_band;
             this.force_legacy_butter = opts.force_legacy_butter;
             this.frac_ext_physio = opts.frac_ext_physio;
-            this.global_signal_regression_ = opts.global_signal_regression;
             this.hp_thresh_ = opts.hp_thresh;
             this.lp_thresh_ = opts.lp_thresh;
             if ~isempty(this.lp_thresh) && ~isempty(this.hp_thresh)
@@ -1131,8 +1083,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         bold_signal_
         global_signal_
-        global_signal_beta_
-        global_signal_regression_
         physio_angle_
         physio_signal_
         roi_

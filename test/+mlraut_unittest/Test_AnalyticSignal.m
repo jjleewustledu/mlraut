@@ -336,7 +336,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             bold = as.task_niigz();
             HRV = mlraut.PhysioHRV(as, bold);
             physio = HRV.call();
-            gs = as.build_global_signal_for(physio);
+            gs = as.global_signal;
 
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
@@ -378,7 +378,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             Roi = mlraut.PhysioRoi(as, bold, from_wmparc_indices=[1 4 5 24 43 44]);  % csf
             Roi.wmparc.view_qc(Roi.roi_mask);
             physio = Roi.call();
-            gs = as.build_global_signal_for(physio);
+            gs = as.global_signal;
 
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
@@ -400,7 +400,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             bold = as.task_niigz();
             RV = mlraut.PhysioRV(as, bold);
             physio = RV.call();
-            gs = as.build_global_signal_for(physio);
+            gs = as.global_signal;
 
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
@@ -548,13 +548,13 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             as = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
+                do_global_signal_regression=true, ...
                 do_save=false, ...
                 force_band=false, ...
                 hp_thresh=0.005, ...
                 lp_thresh=0.1, ...
                 tags=stackstr(use_dashes=true), ...
                 source_physio="iFV-brightest", ...
-                global_signal_regression=true);
 
             as.current_subject = as.subjects{1};
             if ~contains(as.out_dir, as.current_subject)
