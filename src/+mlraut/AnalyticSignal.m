@@ -861,7 +861,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                      ImagingContext2 for "WT_on_T1w", "CE_on_T1w", "ROI", for files found in sub-*/MNINonLinear; 
             %                      double row_vec for mlraut.PhysioRoi(from_wmparc_indices=row_vec)
             %                      used with this.task_physio()
-            %      opts.scale_to_hcp {mustBeScalar,mustBePositive} = 1: scaling factor
             %      opts.source_physio {mustBeTextScalar} = 'iFV-brightest'
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
@@ -897,7 +896,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.plot_range double = []
                 opts.rescaling {mustBeTextScalar} = "iqr"
                 opts.roi = []
-                opts.scale_to_hcp double {mustBePositive} = 1
                 opts.source_physio = "iFV-brightest"
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
@@ -940,7 +938,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.max_frames = opts.max_frames;
             this.cohort_data_.out_dir = opts.out_dir;
             this.rescaling_ = opts.rescaling;
-            this.scale_to_hcp_ = opts.scale_to_hcp;
             this.source_physio = opts.source_physio;
             this.tags_user_ = opts.tags;
             this.v_physio = opts.v_physio;
