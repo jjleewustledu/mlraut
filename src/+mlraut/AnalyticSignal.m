@@ -854,7 +854,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
             %      opts.lp_thresh {mustBeScalarOrEmpty} : default := 0.08*0.72, Dworetsky; support ~ 1/(2*this.tr), compared to Ryan's 0.05-0.1.
             %                                             nan =: 1/2
-            %      opts.max_frames {mustBeScalarOrEmpty} = nan: try 158 for assessing GBM rsfMRI
+            %      opts.max_frames double = Inf
             %      opts.out_dir {mustBeFolder} = pwd
             %      opts.rescaling {mustBeTextScalar} = 'iqr' : rescales bold and physio before creating twistor [X,Y,Z,T]
             %      opts.roi = []:  e.g. fqfn;
