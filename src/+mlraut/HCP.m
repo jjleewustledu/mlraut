@@ -11,7 +11,7 @@ classdef HCP < handle & mlsystem.IHandle
         do_7T
         do_resting
         do_task       
-        max_frames  % max(num_frames) to enforce, used by omit_late_frames()
+        max_frames  % max(num_frames) to impose
     end
 
     properties (Dependent)
@@ -27,7 +27,7 @@ classdef HCP < handle & mlsystem.IHandle
         Fs  % BOLD sampling rate (Hz)
         num_frames
         num_frames_ori  % set by BOLDData.task_dtseries()
-        num_frames_to_trim  % used by HCP.task_dtseries, HCP.trim_frames, AnalyticSignalHCP.physio_*(); Ryan used 4
+        num_frames_to_trim  % set by CohortData.num_frames_to_trim
         num_nodes  % set by BOLDData
         out_dir
         root_dir  % HCP data directory
@@ -244,10 +244,6 @@ classdef HCP < handle & mlsystem.IHandle
     end
 
     methods
-        function b = omit_late_frames(this, b)
-            %% Keep frames 1:this.max_frames, following use of trim_frames() to remove this.num_frames_to_trim
-            %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
-            %  of the scanning session.
 
             bound = min(this.max_frames, size(b, 1));
             b = b(1:bound, :);
@@ -290,6 +286,26 @@ classdef HCP < handle & mlsystem.IHandle
 
             ic = this.bold_data_.task_signal_reference();
             this.task_signal_reference_ = ic;
+        end
+
+        function tseries = trim_frames(this, tseries)
+            idx_start = 1 + this.num_frames_to_trim;
+            if isnumeric(tseries)
+                tseries = tseries(idx_start:end,:);
+                tseries = tseries(1:this.num_frames,:);
+                return
+            end
+            if isa(tseries, "mlfourd.ImagingContext2")
+                img = double(tseries);
+                img = img(:,:,:,idx_start:end);
+                img = img(:,:,:,1:this.num_frames);
+                tseries.selectImagingTool(img=img);
+                j = tseries.json_metadata;
+                j.timesMid = j.timesMid(idx_start:end);
+                tseries.addJsonMetadata(j);
+                return
+            end
+            error("mlraut:TypeError", stackstr())
         end
 
         function this = HCP(opts)

@@ -16,60 +16,71 @@ classdef Test_HCP < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
-        function test_hcp(this)
-            hcp = mlraut.HCP( ...
-                subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
-            hcp.current_subject = '995174';
-            hcp.current_task = 'rfMRI_REST1_RL';
-            %disp(hcp)
 
-            this.verifyEqual(mybasename(hcp.out_dir), "AnalyticSignalHCP")
-            this.verifyEqual(mybasename(hcp.root_dir), "HCP_1200")
-            this.verifyEqual(mybasename(hcp.task_dir), "rfMRI_REST1_RL")
+        function test_ctor(this)
+            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
+            malloc(hcp);
+
+            this.verifyEqual(hcp.max_frames, Inf);
+            this.verifyEqual(hcp.current_subject, '995174')
+            this.verifyEqual(hcp.current_task, 'rfMRI_REST1_RL')
+            this.verifyEqual(hcp.num_frames, 1196);
+            this.verifyEqual(hcp.num_frames_ori, 1200);
+            this.verifyEqual(hcp.num_frames_to_trim, 4);
+            this.verifyEqual(hcp.num_nodes, 91282);
+            this.verifyEqual(hcp.tr, 0.72);
             this.verifyEqual(mybasename(hcp.task_dtseries_fqfn, withext=true), "rfMRI_REST1_RL_Atlas_MSMAll_hp2000_clean.dtseries.nii")
             this.verifyEqual(mybasename(hcp.task_niigz_fqfn, withext=true), "rfMRI_REST1_RL_hp2000_clean.nii.gz")
             this.verifyEqual(mybasename(hcp.task_signal_reference_fqfn, withext=true), "rfMRI_REST1_RL_SBRef.nii.gz")
             this.verifyEqual(mybasename(hcp.t1w_fqfn, withext=true), "T1w_restore.2.nii.gz")
             this.verifyEqual(mybasename(hcp.wmparc_fqfn, withext=true), "wmparc.2.nii.gz")
 
-            this.verifyEqual(size(hcp.task_dtseries), [1200, 91282])
-            this.verifyEqual(hcp.task_niigz.filename, "rfMRI_REST1_RL_hp2000_clean.nii.gz")
-            this.verifyEqual(hcp.task_signal_reference.filename, "rfMRI_REST1_RL_SBRef.nii.gz")
+            this.verifyInstanceOf(hcp.bold_data, "mlraut.BOLDData");
+            this.verifyEqual(hcp.bold_data.num_frames_ori, 1200);
+            this.verifyEqual(hcp.bold_data.num_nodes, 91282);
 
-            %% DEPRECATED
-            %this.verifyEqual(size(hcp.bold_fs_parcel), [])
-            %this.verifyEqual(hcp.mask_fs_parcel, [])
+            this.verifyInstanceOf(hcp.cohort_data, "mlraut.HCPYoungAdultData");
+            this.verifyEqual(hcp.cohort_data.tr, 0.72);
+            this.verifyEqual(hcp.cohort_data.sub, '995174')
+            this.verifyEqual(hcp.cohort_data.task, 'rfMRI_REST1_RL')
+
+            this.verifyInstanceOf(hcp.twistors, "mlraut.Twistors");
         end
-        function test_hcp_limited(this)
 
-            %% empty ctor
+        function test_task_niigz(this)
+            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
+            malloc(hcp);
+            ic = hcp.task_niigz();
+            
+            this.verifyEqual(ic.filename, "rfMRI_REST1_RL_hp2000_clean.nii.gz")
+            this.verifyEqual(ic.qfac, -1)
+            this.verifyEqual(size(ic), [91, 109, 91, 1196])
+            this.verifyInstanceOf(ic.imagingFormat.img, "single")
+        end
 
-            this.verifyTrue(isempty(this.testObj.subjects));
-            this.verifyTrue(isempty(this.testObj.current_subject));
-            this.verifyTrue(isempty(this.testObj.tasks));
-            this.verifyTrue(isempty(this.testObj.current_task));
+        function test_task_dtseries(this)
+            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
+            malloc(hcp);
+            dtseries = hcp.task_dtseries();
 
-            this.verifyTrue(contains(this.testObj.out_dir, "AnalyticSignalHCP"));
-            this.verifyTrue(contains(this.testObj.root_dir, "HCP_1200"));
-            this.verifyTrue(contains(this.testObj.task_dir, fullfile("HCP_1200", "MNINonLinear", "Results")));
-            this.verifyTrue(contains(this.testObj.waves_dir, fullfile("MATLAB-Drive", "arousal-waves-main")));
+            this.verifyEqual(size(dtseries), [1196, 91282])
+        end
 
+        function test_task_signal_mask(this)
+            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
+            malloc(hcp);
+            ic = hcp.task_signal_mask();
+
+            this.verifyEqual(ic.filename, "wmparc.2_binarized.nii.gz")
+            this.verifyEqual(ic.qfac, -1)
+            this.verifyEqual(size(ic), [91, 109, 91])
+            this.verifyInstanceOf(ic.imagingFormat.img, "single")
+        end
+
+        function test_task_objects(this)
             return
 
-            %% specify subject
-
-            hcp = mlraut.HCP(subjects={'995174'});
-            disp(hcp)
-
-            %% specify subject & task
-
             hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
-            disp(hcp)
-        end
-        function test_task_objects(this)
-            hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
-
-            %mysystem(sprintf("wb_view %s", hcp.task_dtseries_fqfn))
             mysystem(sprintf("fsleyes %s", hcp.task_niigz_fqfn))
             mysystem(sprintf("fsleyes %s %s %s", ...
                 hcp.t1w_fqfn, ...
@@ -77,33 +88,34 @@ classdef Test_HCP < matlab.unittest.TestCase
                 hcp.task_signal_reference_fqfn))
         end
         function test_task_objects_7T(this)
-            hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_7T_PA'});
+            return
 
-            %mysystem(sprintf("wb_view %s", hcp.task_dtseries_fqfn))
-            mysystem(sprintf("fsleyes %s", hcp.task_niigz_fqfn)) % contains global signal?
+            hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_7T_PA'});
+            malloc(hcp);
+            mysystem(sprintf("fsleyes %s", hcp.task_niigz_fqfn))
             mysystem(sprintf("fsleyes %s %s %s", ...
                 hcp.t1w_fqfn, ...
                 hcp.wmparc_fqfn, ...
                 hcp.task_signal_reference_fqfn))
         end
-        function test_task_objects_Aging(this)
-        end
-        function test_task_objects_GBM(this)
-        end
-        function test_hcp_omit_late_frames(this)
-        end
-
-        %% migrate to tests of Cifti & Gifti
 
         function test_dlabel_nii(this)
             hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
+            malloc(hcp);
             cii = mlraut.Cifti(hcp);
-            disp(cii.aparc_a2009s_dlabel_nii())
+            dlabel = cii.aparc_a2009s_dlabel_nii();
+            this.verifyEqual(size(dlabel.metadata), [1, 4])
+            this.verifyEqual(size(dlabel.diminfo), [1, 2])
+            this.verifyEqual(size(dlabel.cdata), [59412, 1])
         end
+
         function test_label_gii(this)
             hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
+            malloc(hcp);
             gii = mlraut.Gifti(hcp);
-            disp(gii.aparc_a2009s_label_gii())
+            label = gii.aparc_a2009s_label_gii();
+            this.verifyEqual(size(label.cdata), [32492, 1])
+            this.verifyEqual(size(label.labels), [1, 1])
         end
     end
     

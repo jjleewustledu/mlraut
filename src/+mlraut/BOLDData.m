@@ -23,7 +23,7 @@ classdef BOLDData < handle & mlsystem.IHandle
                 return
             end
 
-            this.num_frames_ori_ = size(this.task_dtseries, 1);
+            this.task_dtseries;  % obtains this.num_frames_ori_ from cifti_read()
             g = this.num_frames_ori_;
         end
         function g = get.num_nodes(this)

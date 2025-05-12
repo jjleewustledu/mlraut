@@ -17,6 +17,18 @@ classdef Test_PhysioData < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+
+        function test_task_niigz(this)
+            %% tests that hcp.task_niigz is consistent with repeated calls
+
+            this.verifyEqual(this.ashcp.num_frames_ori, 1200)
+            this.verifyEqual(this.ashcp.num_frames_to_trim, 4)
+            this.verifyEqual(this.ashcp.num_frames, 1196)
+            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, 1196])
+            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, 1196])
+            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, 1196])
+        end
+
         function test_iFV(this)
         end
         function test_gray(this)

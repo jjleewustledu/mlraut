@@ -72,7 +72,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(size(template_cifti.cdata), [91282, 1200]);
 
             this.verifyEqual(as.Fs, 1.38888888888889, RelTol=10*eps);
-            this.verifyEqual(as.num_frames, 1192);
+            this.verifyEqual(as.num_frames, 1196);
             this.verifyEqual(as.num_frames_ori, 1200);
             this.verifyEqual(as.num_frames_to_trim, 4);
             this.verifyEqual(as.num_nodes, 91282);

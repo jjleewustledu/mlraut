@@ -6,7 +6,8 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
 
-    properties        
+    properties
+        num_frames_to_trim = 0
     end
 
     properties (Dependent)
@@ -14,7 +15,6 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
         ciftify_subject_fmri_log_fqfn
         datashare_dir
         json_fqfn
-        num_frames_to_trim
         out_dir
         rsFC_PreProc_loc
         root_dir
@@ -59,10 +59,6 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
                 this.map_rt_i3cr_ = containers.Map([this.table_rt_i3cr.RT; i3cr], [i3cr; i3cr]);
             end
             g = this.map_rt_i3cr_;
-        end
-        function g = get.num_frames_to_trim(this)
-            g = 0;
-            % g = this.json.num_frames_to_trim;
         end
         function g = get.out_dir(this)
             if ~isemptytext(this.out_dir_)
@@ -187,7 +183,7 @@ classdef GBMCiftifyData < handle & mlraut.CohortData
 
             j.tr = TR;
             j.num_frames_ori = numTRs;
-            j.num_frames_to_trim = 0;
+            j.num_frames_to_trim = this.num_frames_to_trim;
             hemi = lower(this.find_table_value("hemi"));
             loc = lower(this.find_table_value("brain_location"));
             j.location = sprintf("%s %s", hemi, loc);

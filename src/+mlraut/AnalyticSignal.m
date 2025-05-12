@@ -455,29 +455,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             p = (1 - f)*g_0*n_1*p_0 + f*g_1*n_0*p_1;  % mat -> mat
         end
 
-        function b = omit_late_frames(this, b)
-            %% Keep frames 1:this.max_frames, following use of trim_frames() to remove this.num_frames_to_trim
-            %  from start and end of frames, for purposes of omitting brain/cognitive responses to start and conclusion 
-            %  of the scanning session.            
-
-            if isnumeric(b)
-                bound = min(this.max_frames, size(b, 1));
-                b = b(1:bound, :);
-                return
-            end
-            if isa(b, "mlfourd.ImagingContext2")
-                bound = min(this.max_frames, size(b, 4));
-                img = double(b);
-                img = img(:,:,:,1:bound);
-                b.selectImagingTool(img=img);
-                j = b.json_metadata;
-                j.timesMid = j.timesMid(1:bound);
-                b.addJsonMetadata(j);
-                return
-            end
-            error("mlraut:TypeError", stackstr())
-        end
-
         function psi = T(this, varargin)
             psi = this.twistors_.T(varargin{:});
         end
@@ -907,24 +884,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isemptytext(more_tags) 
                 g = g + "-" + more_tags;
             end
-        end
-
-        function tseries = trim_frames(this, tseries)
-            nt = this.num_frames_to_trim + 1;
-            if isnumeric(tseries)
-                tseries = tseries(nt:end,:);
-                return
-            end
-            if isa(tseries, "mlfourd.ImagingContext2")
-                img = double(tseries);
-                img = img(:,:,:,nt:end);
-                tseries.selectImagingTool(img=img);
-                j = tseries.json_metadata;
-                j.timesMid = j.timesMid(nt:end);
-                tseries.addJsonMetadata(j);
-                return
-            end
-            error("mlraut:TypeError", stackstr())
         end
 
         function c = write_cifti(this, varargin)
