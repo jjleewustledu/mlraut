@@ -6,7 +6,7 @@ classdef Test_PhysioData < matlab.unittest.TestCase
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
     properties
-        hcp
+        ashcp
         testObj
     end
     
@@ -31,16 +31,20 @@ classdef Test_PhysioData < matlab.unittest.TestCase
 
         function test_iFV(this)
         end
+
         function test_gray(this)
         end
+
         function test_white(this)
         end
+
         function test_csf(this)
         end
+
         function test_thalamus(this)
             indices = [10, 49];
             physroi = mlraut.PhysioRoi( ...
-                this.hcp, from_wmparc_indices=indices);
+                this.ashcp, from_wmparc_indices=indices);
             %physroi.view_qc();
             this.verifyEqual(crc32_adler(0, double(physroi.roi_mask)), uint32(1999844326))
             bold = call(physroi);  % toc ~ 19 s
@@ -50,38 +54,16 @@ classdef Test_PhysioData < matlab.unittest.TestCase
 
         function test_iFV_vs_RV(this)
         end
+
         function test_iFV_vs_HRV(this)
         end
 
         function test_flipLR(this)
         end
 
-        function test_global_signal(this)
-            t = 1;
-            hcp_ = this.hcp;
-            hcp_.malloc();
-            hcp_.current_task = hcp_.tasks{t};
-
-            physio_0 = hcp_.task_physio();
-            figure; 
-            plot(physio_0);
-            hold on
-
-            gs = hcp_.build_global_signal_for(physio_0);
-            plot(gs);
-            
-            physio_1 = hcp_.build_global_signal_regressed(physio_0);
-            plot(physio_1);
-            hold off
-
-            legend(["task_physio()", "build_global_signal_for()", "build_global_signal_regressed()"], ...
-                Interpreter="none");
-        end
-
         function test_centered(this)
             t = 1;
-            hcp_ = this.hcp;
-            hcp_.malloc();
+            hcp_ = this.ashcp;
             hcp_.current_task = hcp_.tasks{t};
 
             physio_0 = hcp_.task_physio();
@@ -101,8 +83,7 @@ classdef Test_PhysioData < matlab.unittest.TestCase
 
         function test_rescaled(this)
             t = 1;
-            hcp_ = this.hcp;
-            hcp_.malloc();
+            hcp_ = this.ashcp;
             hcp_.current_task = hcp_.tasks{t};
 
             physio_0 = hcp_.task_physio();
@@ -125,8 +106,7 @@ classdef Test_PhysioData < matlab.unittest.TestCase
 
         function test_band_passed(this)
             t = 1;
-            hcp_ = this.hcp;
-            hcp_.malloc();
+            hcp_ = this.ashcp;
             hcp_.current_task = hcp_.tasks{t};
 
             physio_0 = hcp_.task_physio();
@@ -151,8 +131,7 @@ classdef Test_PhysioData < matlab.unittest.TestCase
             %% see also mlraut.AnalyticSignalHCP.call_subject_late_hilbert()
 
             t = 1;
-            hcp_ = this.hcp;
-            hcp_.malloc();
+            hcp_ = this.ashcp;
             hcp_.current_task = hcp_.tasks{t};
 
             % BOLD
@@ -194,7 +173,7 @@ classdef Test_PhysioData < matlab.unittest.TestCase
     methods (TestMethodSetup)
         function setupPhysioDataTest(this)
             cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            this.hcp = mlraut.AnalyticSignalHCP( ...
+            this.ashcp = mlraut.AnalyticSignalHCP( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
                 do_7T=false, ...
@@ -205,10 +184,11 @@ classdef Test_PhysioData < matlab.unittest.TestCase
                 do_save_dynamic=false, ...
                 do_save_ciftis=false, ...
                 force_band=false, ...
-                hp_thresh=0.005, ...
+                hp_thresh=0.01, ...
                 lp_thresh=0.1, ...
                 source_physio="iFV-brightest", ...
                 tags=stackstr(use_dashes=true));
+            this.ashcp.malloc();
             this.addTeardown(@this.cleanTestMethod)
         end
     end

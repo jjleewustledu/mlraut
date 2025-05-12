@@ -23,9 +23,6 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
             this = this@mlraut.AnalyticSignalHCP(varargin{:});
 
             this.current_subject = this.subjects{1};
-
-            %this.tasks_ = {'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'};
-            %this.max_frames = 158;
         end
 
         function psi = average_gbm_signal(this, bold)

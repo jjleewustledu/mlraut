@@ -434,46 +434,6 @@ classdef HCP < handle & mlsystem.IHandle
                 that.bold_data_ = copy(this.bold_data_); end
             if ~isempty(this.cohort_data_)
                 that.cohort_data_ = copy(this.cohort_data_); end
-    %% HIDDEN & DEPRECATED
-
-    methods (Hidden)
-        function bold = bold_fs_parcel(this, sub, task, parc)
-            arguments
-                this mlraut.HCP
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-                parc char = 'L_G_precuneus'
-            end
-            bold = this.task_dtseries(sub, task);
-            mask = this.mask_fs_parcel(sub, parc);
-            bold = mean(bold(:, mask), 2, 'omitnan');
-        end
-
-        function m = mask_fs_parcel(this, sub, parc)
-            % this mlraut.HCP
-            % sub {mustBeTextScalar} = this.current_subject
-            % parc double = 15 % fourth ventricle
-            % hemi {mustBeTextScalar} = 'LR'
-
-            arguments
-                this mlraut.HCP
-                sub {mustBeTextScalar} = this.current_subject
-                parc char = 'L_G_precuneus'
-            end
-
-            hemi = parc(1);
-            g = gifti(convertStringsToChars(this.aparc_a2009s_label_gii(sub, hemi)));
-            tf = matches(g.labels.name, parc);
-            key = g.labels.key(tf');
-            m = false(this.num_nodes, 1);
-            switch hemi
-                case 'L'                   
-                    m(1:32492) = g.cdata == key;
-                case 'R'                  
-                    m(32493:64984) = g.cdata == key;
-                otherwise 
-                    error('mlraut:ValueError', stackstr());
-            end
             if ~isempty(this.task_niigz_)
                 that.task_niigz_ = copy(this.task_niigz_); end
             if ~isempty(this.task_signal_mask_)

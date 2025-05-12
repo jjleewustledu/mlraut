@@ -184,22 +184,22 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.network_type {mustBeText} = "cortical"
             end
 
-            if contains(opts.network_type, "cerebell", IgnoreCase=true)
+            if startsWith(opts.network_type, "cerebell", IgnoreCase=true) || strcmp(opts.network_type, "crb")
                 dat = mlraut.CerebellarData(this, psi);
                 psi = dat.build_Yeo_signals();
                 return
             end
-            if contains(opts.network_type, "cort", IgnoreCase=true)
+            if startsWith(opts.network_type, "cort", IgnoreCase=true) || strcmp(opts.network_type, "ctx")
                 dat = mlraut.CorticalData(this, psi);
                 psi = dat.build_Yeo_signals();
                 return
             end
-            if contains(opts.network_type, "striat", IgnoreCase=true)
+            if startsWith(opts.network_type, "str", IgnoreCase=true)
                 dat = mlraut.StriatalData(this, psi);
                 psi = dat.build_Yeo_signals();
                 return
             end
-            if contains(opts.network_type, "thalam", IgnoreCase=true)
+            if startsWith(opts.network_type, "thal", IgnoreCase=true)
                 dat = mlraut.ThalamicData(this, psi);
                 psi = dat.build_Yeo_signals();
                 return
