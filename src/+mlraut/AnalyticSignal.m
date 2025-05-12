@@ -50,8 +50,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
         physio_signal
         plotting
         roi
-        source_physio_is_ROI
-        source_physio_is_none
     end
 
     methods %% GET, SET
@@ -162,14 +160,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.roi(this)
             g = this.roi_;
-        end
-
-        function g = get.source_physio_is_ROI(this)
-            g = ~contains(this.source_physio, ["RV", "HRV", "no-physio", "nophys", "none"]);
-        end
-
-        function g = get.source_physio_is_none(this)
-            g = contains(this.source_physio, ["no-physio", "nophys", "none"]);
         end
     end
     
@@ -892,24 +882,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             physio = single(physio);
             assert(~isempty(physio))
         end
-
-        % function [physio,physio_vec,pROI] = task_physios(this, opts)
-        %     %  Returns:
-        %     %      physio numeric Nt x 1
-        %     %      physio_0 numeric Nt x 1
-        %     %      pROI mlraut.PhysioData : for view_qc(), prop. roi_mask 
-        %     %  Throws:
-        %     %      mlraut:ValueError if this.source_physio not supported
-        % 
-        %     arguments
-        %         this mlraut.AnalyticSignal
-        %         opts.roi = this.roi
-        %         opts.flipLR logical = false
-        %         opts.source_physio {mustBeText} = this.source_physio
-        %         opts.size_reference {mustBeNumeric} = []
-        %     end
-        % 
-        % end
 
         function ic = task_signal_mask(this)
             if ~isempty(this.task_signal_mask_)

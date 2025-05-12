@@ -322,11 +322,6 @@ classdef HCP < handle & mlsystem.IHandle
             this.bold_data_ = mlraut.BOLDData(this);
             this.cohort_data_ = mlraut.CohortData.create(this);
 
-            %% DEPRECATED
-            % if isempty(this.subjects_)
-            %     this.subjects_ = cellfun(@(x) basename(x), ...
-            %         glob(fullfile(this.root_dir, '*'))', UniformOutput=false);
-            % end
             if ischar(this.subjects_)
                 this.subjects_ = {this.subjects_};
             end

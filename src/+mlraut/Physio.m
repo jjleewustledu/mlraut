@@ -259,6 +259,8 @@ classdef Physio < handle
             %      tasks (cell of text): '', 'iFV-brightest', 'iFV', 'RV', 'HRV'
             %      source_physio (logical)
             %      gs_subtract (logical)
+
+            error("mlraut:DeprecationError", stackstr())
             
             %this.tasks_ = {'rfMRI_REST1_7T_AP','rfMRI_REST1_7T_PA' 'rfMRI_REST2_7T_AP','rfMRI_REST2_7T_PA'};
             this.tasks_ = {'rfMRI_REST1_LR','rfMRI_REST1_RL','rfMRI_REST2_LR','rfMRI_REST2_RL'};
