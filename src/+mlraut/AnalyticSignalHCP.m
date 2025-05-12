@@ -90,8 +90,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
             for t = 1:this.num_tasks     
                 try
-                    this.malloc();  % resets caches for each task
                     this.current_task = this.tasks{t};
+                    this.malloc();  % resets caches for each task
 
                     % BOLD
                     try
@@ -234,10 +234,9 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
         end
 
         function this = malloc(this)
+            %% reset for new tasks or new subjects
 
-            % accumulate for statistics on serialized AnalyticSignalHCP
-            this.bold_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
-            this.physio_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest       
+            this = malloc@mlraut.AnalyticSignal(this);    
 
             this.HCP_signals_.cbm.psi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.cbm.phi = complex(nan(this.num_frames,this.num_nets));
@@ -247,10 +246,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this.HCP_signals_.str.phi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.thal.psi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.thal.phi = complex(nan(this.num_frames,this.num_nets));
-
-            % reset for new tasks
-            this.task_signal_mask_ = [];
-            this.task_signal_reference_ = [];
         end 
 
         function meta_plot(this)

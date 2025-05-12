@@ -367,6 +367,20 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.physio_signal_ = [this.physio_signal_; that.physio_signal_];
         end
 
+        function this = malloc(this)
+            %% reset for new tasks or new subjects
+
+            this = malloc@mlraut.HCP(this);   
+
+            % accumulate for statistics on serialized AnalyticSignalHCP
+            this.bold_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
+            this.physio_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
+
+            % utilities
+            plot_range_ = 1:round(200/this.tr);
+            this.plotting_ = mlraut.Plotting.create(this, plot_range=plot_range_);
+        end 
+
         function fqfn = mat_fqfn(this, opts)
             %% see also tags()
 
@@ -640,50 +654,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         %% helpers for BOLD
 
-        function mat = task_dtseries(this, varargin)
-            %% supports interface 
-
-            mat = this.task_dtseries_simple(varargin{:});
-        end
-
-        function mat = task_dtseries_simple(this, sub, task, opts)
-            %  Args:
-            %      this mlraut.AnalyticSignal
-            %      opts.max_frames double = Inf
-            %      opts.subjects cell {mustBeText} = {}
-            %      opts.tasks cell {mustBeText} = {}
-            %      opts.network_type {mustBeText} = ""
-            %  Returns:
-            %      mat (numeric):  time x grayordinate from BOLDData
-
-            arguments
-                this mlraut.AnalyticSignal
-                sub {mustBeTextScalar} = this.current_subject
-                task {mustBeTextScalar} = this.current_task
-                opts.network_type {mustBeText} = ""
-            end
-
-            this.current_subject = sub;
-            this.current_task = task;
-
-            mat = this.bold_data_.task_dtseries();
-            mat = this.trim_frames(mat);
-            mat = this.omit_late_frames(mat);
-            mat = single(mat);
-
-            if ~isemptytext(opts.network_type)
-                mat = this.average_network_signal(mat, network_type=opts.network_type);
-            end
-        end
-
-        function ic = task_niigz(this)
-            ic = task_niigz@mlraut.HCP(this);
-            ic = this.trim_frames(ic);
-            ic = this.omit_late_frames(ic);
-            ic.ensureSingle();
-            ic.fileprefix = stackstr(use_dashes=true);
-        end
-
         function [physio,physio_vec,pROI] = task_physio(this, opts)
             %  Returns:
             %      physio numeric Nt x 1
@@ -799,37 +769,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             physio_vec = single(physio_vec);
             physio = single(physio);
             assert(~isempty(physio))
-        end
-
-        function ic = task_signal_mask(this)
-            if ~isempty(this.task_signal_mask_)
-                ic = this.task_signal_mask_;
-                return
-            end
-
-            ic = this.task_signal_reference();
-            ic = ic.binarized();
-            
-            ic1 = mlfourd.ImagingContext2(this.wmparc_fqfn);
-            ic1 = ic1.binarized();
-            % ic1 = ic1.blurred(6);
-            % ic1 = ic1.thresh(0.1);
-            % ic1 = ic1.binarized();
-            if ~isempty(getenv("DEBUG"))
-                ic1.view_qc(ic);
-            end
-
-            % mask should not have greater coverage than blurred binarized wmparc
-            if dipsum(ic) > dipsum(ic1)
-                ic = ic1;
-            end
-            ic.ensureSingle();
-            this.task_signal_mask_ = ic;
-        end
-
-        function ic = task_signal_reference(this)
-            ic = task_signal_reference@mlraut.HCP(this);
-            ic.ensureSingle();
         end
 
         %% misc. helpers
@@ -971,8 +910,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
             addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
-            this.cifti_ = mlraut.Cifti(this);
-            this.plotting_ = mlraut.Plotting.create(this, plot_range=opts.plot_range);
 
             this.anatomy_list_ = opts.anatomy_list;
             this.do_7T = opts.do_7T;
@@ -1011,7 +948,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             this.build_roi(opts.roi);
 
-            this.twistors_ = mlraut.Twistors(this);
         end
     end
 
@@ -1027,14 +963,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
         rescaling_
         scale_to_hcp_
         tags_user_
-        task_signal_mask_
 
         bold_signal_
         global_signal_
         physio_angle_
         physio_signal_
         roi_
-        twistors_
     end
 
     methods (Access = protected)
@@ -1044,12 +978,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 that.cifti_ = copy(this.cifti_); end
             if ~isempty(this.plotting_)
                 that.plotting_ = copy(this.plotting_); end
-            if ~isempty(this.task_signal_mask_)
-                that.task_signal_mask_ = copy(this.task_signal_mask_); end
             if ~isempty(this.roi_)
                 that.roi_ = copy(this.roi_); end
-            if ~isempty(this.twistors_)
-                that.twistors_ = copy(this.twistors_); end
         end
     end
 

@@ -51,14 +51,15 @@ classdef BOLDData < handle & mlsystem.IHandle
         end
 
         function mat = task_dtseries(this, varargin)
-            % if ~isempty(this.task_dtseries_)
-            %     mat = this.task_dtseries_;
-            %     return
-            % end   % caching is risky if BOLDData is re-used for multiple tasks per sub
+            if ~isempty(this.task_dtseries_)
+                mat = this.task_dtseries_;
+                return
+            end   % caching requires BOLDData to be reset by HPC.malloc()
 
             try
                 cifti = cifti_read(this.ihcp_.task_dtseries_fqfn);
                 mat = cifti.cdata';
+                this.task_dtseries_ = mat;
                 this.num_frames_ori_ = size(mat, 1);
             catch ME
                 disp("%s: error while attempting to cifti_read %s.", stackstr(), this.ihcp_.task_dtseries_fqfn)
@@ -66,10 +67,10 @@ classdef BOLDData < handle & mlsystem.IHandle
             end
         end
         function ic = task_niigz(this)
-            % if ~isempty(this.task_niigz_)
-            %     ic = this.task_niigz_;
-            %     return
-            % end   % caching is risky if BOLDData is re-used for multiple tasks per sub
+            if ~isempty(this.task_niigz_)
+                ic = this.task_niigz_;
+                return
+            end   % caching requires BOLDData to be reset by HPC.malloc()
 
             ifc = mlfourd.ImagingFormatContext2(this.ihcp_.task_niigz_fqfn);  % HCP Young Adult
             tr = this.ihcp_.tr;
@@ -77,13 +78,13 @@ classdef BOLDData < handle & mlsystem.IHandle
             s = struct("timesMid", ascol(0:tr:T));
             ifc.addJsonMetadata(s);
             ic = mlfourd.ImagingContext2(ifc);
-            % this.task_niigz_ = copy(ic);  % caching is risky if BOLDData is re-used for multiple tasks per sub
+            this.task_niigz_ = copy(ic);
         end
         function ic = task_signal_reference(this)
-            % if ~isempty(this.task_signal_reference_)
-            %     ic = copy(this.task_signal_reference_);
-            %     return
-            % end   % caching is risky if BOLDData is re-used for multiple tasks per sub
+            if ~isempty(this.task_signal_reference_)
+                ic = copy(this.task_signal_reference_);
+                return
+            end   % caching requires BOLDData to be reset by HPC.malloc()
 
             fqfn_avgt = strrep(this.ihcp_.task_signal_reference_fqfn, ".nii.gz", "_avgt.nii.gz");
             if isfile(fqfn_avgt)
@@ -100,7 +101,7 @@ classdef BOLDData < handle & mlsystem.IHandle
                 ic.save();
                 fprintf("\tcomplete!\n")
             end
-            % this.task_signal_reference_ = copy(ic);   % caching is risky if BOLDData is re-used for multiple tasks per sub
+            this.task_signal_reference_ = copy(ic);
         end
     end
 

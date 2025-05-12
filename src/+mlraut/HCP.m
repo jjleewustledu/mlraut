@@ -22,6 +22,7 @@ classdef HCP < handle & mlsystem.IHandle
 
         bold_data
         cohort_data
+        twistors
 
         extended_task_dir  % supports HCPAging/rfMRIExtended/fmriresults01/HCA*
         Fs  % BOLD sampling rate (Hz)
@@ -46,13 +47,7 @@ classdef HCP < handle & mlsystem.IHandle
         workbench_dir
     end
 
-    methods %% GET, SET
-        function g = get.bold_data(this)
-            g = this.bold_data_;
-        end
-        function g = get.cohort_data(this)
-            g = this.cohort_data_;
-        end
+    methods %% GET, SET 
         function g = get.current_subject(this)
             if ~isempty(this.current_subject_)
                 g = this.current_subject_;
@@ -137,9 +132,19 @@ classdef HCP < handle & mlsystem.IHandle
             end
             g = this.tasks_;
         end
-        function set.tasks(this, s)
+        function     set.tasks(this, s)
             assert(istext(s))
             this.tasks_ = s;
+        end
+
+        function g = get.bold_data(this)
+            g = this.bold_data_;
+        end
+        function g = get.cohort_data(this)
+            g = this.cohort_data_;
+        end
+        function g = get.twistors(this)
+            g = this.twistors_;
         end
 
         function g = get.extended_task_dir(this)
@@ -244,22 +249,39 @@ classdef HCP < handle & mlsystem.IHandle
     end
 
     methods
+        function this = malloc(this)
+            %% reset for new tasks or new subjects
 
-            bound = min(this.max_frames, size(b, 1));
-            b = b(1:bound, :);
+            this.bold_data_ = mlraut.BOLDData(this);
+            this.cohort_data_ = mlraut.CohortData.create(this);
+            this.twistors_ = mlraut.Twistors(this);
+
+            this.task_dtseries_ = [];
+            this.task_niigz_ = [];
+            this.task_signal_mask_ = [];
+            this.task_signal_reference_ = [];
+            this.template_cifti_ = [];
+            this.template_niigz_ = [];
         end
 
         function mat = task_dtseries(this, varargin)
             %% supports interface
 
+            if ~isempty(this.task_dtseries_)
+                mat = this.task_dtseries_;
+                return
+            end
+
             mat = this.task_dtseries_simple(varargin{:});
+            this.task_dtseries_ = mat;
         end
 
-        function mat = task_dtseries_simple(this, sub, task)
+        function mat = task_dtseries_simple(this, sub, task, opts)
             %  Args:
             %      this mlraut.HCP
             %      sub {mustBeTextScalar} = this.current_subject
             %      task {mustBeTextScalar} = this.current_task
+            %      opts.network_type {mustBeText} = ""
             %  Returns:
             %      mat (numeric):  time x grayordinate from BOLDData
 
@@ -267,15 +289,55 @@ classdef HCP < handle & mlsystem.IHandle
                 this mlraut.HCP
                 sub {mustBeTextScalar} = this.current_subject
                 task {mustBeTextScalar} = this.current_task
+                opts.network_type {mustBeText} = ""
             end
             this.current_subject = sub;
             this.current_task = task;
 
             mat = this.bold_data_.task_dtseries();
+            mat = this.trim_frames(mat);
+
+            if ~isemptytext(opts.network_type)
+                mat = this.average_network_signal(mat, network_type=opts.network_type);
+            end
         end
 
         function ic = task_niigz(this)
+            if ~isempty(this.task_niigz_)
+                ic = this.task_niigz_;
+                return
+            end
+
             ic = this.bold_data_.task_niigz();
+            ic = this.trim_frames(ic);
+            ic.ensureSingle();
+            this.task_niigz_ = ic;
+        end
+
+        function ic = task_signal_mask(this)
+            if ~isempty(this.task_signal_mask_)
+                ic = this.task_signal_mask_;
+                return
+            end
+
+            ic = this.task_signal_reference();
+            ic = ic.binarized();
+            
+            ic1 = mlfourd.ImagingContext2(this.wmparc_fqfn);
+            ic1 = ic1.binarized();
+            % ic1 = ic1.blurred(6);
+            % ic1 = ic1.thresh(0.1);
+            % ic1 = ic1.binarized();
+            if ~isempty(getenv("DEBUG"))
+                ic1.view_qc(ic);
+            end
+
+            % mask should not have greater coverage than binarized wmparc
+            if dipsum(ic) > dipsum(ic1)
+                ic = ic1;
+            end
+            ic.ensureSingle();
+            this.task_signal_mask_ = ic;
         end
 
         function ic = task_signal_reference(this)
@@ -285,6 +347,7 @@ classdef HCP < handle & mlsystem.IHandle
             end
 
             ic = this.bold_data_.task_signal_reference();
+            ic.ensureSingle();
             this.task_signal_reference_ = ic;
         end
 
@@ -335,8 +398,6 @@ classdef HCP < handle & mlsystem.IHandle
             this.max_frames = opts.max_frames;
             this.subjects_ = opts.subjects;
             this.tasks_ = opts.tasks;
-            this.bold_data_ = mlraut.BOLDData(this);
-            this.cohort_data_ = mlraut.CohortData.create(this);
 
             if ischar(this.subjects_)
                 this.subjects_ = {this.subjects_};
@@ -357,9 +418,13 @@ classdef HCP < handle & mlsystem.IHandle
         cohort_data_
         subjects_
         tasks_
+        task_dtseries_
+        task_niigz_  % cached here and in mlraut.BOLDData
+        task_signal_mask_
         task_signal_reference_
         template_cifti_
         template_niigz_
+        twistors_
     end
 
     methods (Access = protected)
@@ -369,9 +434,6 @@ classdef HCP < handle & mlsystem.IHandle
                 that.bold_data_ = copy(this.bold_data_); end
             if ~isempty(this.cohort_data_)
                 that.cohort_data_ = copy(this.cohort_data_); end
-        end
-    end
-
     %% HIDDEN & DEPRECATED
 
     methods (Hidden)
@@ -412,6 +474,14 @@ classdef HCP < handle & mlsystem.IHandle
                 otherwise 
                     error('mlraut:ValueError', stackstr());
             end
+            if ~isempty(this.task_niigz_)
+                that.task_niigz_ = copy(this.task_niigz_); end
+            if ~isempty(this.task_signal_mask_)
+                that.task_signal_mask_ = copy(this.task_signal_mask_); end
+            if ~isempty(this.task_signal_reference_)
+                that.task_signal_reference_ = copy(this.task_signal_reference_); end
+            if ~isempty(this.twistors_)
+                that.twistors_ = copy(this.twistors_); end
         end
     end
     
