@@ -392,7 +392,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.num_nets = this.num_nets;
             this_subset.num_sub = this.num_sub;
             this_subset.num_tasks = this.num_tasks;
-            this_subset.scale_to_hcp = this.scale_to_hcp;
             this_subset.tags = this.tags;
             this_subset.bold_signal = this.bold_signal;
             this_subset.HCP_signals = this.HCP_signals;

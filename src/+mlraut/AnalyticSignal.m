@@ -42,7 +42,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
         plot_range
         rescaling
         rsn_list
-        scale_to_hcp  % adjust norm by time of scanning
         tags_user  % for filenames
 
         bold_signal
@@ -132,16 +131,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.rsn_list(~)
             g = mlraut.NetworkData.NETWORKS_YEO_NAMES;
-        end
-
-        function g = get.scale_to_hcp(this)
-            if ~isempty(this.scale_to_hcp_)
-                g = this.scale_to_hcp_;
-                return
-            end
-
-            this.scale_to_hcp_ = min(1192, this.max_frames)*0.72/(this.num_frames*this.tr);
-            g = this.scale_to_hcp_;
         end
 
         function g = get.tags_user(this)
