@@ -9,22 +9,31 @@ classdef Cifti < handle & mlsystem.IHandle
     properties (Dependent)
         is_7T
         out_dir
-        template_cifti
-        template_niigz
+        template_cifti  % struct for CIFTI
     end
 
     methods %% GET
         function g = get.is_7T(this)
             g = contains(this.ihcp_.task, '7T');
         end
+
         function g = get.out_dir(this)
             g = this.ihcp_.out_dir;
         end
+
         function g = get.template_cifti(this)
-            g = this.ihcp_.template_cifti;
+            if ~isempty(this.template_cifti_) && isstruct(this.template_cifti_)
+                g = this.template_cifti_;
+                return
+            end
+
+            g = cifti_read(this.ihcp_.task_ref_dscalar_fqfn);
+            this.template_cifti_ = g;
         end
-        function g = get.template_niigz(this)
-            g = this.ihcp_.template_niigz;
+
+        function     set.template_cifti(this, s)
+            assert(isstruct(s))
+            this.template_cifti_ = s;
         end
     end
 
@@ -134,7 +143,7 @@ classdef Cifti < handle & mlsystem.IHandle
                 handwarning(ME)
             end
         end
-
+        
         function this = Cifti(ihcp)
             arguments
                 ihcp mlraut.HCP
@@ -151,11 +160,7 @@ classdef Cifti < handle & mlsystem.IHandle
 
     properties (Access = protected)
         ihcp_
-    end
-
-    %% HIDDEN
-
-    methods (Hidden)
+        template_cifti_
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.

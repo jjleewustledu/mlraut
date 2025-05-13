@@ -18,26 +18,59 @@ classdef Test_HCP < matlab.unittest.TestCase
         end
 
         function test_ctor(this)
-            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
-            malloc(hcp);
+            hcp = this.testObj;  % HCP
 
             this.verifyEqual(hcp.max_frames, Inf);
             this.verifyEqual(hcp.current_subject, '995174')
             this.verifyEqual(hcp.current_task, 'rfMRI_REST1_RL')
+            this.verifyEqual(hcp.Fs, 1.389, AbsTol=1e-3);
             this.verifyEqual(hcp.num_frames, 1196);
             this.verifyEqual(hcp.num_frames_ori, 1200);
             this.verifyEqual(hcp.num_frames_to_trim, 4);
             this.verifyEqual(hcp.num_nodes, 91282);
+            this.verifyTrue(contains(hcp.out_dir, "AnalyticSignalHCP"));
+            this.verifyTrue(contains(hcp.root_dir, "HCP_1200"));
+            this.verifyTrue(contains(hcp.task_dir, fullfile("MNINonLinear", "Results", "rfMRI_REST1_RL")));
             this.verifyEqual(hcp.tr, 0.72);
             this.verifyEqual(mybasename(hcp.task_dtseries_fqfn, withext=true), "rfMRI_REST1_RL_Atlas_MSMAll_hp2000_clean.dtseries.nii")
             this.verifyEqual(mybasename(hcp.task_niigz_fqfn, withext=true), "rfMRI_REST1_RL_hp2000_clean.nii.gz")
-            this.verifyEqual(mybasename(hcp.task_signal_reference_fqfn, withext=true), "rfMRI_REST1_RL_SBRef.nii.gz")
+            this.verifyEqual(mybasename(hcp.task_ref_niigz_fqfn, withext=true), "rfMRI_REST1_RL_SBRef.nii.gz")
+            this.verifyEqual(mybasename(hcp.task_ref_dscalar_fqfn, withext=true), "rfMRI_REST1_RL_Atlas_hp2000_clean_vn.dscalar.nii")
             this.verifyEqual(mybasename(hcp.t1w_fqfn, withext=true), "T1w_restore.2.nii.gz")
+            this.verifyTrue(contains(hcp.waves_dir, fullfile("MATLAB-Drive", "arousal-waves")));
             this.verifyEqual(mybasename(hcp.wmparc_fqfn, withext=true), "wmparc.2.nii.gz")
+
+            %% template_cifti ~ Atlas_hp2000_clean_vn.dscalar, Cifti.average_times(task.dseries)
+         
+            cii = hcp.template_cifti;
+            this.verifyTrue(isstruct(cii.diminfo{1}));
+            this.verifyEqual(cii.diminfo{1}.type, 'dense');
+            this.verifyTrue(isstruct(cii.diminfo{1}.vol));
+            this.verifyTrue(iscell(cii.diminfo{1}.models));
+            this.verifyEqual(cii.diminfo{1}.length, 91282);
+            this.verifyEqual(cii.diminfo{2}.type, 'scalars');
+            this.verifyEqual(cii.diminfo{2}.length, 1);
+            this.verifyEqual(size(cii.cdata), [91282, 1]);
+            this.verifyEqual(dipmax(cii.cdata), 772.802673339844, AbsTol=1e-3);
+
+            %% template_niigz ~ wmparc
+
+            this.verifyTrue(isfile(hcp.wmparc_fqfn))
+            this.verifyInstanceOf(hcp.template_niigz, "mlfourd.ImagingContext2")
+            this.verifyEqual(hcp.template_niigz.filename, "wmparc.2.nii.gz")
+        end
+
+        function test_malloc(this)
+            hcp = this.testObj;
 
             this.verifyInstanceOf(hcp.bold_data, "mlraut.BOLDData");
             this.verifyEqual(hcp.bold_data.num_frames_ori, 1200);
             this.verifyEqual(hcp.bold_data.num_nodes, 91282);
+
+            this.verifyInstanceOf(hcp.cifti, "mlraut.Cifti");
+            this.verifyTrue(endsWith(hcp.out_dir, "AnalyticSignalHCP"));
+            this.verifyEqual(size(hcp.template_cifti.cdata), [91282, 1]);
+            this.verifyEqual(dipmax(hcp.template_cifti.cdata), 772.802673339844, AbsTol=1);
 
             this.verifyInstanceOf(hcp.cohort_data, "mlraut.HCPYoungAdultData");
             this.verifyEqual(hcp.cohort_data.tr, 0.72);

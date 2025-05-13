@@ -7,16 +7,18 @@ classdef BOLDData < handle & mlsystem.IHandle
     
     properties (Dependent)
         is_7T
-        num_frames_ori % expected:  1200 for HCP, 160 for RT GBM
+        num_frames_ori  % expected:  1200 for HCP, 160 for RT GBM
         num_nodes
         sub
         task
+        template_niigz  % mlfourd.ImagingContext2 for NIFTI
     end
 
     methods %% GET
         function g = get.is_7T(this)
             g = contains(this.task, '7T');
         end
+
         function g = get.num_frames_ori(this)
             if ~isempty(this.num_frames_ori_)
                 g = this.num_frames_ori_;
@@ -26,6 +28,7 @@ classdef BOLDData < handle & mlsystem.IHandle
             this.task_dtseries;  % obtains this.num_frames_ori_ from cifti_read()
             g = this.num_frames_ori_;
         end
+
         function g = get.num_nodes(this)
             if this.is_7T
                 g = 170494;  % HCP standard 1.6mm "grayordinates" 
@@ -36,8 +39,24 @@ classdef BOLDData < handle & mlsystem.IHandle
         function g = get.sub(this)
             g = this.ihcp_.current_subject;
         end
+
         function g = get.task(this)
             g = this.ihcp_.current_task;
+        end
+
+        function g = get.template_niigz(this)
+            if ~isempty(this.template_niigz_) && isa(this.template_niigz_, 'mlfourd.ImagingContext2')
+                g = this.template_niigz_;
+                return
+            end
+
+            g = mlfourd.ImagingContext2(this.ihcp_.wmparc_fqfn);
+            this.template_niigz_ = g;
+        end
+
+        function     set.template_niigz(this, s)
+            s = mlfourd.ImagingContext2(s);
+            this.template_niigz_ = s;
         end
     end
 
@@ -173,6 +192,7 @@ classdef BOLDData < handle & mlsystem.IHandle
         task_dtseries_
         task_niigz_
         task_ref_niigz_
+        template_niigz_
     end
 
     methods (Access = protected)
@@ -184,6 +204,8 @@ classdef BOLDData < handle & mlsystem.IHandle
                 that.task_niigz_ = copy(this.task_niigz_); end
             if ~isempty(this.task_ref_niigz_)
                 that.task_ref_niigz_ = copy(this.task_ref_niigz_); end
+            if ~isempty(this.template_niigz_)
+                that.template_niigz_ = copy(this.template_niigz_); end
         end
     end
     

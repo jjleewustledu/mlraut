@@ -195,34 +195,23 @@ classdef HCP < handle & mlsystem.IHandle
         function g = get.task_ref_niigz_fqfn(this)
             g = this.cohort_data_.task_ref_niigz_fqfn;
         end
-        function g = get.template_cifti(this)
-            if ~isempty(this.template_cifti_) && isstruct(this.template_cifti_)
-                g = this.template_cifti_;
-                return
         function g = get.task_ref_dscalar_fqfn(this)
             g = this.cohort_data_.task_ref_dscalar_fqfn;
-            end
-            g = cifti_read(this.thickness_dscalar_fqfn);
-            this.template_cifti_ = g;
+        end
+        function g = get.template_cifti(this)
+            g = this.cifti_.template_cifti;
         end
         function     set.template_cifti(this, s)
-            assert(isstruct(s))
-            this.template_cifti_ = s;
+            this.cifti_.template_cifti = s;
         end
         function g = get.thickness_dscalar_fqfn(this)
             g = this.cohort_data_.thickness_dscalar_fqfn;
         end
         function g = get.template_niigz(this)
-            if ~isempty(this.template_niigz_) && isa(this.template_niigz_, 'mlfourd.ImagingContext2')
-                g = this.template_niigz_;
-                return
-            end
-            g = mlfourd.ImagingContext2(this.wmparc_fqfn);
-            this.template_niigz_ = g;
+            g = this.bold_data_.template_niigz;
         end
         function     set.template_niigz(this, s)
-            s = mlfourd.ImagingContext2(s);
-            this.template_niigz_ = s;
+            this.bold_data_.template_niigz = s;
         end
         function g = get.t1w_fqfn(this)
             g = this.cohort_data_.t1w_fqfn;
@@ -464,8 +453,6 @@ classdef HCP < handle & mlsystem.IHandle
         task_dtseries_
         task_mask_niigz_
         task_niigz_  % cached here and in mlraut.BOLDData
-        template_cifti_
-        template_niigz_
         task_ref_niigz_
         twistors_
     end
