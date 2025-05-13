@@ -43,6 +43,28 @@ classdef NetworkData < handle & mlsystem.IHandle
     end
 
     methods
+        function signal = build_anat_signal(this, psi)
+            %% For each anatomical partition, average over nodes for a given subject and given task.
+            %  Args:
+            %       psi {mustBeNumeric} : complex analytic signal
+            %  Returns:
+            %       signals complex ~ this.num_frames
+
+            arguments
+                this mlraut.NetworkData
+                psi {mustBeNumeric} = this.psi_
+            end
+
+            signal = complex(nan(this.num_frames, 1));
+
+            try
+                msk = this.anat_mask;  % subclassed by anatomical subclasses
+                signal = mean(psi(:,msk), 2, 'omitnan');
+            catch ME
+                handerror(ME)
+            end
+        end
+
         function signals = build_Yeo_signals(this, psi)
             %% For each Yeo subnet, average over nodes for a given subject and given task.
             %  Args:
