@@ -52,6 +52,15 @@ classdef Cifti < handle & mlsystem.IHandle
             fn = fullfile(pth, fn);
             cii = cifti_read(fn);
         end
+        
+        function fqfn = average_times(~, fqfn0)
+            cii = cifti_read(fqfn0);
+            cii.cdata = mean(cii.cdata, 2);  % cifti ~ Ngo x Nt
+            cii.diminfo{2} = cifti_diminfo_make_scalars(1);
+            fqfn = strrep(fqfn0, ".dscalar.nii", "_avgt.dscalar.nii");
+            cifti_write(cii, convertStringsToChars(fqfn));
+        end
+        
         function cii = write_cifti(this, c1_data, fn)
             sz = size(c1_data);
             if sz(2) > sz(1)
