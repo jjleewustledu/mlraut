@@ -16,6 +16,47 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+        function test_global_signal(this)
+            %% check magnitudes of {ctx, cbv, str, thal} vs gsr
+
+            as = this.testObj;
+
+            ctx = as.average_anat_signal(as.task_dtseries, network_type="ctx");
+            crb = as.average_anat_signal(as.task_dtseries, network_type="crb");
+            str = as.average_anat_signal(as.task_dtseries, network_type="str");
+            thal = as.average_anat_signal(as.task_dtseries, network_type="thal");
+            % plot([as.global_signal, ctx, crb, str, thal]);
+            % legend(["global signal", "ctx", "crb", "str", "thal"]);
+
+            this.verifyEqual(mean(as.global_signal, "all"), 10332.1418491366, AbsTol=1);
+            this.verifyEqual(mean(ctx, "all"), single(1.0892601e+04), AbsTol=1);
+            this.verifyEqual(mean(crb, "all"), single(8.5629580e+03), AbsTol=1);
+            this.verifyEqual(mean(str, "all"), single(1.1747824e+04), AbsTol=1);
+            this.verifyEqual(mean(thal, "all"), single(1.2746612e+04), AbsTol=1);
+        end
+
+        function test_build_global_signal_regressed(this)
+            %% check magnitudes of task_niigz vs gsr
+
+            as = this.testObj;
+
+            ifc = as.task_niigz.imagingFormat;
+            gsr = copy(ifc);
+            gsr.fileprefix = ifc.fileprefix + "_gsr";
+            gs = reshape(as.global_signal, [1, 1, 1, as.num_frames]);
+            gsr.img = ifc.img - gs;
+            % gsr.view_qc(ifc);
+
+            % native BOLD values
+            this.verifyEqual(dipmin(ifc.img), -1701.63549804688, AbsTol=1)
+            this.verifyEqual(mean(ifc.img, "all"), single(2.5297590e+03), AbsTol=1)
+            this.verifyEqual(dipmax(ifc.img), 26076.93359375, AbsTol=1)
+
+            % gsr shifts native BOLD values down
+            this.verifyEqual(dipmin(gsr.img), -12022.9560546875, AbsTol=1)
+            this.verifyEqual(mean(gsr.img, "all"), single(-7.8023848e+03), AbsTol=1)
+            this.verifyEqual(dipmax(gsr.img), 15745.298828125, AbsTol=1)
+        end
         function test_physio(this)
 
             this.verifyEqual(this.testObj.current_subject, this.testObj.subjects{1});
