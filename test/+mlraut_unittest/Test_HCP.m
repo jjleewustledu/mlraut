@@ -133,8 +133,7 @@ classdef Test_HCP < matlab.unittest.TestCase
         end
 
         function test_dlabel_nii(this)
-            hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
-            malloc(hcp);
+            hcp = this.testObj;
             cii = mlraut.Cifti(hcp);
             dlabel = cii.aparc_a2009s_dlabel_nii();
             this.verifyEqual(size(dlabel.metadata), [1, 4])
@@ -143,8 +142,7 @@ classdef Test_HCP < matlab.unittest.TestCase
         end
 
         function test_label_gii(this)
-            hcp = mlraut.HCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
-            malloc(hcp);
+            hcp = this.testObj;
             gii = mlraut.Gifti(hcp);
             label = gii.aparc_a2009s_label_gii();
             this.verifyEqual(size(label.cdata), [32492, 1])
@@ -155,13 +153,14 @@ classdef Test_HCP < matlab.unittest.TestCase
     methods (TestClassSetup)
         function setupHCP(this)
             import mlraut.*
-            this.testObj_ = HCP();
+            this.testObj_ = HCP(subjects="995174", tasks="rfMRI_REST1_RL");
         end
     end
     
     methods (TestMethodSetup)
         function setupHCPTest(this)
-            this.testObj = this.testObj_;
+            this.testObj = copy(this.testObj_);
+            malloc(this.testObj);
             this.addTeardown(@this.cleanTestMethod)
         end
     end
