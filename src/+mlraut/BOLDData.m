@@ -9,6 +9,7 @@ classdef BOLDData < handle & mlsystem.IHandle
         is_7T
         num_frames_ori  % expected:  1200 for HCP, 160 for RT GBM
         num_nodes
+        out_dir
         sub
         task
         template_niigz  % mlfourd.ImagingContext2 for NIFTI
@@ -36,6 +37,11 @@ classdef BOLDData < handle & mlsystem.IHandle
                 g = 91282;  % HCP standard 2mm "grayordinates" 
             end
         end
+
+        function g = get.out_dir(this)
+            g = this.ihcp_.out_dir;
+        end
+
         function g = get.sub(this)
             g = this.ihcp_.current_subject;
         end
@@ -121,6 +127,32 @@ classdef BOLDData < handle & mlsystem.IHandle
                 fprintf("\tcomplete!\n")
             end
             this.task_ref_niigz_ = copy(ic);
+        end
+        function ic = write_nii(this, img, fp)
+            arguments
+                this mlraut.BOLDData
+                img {mustBeNumericOrLogical}
+                fp {mustBeTextScalar}
+            end
+
+            try
+                ifc = this.template_niigz.imagingFormat;
+                ifc.img = img;
+                [pth,fp] = myfileparts(fp);
+                if isempty(pth) || "" == pth
+                    pth = this.out_dir;
+                end
+                ifc.filepath = pth;
+                ifc.fileprefix = fp;
+                tr = this.ihcp_.tr;
+                Nt = length(img);
+                ifc.json_metadata.timesMid = 0:tr:tr*(Nt - 1);
+                ifc.save();
+
+                ic = mlfourd.ImagingContext2(ifc);
+            catch ME
+                handwarning(ME)
+            end
         end
     end
 

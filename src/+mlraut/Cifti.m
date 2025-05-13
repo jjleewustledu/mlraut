@@ -52,6 +52,7 @@ classdef Cifti < handle & mlsystem.IHandle
             fn = fullfile(pth, fn);
             cii = cifti_read(fn);
         end
+        function cii = write_cifti(this, c1_data, fn)
             sz = size(c1_data);
             if sz(2) > sz(1)
                 c1_data = c1_data'; % grey-ordinates x series
@@ -113,32 +114,6 @@ classdef Cifti < handle & mlsystem.IHandle
                     fp1 = strcat(fp, '_avgt');   
                     this.write_cifti(cdata1, fp1);  
                 end
-            catch ME
-                handwarning(ME)
-            end
-        end
-        function ic = write_nii(this, img, fp)
-            arguments
-                this mlraut.Cifti
-                img {mustBeNumericOrLogical}
-                fp {mustBeTextScalar}
-            end
-
-            try
-                ifc = this.template_niigz.imagingFormat;
-                ifc.img = img;
-                [pth,fp] = myfileparts(fp);
-                if isempty(pth) || "" == pth
-                    pth = this.out_dir;
-                end
-                ifc.filepath = pth;
-                ifc.fileprefix = fp;
-                tr = this.ihcp_.tr;
-                Nt = length(img);
-                ifc.json_metadata.timesMid = 0:tr:tr*(Nt - 1);
-                ifc.save();
-
-                ic = mlfourd.ImagingContext2(ifc);
             catch ME
                 handwarning(ME)
             end
