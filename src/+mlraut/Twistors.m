@@ -30,7 +30,7 @@ classdef Twistors < handle & mlsystem.IHandle
                 roi mlfourd.ImagingContext2 = this.ihcp_.roi
             end
 
-            if strcmp(roi.stateTypeclass, "mlfourd.TrivialTool")
+            if isempty(roi) || strcmp(roi.stateTypeclass, "mlfourd.TrivialTool")
                 pos = [0; 0; 0];
                 v = [1; 1; 1];
                 return

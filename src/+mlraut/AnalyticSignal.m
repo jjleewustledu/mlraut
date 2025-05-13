@@ -857,10 +857,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.max_frames double = Inf
             %      opts.out_dir {mustBeFolder} = pwd
             %      opts.rescaling {mustBeTextScalar} = 'iqr' : rescales bold and physio before creating twistor [X,Y,Z,T]
-            %      opts.roi = []:  e.g. fqfn;
-            %                      ImagingContext2 for "WT_on_T1w", "CE_on_T1w", "ROI", for files found in sub-*/MNINonLinear; 
-            %                      double row_vec for mlraut.PhysioRoi(from_wmparc_indices=row_vec)
-            %                      used with this.task_physio()
             %      opts.source_physio {mustBeTextScalar} = 'iFV-brightest'
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
@@ -895,7 +891,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.out_dir {mustBeTextScalar} = ""
                 opts.plot_range double = []
                 opts.rescaling {mustBeTextScalar} = "iqr"
-                opts.roi = []
                 opts.source_physio = "iFV-brightest"
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
@@ -942,9 +937,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.tags_user_ = opts.tags;
             this.v_physio = opts.v_physio;
             this.v_physio_iFV = opts.v_physio_iFV;
-
-            this.build_roi(opts.roi);
-
         end
     end
 
@@ -983,23 +975,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
     %% PRIVATE
 
     methods (Access = private)
-        function [physio,physio_vec] = build_physio_from_ROI(this, pROI, size_reference)
-            proi_pos = this.twistors_.center_of_mass_position(pROI.roi_mask);
-            physio_vec_ = pROI.call();
-            physio_vec_gsr_ = ...
-                this.build_global_signal_regressed(physio_vec_, is_physio=true);
-            physio_vec = ...
-                this.build_rescaled( ...
-                this.build_band_passed( ...
-                this.build_centered(physio_vec_gsr_)));
-            physio = this.twistors_.propagate_physio( ...
-                size_reference, physio_vec, ...
-                physio_pos=proi_pos, ...
-                v=this.v_physio);
-            assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
-        end
-
         function this = build_roi(this, roi)
+            %% defers to expectations assigned to this.source_physio
+            %  roi ~ empty, this.source_physio ~ "ROI":  return
+            %  roi ~ understood by mlfourd.ImagingContext2:  assigns this.roi_ with mlfourd.ImagingContext2(roi)
+            %  roi ~ 1 | [2 3], but not 3D or 4D:  calls PhysioRoi with from_wmparc_indices := roi
+
             arguments
                 this mlraut.AnalyticSignal
                 roi = []

@@ -17,7 +17,7 @@ classdef PhysioRoi < handle & mlraut.PhysioData
         end
     end
     
-    methods
+    methods        
         function ic = build_roi_mask(this, opts)
             %% Performs exactly one flipLR as needed.
             %  Args:
