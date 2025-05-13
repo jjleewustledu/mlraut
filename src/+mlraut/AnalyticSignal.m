@@ -814,18 +814,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
         end
 
-        function c = write_cifti(this, varargin)
-            c = this.cifti_.write_cifti(varargin{:});
-        end
-
-        function [c,c1] = write_ciftis(this, varargin)
-            [c,c1] = this.cifti_.write_ciftis(varargin{:});
-        end
-
-        function ic = write_nii(this, varargin)
-            ic = this.cifti_.write_nii(varargin{:});
-        end
-
         %%
 
         function this = AnalyticSignal(opts)
@@ -944,7 +932,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
     properties (Access = protected)
         anatomy_list_
-        cifti_
         digital_filter_
         hp_thresh_
         lp_thresh_
@@ -963,8 +950,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
     methods (Access = protected)
         function that = copyElement(this)
             that = copyElement@matlab.mixin.Copyable(this);
-            if ~isempty(this.cifti_)
-                that.cifti_ = copy(this.cifti_); end
             if ~isempty(this.plotting_)
                 that.plotting_ = copy(this.plotting_); end
             if ~isempty(this.roi_)

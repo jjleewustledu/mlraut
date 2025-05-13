@@ -43,7 +43,6 @@ classdef Cifti < handle & mlsystem.IHandle
             fn = fullfile(pth, fn);
             cii = cifti_read(fn);
         end
-        function c_ = write_cifti(this, c1_data, fn)
             sz = size(c1_data);
             if sz(2) > sz(1)
                 c1_data = c1_data'; % grey-ordinates x series

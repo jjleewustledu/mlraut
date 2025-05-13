@@ -21,6 +21,7 @@ classdef HCP < handle & mlsystem.IHandle
         tasks
 
         bold_data
+        cifti
         cohort_data
         twistors
 
@@ -141,6 +142,9 @@ classdef HCP < handle & mlsystem.IHandle
         function g = get.bold_data(this)
             g = this.bold_data_;
         end
+        function g = get.cifti(this)
+            g = this.cifti_;
+        end
         function g = get.cohort_data(this)
             g = this.cohort_data_;
         end
@@ -256,6 +260,7 @@ classdef HCP < handle & mlsystem.IHandle
             %% reset for new tasks or new subjects
 
             this.bold_data_ = mlraut.BOLDData(this);
+            this.cifti_ = mlraut.Cifti(this);
             this.cohort_data_ = mlraut.CohortData.create(this);
             this.twistors_ = mlraut.Twistors(this);
 
@@ -386,6 +391,28 @@ classdef HCP < handle & mlsystem.IHandle
             error("mlraut:TypeError", stackstr())
         end
 
+        function cii = write_cifti(this, varargin)
+            %  Returns:
+            %      cii struct : for CIFTI
+
+            cii = this.cifti_.write_cifti(varargin{:});
+        end
+
+        function [cii,cii1] = write_ciftis(this, varargin)
+            %  Returns:
+            %      cii struct : for CIFTI
+            %      cii1 struct : for CIFTI
+
+            [cii,cii1] = this.cifti_.write_ciftis(varargin{:});
+        end
+
+        function ic = write_nii(this, varargin)
+            %  Returns:
+            %      ic mlfourd.ImagingContext2
+
+            ic = this.bold_data_.write_nii(varargin{:});
+        end
+
         function this = HCP(opts)
             %%
             %  Args:
@@ -430,6 +457,7 @@ classdef HCP < handle & mlsystem.IHandle
         current_task_  % defers to tasks{1} as needed
 
         bold_data_
+        cifti_
         cohort_data_
         subjects_
         tasks_
@@ -447,6 +475,8 @@ classdef HCP < handle & mlsystem.IHandle
             that = copyElement@matlab.mixin.Copyable(this);
             if ~isempty(this.bold_data_)
                 that.bold_data_ = copy(this.bold_data_); end
+            if ~isempty(this.cifti_)
+                that.cifti_ = copy(this.cifti_); end
             if ~isempty(this.cohort_data_)
                 that.cohort_data_ = copy(this.cohort_data_); end
             if ~isempty(this.task_mask_niigz_)
