@@ -7,14 +7,27 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
     
     properties
         testObj
+    end    
+
+    methods (Static)
+        function c = called(this)
+            call(this.testObj);
+        end
     end
-    
+
     methods (Test)
         function test_afun(this)
             import mlraut.*
             this.assumeEqual(1,1);
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
+        end
+
+        function test_ctor(this)
+            as = this.testObj;
+            this.verifyEqual(as.num_nets, 9);
+            this.verifyEqual(as.num_subs, 1);
+            this.verifyEqual(as.num_tasks, 1);
         end
 
         function test_task_mask_niigz(this)
@@ -194,26 +207,25 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
     
     methods (TestClassSetup)
         function setupAnalyticSignalHCP(this)
-            this.testObj_ = [];
+            import mlraut.*
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            this.testObj_ = AnalyticSignalHCP( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_global_signal_regression=true, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                v_physio=50, ...
+                plot_range=1:250, ...
+                source_physio="iFV", ...
+                tags=stackstr(use_dashes=true));
         end
     end
     
     methods (TestMethodSetup)
         function setupAnalyticSignalHCPTest(this)
-            % 995174, 996782
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            this.testObj = mlraut.AnalyticSignalHCP( ...
-                subjects={'996782'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_global_signal_regression=true, ...
-                do_save=false, ...
-                do_save_dynamic=false, ...
-                do_save_ciftis=false, ...
-                hp_thresh=0.01, ...
-                lp_thresh=0.1, ...
-                v_physio=50, ...
-                plot_range=1:250, ...
-                tags=stackstr(use_dashes=true));
+            this.testObj = copy(this.testObj_);
+            malloc(this.testObj);
             this.addTeardown(@this.cleanTestMethod)
         end
     end

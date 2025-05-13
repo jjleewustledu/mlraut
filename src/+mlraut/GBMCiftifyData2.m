@@ -156,7 +156,7 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
             end
         end
         function g = get.thickness_dscalar_fqfn(this)
-            g = fullfile(this.mninonlinear_dir, this.sub + ".thickness.164k_fs_LR.dscalar.nii");
+            g = fullfile(this.mninonlinear_dir, "fsaverage_LR32k", this.sub + ".thickness.32k_fs_LR.dscalar.nii");
             assert(isfile(g), stackstr())
         end
         function g = get.t1w_fqfn(this)
@@ -293,10 +293,10 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
             end
 
             mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere_MSMall.32k_fs_LR.surf.gii"));
-            % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
+            % 995174.L.midthickness_MSMAll.32k_fs_LR.surf.gii
             if isemptytext(mg)
                 mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere.32k_fs_LR.surf.gii"));
-                % 995174.L.midthickness.164k_fs_LR.surf.gii
+                % 995174.L.midthickness.32k_fs_LR.surf.gii
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(end);

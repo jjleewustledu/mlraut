@@ -503,8 +503,16 @@ classdef Plotting < handle & mlsystem.IHandle
                 this = mlraut.PlottingGBM(ias, varargin{:});
                 return
             end
+            if isa(ias, "mlraut.AnalyticSignalHCPAging")
+                this = mlraut.PlottingWavelets(ias, varargin{:});
+                return
+            end
             if isa(ias, "mlraut.AnalyticSignalHCP")
                 this = mlraut.PlottingWavelets(ias, varargin{:});
+                return
+            end
+            if isa(ias, "mlraut.AnalyticSignal")
+                this = mlraut.Plotting(ias, varargin{:});
                 return
             end
             error("mlraut:ValueError", "%s: received an %s object.", stackstr(), class(ias))

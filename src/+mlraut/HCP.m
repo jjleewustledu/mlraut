@@ -267,6 +267,8 @@ classdef HCP < handle & mlsystem.IHandle
 
         function mat = task_dtseries(this, varargin)
             %% supports interface
+            %  Returns:
+            %      mat (numeric):  time x grayordinate from BOLDData
 
             if ~isempty(this.task_dtseries_)
                 mat = this.task_dtseries_;
@@ -304,6 +306,9 @@ classdef HCP < handle & mlsystem.IHandle
         end
 
         function ic = task_niigz(this)
+            %  Returns:
+            %      ic mlfourd.ImagingContext2
+
             if ~isempty(this.task_niigz_)
                 ic = this.task_niigz_;
                 return
@@ -316,6 +321,9 @@ classdef HCP < handle & mlsystem.IHandle
         end
 
         function ic = task_mask_niigz(this)
+            %  Returns:
+            %      ic mlfourd.ImagingContext2
+
             if ~isempty(this.task_mask_niigz_)
                 ic = this.task_mask_niigz_;
                 return
@@ -342,6 +350,9 @@ classdef HCP < handle & mlsystem.IHandle
         end
 
         function ic = task_ref_niigz(this)
+            %  Returns:
+            %      ic mlfourd.ImagingContext2
+
             if ~isempty(this.task_ref_niigz_)
                 ic = this.task_ref_niigz_;
                 return
@@ -353,6 +364,9 @@ classdef HCP < handle & mlsystem.IHandle
         end
 
         function tseries = trim_frames(this, tseries)
+            %  Returns:
+            %      tseries mlfourd.ImagingContext2
+            
             idx_start = 1 + this.num_frames_to_trim;
             if isnumeric(tseries)
                 tseries = tseries(idx_start:end,:);

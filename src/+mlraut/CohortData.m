@@ -71,18 +71,20 @@ classdef CohortData < handle & mlsystem.IHandle
     methods (Static)
         function this = create(ihcp)
             arguments
-                ihcp mlraut.HCP
+                ihcp
             end
 
             switch class(ihcp)
                 case 'mlraut.HCP'
                     this = mlraut.HCPYoungAdultData(ihcp);
+                case 'mlraut.AnalyticSignal'
+                    this = mlraut.HCPYoungAdultData(ihcp);
                 case {'mlraut.AnalyticSignalHCP', 'mlraut.AnalyticSignalHCPPar'}
                     this = mlraut.HCPYoungAdultData(ihcp);
-                case {'mlraut.AnalyticSignalGBM', 'mlraut.AnalyticSignalGBMPar'}
-                    this = mlraut.GBMCiftifyData2(ihcp);
                 case {'mlraut.AnalyticSignalHCPAging', 'mlraut.AnalyticSignalHCPAgingPar'}
                     this = mlraut.HCPAgingData(ihcp);
+                case {'mlraut.AnalyticSignalGBM', 'mlraut.AnalyticSignalGBMPar'}
+                    this = mlraut.GBMCiftifyData2(ihcp);
                 otherwise
                     error("mlraut:ValueError", "%s: received an %s object.", stackstr(), class(ihcp))
             end

@@ -70,15 +70,16 @@ classdef Cifti < handle & mlsystem.IHandle
             fn = strrep(fn, 'sub-sub', 'sub');  % clean-up legacy nomenclature
             fn = strrep(fn, 'ses-ses', 'ses');
 
-            c_ = this.template_cifti;
-            c_.cdata = c1_data;
+            cii = this.template_cifti;
+            cii.cdata = c1_data;
             if contains(fn, '.dtseries')
-                c_.diminfo{2} = cifti_diminfo_make_series(sz(2), 0, this.ihcp_.tr, 'SECOND');
+                cii.diminfo{2} = cifti_diminfo_make_series(sz(2), 0, this.ihcp_.tr, 'SECOND');
             else
-                c_.diminfo{2} = cifti_diminfo_make_scalars(1);
+                cii.diminfo{2} = cifti_diminfo_make_scalars(1);
             end
-            cifti_write(c_, convertStringsToChars(fn));
+            cifti_write(cii, convertStringsToChars(fn));
         end 
+        
         function [cdata,cdata1] = write_ciftis(this, cdata, fp, opts)
             arguments
                 this mlraut.Cifti

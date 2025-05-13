@@ -259,10 +259,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             % Elapsed time is ___ seconds.
         end
-        function test_num_frames_to_trim(this)
-        end
-        function test_max_frames(this)
-        end
+        
         function test_average_network_signals(this)
             %% candidate supplemental figure, with concat runs
 
@@ -554,7 +551,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
                 hp_thresh=0.005, ...
                 lp_thresh=0.1, ...
                 tags=stackstr(use_dashes=true), ...
-                source_physio="iFV-brightest", ...
+                source_physio="iFV-brightest");
 
             as.current_subject = as.subjects{1};
             if ~contains(as.out_dir, as.current_subject)
