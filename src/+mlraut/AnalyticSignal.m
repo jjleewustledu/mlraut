@@ -177,6 +177,36 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = this.twistors_.angle(varargin{:});
         end
 
+        function psi = average_anat_signal(this, psi, opts)
+            arguments
+                this mlraut.AnalyticSignal
+                psi {mustBeNumeric}
+                opts.network_type {mustBeText} = "cortical"
+            end
+
+            if startsWith(opts.network_type, "cerebell", IgnoreCase=true) || strcmp(opts.network_type, "crb")
+                dat = mlraut.CerebellarData(this, psi);
+                psi = dat.build_anat_signal();
+                return
+            end
+            if startsWith(opts.network_type, "cort", IgnoreCase=true) || strcmp(opts.network_type, "ctx")
+                dat = mlraut.CorticalData(this, psi);
+                psi = dat.build_anat_signal();
+                return
+            end
+            if startsWith(opts.network_type, "str", IgnoreCase=true)
+                dat = mlraut.StriatalData(this, psi);
+                psi = dat.build_anat_signal();
+                return
+            end
+            if startsWith(opts.network_type, "thal", IgnoreCase=true)
+                dat = mlraut.ThalamicData(this, psi);
+                psi = dat.build_anat_signal();
+                return
+            end
+            error("mlraut:ValueError", stackstr())
+        end
+
         function psi = average_network_signal(this, psi, opts)
             arguments
                 this mlraut.AnalyticSignal
