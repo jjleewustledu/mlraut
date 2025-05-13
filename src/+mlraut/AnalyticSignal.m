@@ -927,8 +927,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.frac_ext_physio = opts.frac_ext_physio;
             this.hp_thresh_ = opts.hp_thresh;
             this.lp_thresh_ = opts.lp_thresh;
-            if ~isempty(this.lp_thresh) && ~isempty(this.hp_thresh)
-                assert(this.hp_thresh < this.lp_thresh, "hp_thresh < lp_thresh is required")
+            if ~isempty(this.lp_thresh_) && ~isempty(this.hp_thresh_)
+                assert(this.hp_thresh_ < this.lp_thresh_, "hp_thresh < lp_thresh is required")
             end
             this.max_frames = opts.max_frames;
             this.cohort_data_.out_dir = opts.out_dir;
