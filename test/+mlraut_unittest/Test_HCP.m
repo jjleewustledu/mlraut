@@ -80,11 +80,21 @@ classdef Test_HCP < matlab.unittest.TestCase
             this.verifyInstanceOf(hcp.twistors, "mlraut.Twistors");
         end
 
+        function test_max_frames(this)
+            hcp = this.testObj;
+            hcp.max_frames = 320;
+            this.verifyEqual(hcp.num_frames, 320);
+        end
+
+        function test_task_dtseries(this)
+            hcp = this.testObj;
+            dtseries = hcp.task_dtseries();
+            this.verifyEqual(size(dtseries), [1196, 91282])
+        end
+
         function test_task_niigz(this)
-            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
-            malloc(hcp);
+            hcp = this.testObj;
             ic = hcp.task_niigz();            
-            
             this.verifyEqual(ic.filename, "rfMRI_REST1_RL_hp2000_clean.nii.gz")
             this.verifyEqual(ic.qfac, -1)
             this.verifyEqual(size(ic), [91, 109, 91, 1196])
