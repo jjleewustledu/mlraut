@@ -83,7 +83,7 @@ classdef Test_HCP < matlab.unittest.TestCase
         function test_task_niigz(this)
             hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
             malloc(hcp);
-            ic = hcp.task_niigz();
+            ic = hcp.task_niigz();            
             
             this.verifyEqual(ic.filename, "rfMRI_REST1_RL_hp2000_clean.nii.gz")
             this.verifyEqual(ic.qfac, -1)
@@ -96,18 +96,25 @@ classdef Test_HCP < matlab.unittest.TestCase
             ic = hcp.task_mask_niigz();
             % hcp.task_mask_niigz.view_qc(ic)
 
-            this.verifyEqual(size(dtseries), [1196, 91282])
-        end
-
-        function test_task_signal_mask(this)
-            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
-            malloc(hcp);
-            ic = hcp.task_signal_mask();
-
             this.verifyEqual(ic.filename, "wmparc.2_binarized.nii.gz")
             this.verifyEqual(ic.qfac, -1)
             this.verifyEqual(size(ic), [91, 109, 91])
             this.verifyInstanceOf(ic.imagingFormat.img, "single")
+            this.verifyEqual(dipmax(ic), 1)
+            this.verifyEqual(dipsum(ic), 195405)
+        end
+        
+        function test_task_ref_niigz(this)
+            hcp = this.testObj;
+            ic = hcp.task_ref_niigz;
+            % ic.view_qc(hcp.task_mask_niigz);
+
+            this.verifyEqual(ic.filename, "rfMRI_REST1_RL_SBRef.nii.gz")
+            this.verifyEqual(ic.qfac, -1)
+            this.verifyEqual(size(ic), [91, 109, 91])
+            this.verifyInstanceOf(ic.imagingFormat.img, "single")
+            this.verifyEqual(dipmax(ic), 40297.08203125, AbsTol=1e-3)
+            this.verifyEqual(dipsum(ic), 2.272379999944073e+09, AbsTol=1)
         end
 
         function test_task_objects(this)
