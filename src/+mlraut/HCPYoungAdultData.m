@@ -18,7 +18,8 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn
+        task_ref_niigz_fqfn
+        task_ref_dscalar_fqfn
         thickness_dscalar_fqfn
         t1w_fqfn
         wmparc_fqfn
@@ -124,8 +125,16 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
         end
-        function g = get.task_signal_reference_fqfn(this)
+        function g = get.task_ref_niigz_fqfn(this)
             mg = mglob(fullfile(this.task_dir, this.task + "_SBRef*.nii.gz"));
+            assert(~isemptytext(mg), stackstr())
+            g = mg(1);
+        end
+        function g = get.task_ref_dscalar_fqfn(this)
+            mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp2000_clean_vn.dscalar.nii"));
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp2000_clean_bias.dscalar.nii"));
+            end
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
         end

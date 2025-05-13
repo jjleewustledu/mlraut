@@ -396,11 +396,6 @@ classdef AnalyticSignalGBM < handle & mlraut.AnalyticSignalHCP
         function mat = task_dtseries_simple(this, varargin)
             mat = task_dtseries_simple@mlraut.AnalyticSignal(this, varargin{:});
         end
-
-        function ic = task_signal_mask(this)
-            ic = this.task_signal_reference();
-            ic = ic.blurred(7).thresh(100).binarized();
-        end
     end
 
     methods (Static)

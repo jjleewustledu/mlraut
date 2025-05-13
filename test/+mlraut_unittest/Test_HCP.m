@@ -58,10 +58,10 @@ classdef Test_HCP < matlab.unittest.TestCase
             this.verifyInstanceOf(ic.imagingFormat.img, "single")
         end
 
-        function test_task_dtseries(this)
-            hcp = mlraut.HCP(subjects="995174", tasks="rfMRI_REST1_RL");
-            malloc(hcp);
-            dtseries = hcp.task_dtseries();
+        function test_task_mask_niigz(this)
+            hcp = this.testObj;
+            ic = hcp.task_mask_niigz();
+            % hcp.task_mask_niigz.view_qc(ic)
 
             this.verifyEqual(size(dtseries), [1196, 91282])
         end
@@ -85,7 +85,7 @@ classdef Test_HCP < matlab.unittest.TestCase
             mysystem(sprintf("fsleyes %s %s %s", ...
                 hcp.t1w_fqfn, ...
                 hcp.wmparc_fqfn, ...
-                hcp.task_signal_reference_fqfn))
+                hcp.task_ref_niigz_fqfn))
         end
         function test_task_objects_7T(this)
             return
@@ -96,7 +96,7 @@ classdef Test_HCP < matlab.unittest.TestCase
             mysystem(sprintf("fsleyes %s %s %s", ...
                 hcp.t1w_fqfn, ...
                 hcp.wmparc_fqfn, ...
-                hcp.task_signal_reference_fqfn))
+                hcp.task_ref_niigz_fqfn))
         end
 
         function test_dlabel_nii(this)

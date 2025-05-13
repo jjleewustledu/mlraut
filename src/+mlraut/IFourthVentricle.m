@@ -105,7 +105,7 @@ classdef IFourthVentricle < handle & mlraut.PhysioData
         function view_qc(this, ref)
             arguments
                 this mlraut.IFourthVentricle
-                ref = this.ihcp_.task_signal_reference
+                ref = this.ihcp_.task_ref_niigz
             end
 
             this.ifv_mask.view_qc(ref)

@@ -17,11 +17,37 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.assertEqual(1,1);
         end
 
+        function test_task_mask_niigz(this)
+            as = this.testObj;
+            ic = as.task_mask_niigz;
+            % as.task_ref_niigz.view_qc(ic);
+
+            this.verifyEqual(ic.filename, "wmparc.2_binarized.nii.gz")
+            this.verifyEqual(ic.qfac, -1)
+            this.verifyEqual(size(ic), [91, 109, 91])
+            this.verifyInstanceOf(ic.imagingFormat.img, "single")
+            this.verifyEqual(dipmax(ic), 1)
+            this.verifyEqual(dipsum(ic), 192280)
+        end
+        
+        function test_task_ref_niigz(this)
+            as = this.testObj;
+            ic = as.task_ref_niigz;
+            % ic.view_qc(as.task_mask_niigz);
+
+            this.verifyEqual(ic.filename, "fMRI_CONCAT_ALL_SBRef.nii.gz")
+            this.verifyEqual(ic.qfac, -1)
+            this.verifyEqual(size(ic), [91, 109, 91])
+            this.verifyInstanceOf(ic.imagingFormat.img, "single")
+            this.verifyEqual(dipmax(ic), 38082.875, AbsTol=1e-3)
+            this.verifyEqual(dipsum(ic), 2.305388571466583e+09, AbsTol=1)
+        end
+
         function test_templates(this)
             as = this.testObj;
 
-            % template_cifti ~ thickness
-            this.verifyTrue(isfile(as.thickness_dscalar_fqfn));
+            % template_cifti ~ task_ref_dscalar_fqfn
+            this.verifyTrue(isfile(as.task_ref_dscalar_fqfn));
             this.verifyTrue(isstruct(as.template_cifti.metadata));
             this.verifyTrue(iscell(as.template_cifti.diminfo));
             this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 149141);

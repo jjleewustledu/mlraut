@@ -77,7 +77,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             niigz = double(niigz);  % Nt x Ngo double
 
             % task mask in 3D ~ task signal reference
-            msk = this.task_signal_mask();
+            msk = this.task_mask_niigz();
             msk = reshape(msk, [sz(1)*sz(2)*sz(3), 1])';
             msk = logical(msk);  % 1 x Ngo logical
 

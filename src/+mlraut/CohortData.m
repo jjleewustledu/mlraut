@@ -14,7 +14,8 @@ classdef CohortData < handle & mlsystem.IHandle
         stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn
+        task_ref_niigz_fqfn
+        task_ref_dscalar_fqfn
         thickness_dscalar_fqfn
         tr
         t1w_fqfn        

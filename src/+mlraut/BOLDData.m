@@ -80,19 +80,19 @@ classdef BOLDData < handle & mlsystem.IHandle
             ic = mlfourd.ImagingContext2(ifc);
             this.task_niigz_ = copy(ic);
         end
-        function ic = task_signal_reference(this)
-            if ~isempty(this.task_signal_reference_)
-                ic = copy(this.task_signal_reference_);
+        function ic = task_ref_niigz(this)
+            if ~isempty(this.task_ref_niigz_)
+                ic = copy(this.task_ref_niigz_);
                 return
             end   % caching requires BOLDData to be reset by HPC.malloc()
 
-            fqfn_avgt = strrep(this.ihcp_.task_signal_reference_fqfn, ".nii.gz", "_avgt.nii.gz");
+            fqfn_avgt = strrep(this.ihcp_.task_ref_niigz_fqfn, ".nii.gz", "_avgt.nii.gz");
             if isfile(fqfn_avgt)
                 ic = mlfourd.ImagingContext2(fqfn_avgt);
                 return
             end
 
-            ic = mlfourd.ImagingContext2(this.ihcp_.task_signal_reference_fqfn);
+            ic = mlfourd.ImagingContext2(this.ihcp_.task_ref_niigz_fqfn);
             if 4 == ndims(ic)
                 % very slow
                 fprintf("%s:  time-averaging %s\n", stackstr(), ic.fqfn)
@@ -101,7 +101,7 @@ classdef BOLDData < handle & mlsystem.IHandle
                 ic.save();
                 fprintf("\tcomplete!\n")
             end
-            this.task_signal_reference_ = copy(ic);
+            this.task_ref_niigz_ = copy(ic);
         end
     end
 
@@ -172,7 +172,7 @@ classdef BOLDData < handle & mlsystem.IHandle
         num_frames_ori_
         task_dtseries_
         task_niigz_
-        task_signal_reference_
+        task_ref_niigz_
     end
 
     methods (Access = protected)
@@ -182,8 +182,8 @@ classdef BOLDData < handle & mlsystem.IHandle
                 that.task_dtseries_ = copy(this.task_dtseries_); end
             if ~isempty(this.task_niigz_)
                 that.task_niigz_ = copy(this.task_niigz_); end
-            if ~isempty(this.task_signal_reference_)
-                that.task_signal_reference_ = copy(this.task_signal_reference_); end
+            if ~isempty(this.task_ref_niigz_)
+                that.task_ref_niigz_ = copy(this.task_ref_niigz_); end
         end
     end
     

@@ -20,7 +20,8 @@ classdef HCPAgingData < handle & mlraut.CohortData
         stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn
+        task_ref_niigz_fqfn
+        task_ref_dscalar_fqfn
         thickness_dscalar_fqfn
         t1w_fqfn
         wmparc_fqfn      
@@ -126,10 +127,30 @@ classdef HCPAgingData < handle & mlraut.CohortData
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
         end
-        function g = get.task_signal_reference_fqfn(this)
+        function g = get.task_ref_niigz_fqfn(this)
             mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_SBRef.nii.gz"));
             if isemptytext(mg)                
                 mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_mean.nii.gz"));
+            end
+            assert(~isemptytext(mg), stackstr())
+            g = mg(1);
+        end
+        function g = get.task_ref_dscalar_fqfn(this)
+            mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_MSMAll_hp0_clean_vn.dscalar.nii"));
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_MSMAll_hp0_vn.dscalar.nii"));
+            end
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_MSMAll_mean.dscalar.nii"));
+            end
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_hp0_clean_vn.dscalar.nii"));
+            end
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_hp0_vn.dscalar.nii"));
+            end
+            if isemptytext(mg)
+                mg = mglob(fullfile(this.extended_task_dir, this.extended_task + "_Atlas_mean.dscalar.nii"));
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(1);

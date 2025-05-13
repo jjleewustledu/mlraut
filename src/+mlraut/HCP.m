@@ -36,7 +36,8 @@ classdef HCP < handle & mlsystem.IHandle
         task_dir  % e.g., subject/MNINonlinear/Results/rfMRI_REST1_RL
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn
+        task_ref_niigz_fqfn
+        task_ref_dscalar_fqfn
         template_cifti
         template_niigz
         thickness_dscalar_fqfn
@@ -187,13 +188,15 @@ classdef HCP < handle & mlsystem.IHandle
         function g = get.task_niigz_fqfn(this)
             g = this.cohort_data_.task_niigz_fqfn;
         end
-        function g = get.task_signal_reference_fqfn(this)
-            g = this.cohort_data_.task_signal_reference_fqfn;
+        function g = get.task_ref_niigz_fqfn(this)
+            g = this.cohort_data_.task_ref_niigz_fqfn;
         end
         function g = get.template_cifti(this)
             if ~isempty(this.template_cifti_) && isstruct(this.template_cifti_)
                 g = this.template_cifti_;
                 return
+        function g = get.task_ref_dscalar_fqfn(this)
+            g = this.cohort_data_.task_ref_dscalar_fqfn;
             end
             g = cifti_read(this.thickness_dscalar_fqfn);
             this.template_cifti_ = g;
@@ -258,10 +261,8 @@ classdef HCP < handle & mlsystem.IHandle
 
             this.task_dtseries_ = [];
             this.task_niigz_ = [];
-            this.task_signal_mask_ = [];
-            this.task_signal_reference_ = [];
-            this.template_cifti_ = [];
-            this.template_niigz_ = [];
+            this.task_mask_niigz_ = [];
+            this.task_ref_niigz_ = [];
         end
 
         function mat = task_dtseries(this, varargin)
@@ -314,13 +315,13 @@ classdef HCP < handle & mlsystem.IHandle
             this.task_niigz_ = ic;
         end
 
-        function ic = task_signal_mask(this)
-            if ~isempty(this.task_signal_mask_)
-                ic = this.task_signal_mask_;
+        function ic = task_mask_niigz(this)
+            if ~isempty(this.task_mask_niigz_)
+                ic = this.task_mask_niigz_;
                 return
             end
 
-            ic = this.task_signal_reference();
+            ic = this.task_ref_niigz();
             ic = ic.binarized();
             
             ic1 = mlfourd.ImagingContext2(this.wmparc_fqfn);
@@ -337,18 +338,18 @@ classdef HCP < handle & mlsystem.IHandle
                 ic = ic1;
             end
             ic.ensureSingle();
-            this.task_signal_mask_ = ic;
+            this.task_mask_niigz_ = ic;
         end
 
-        function ic = task_signal_reference(this)
-            if ~isempty(this.task_signal_reference_)
-                ic = this.task_signal_reference_;
+        function ic = task_ref_niigz(this)
+            if ~isempty(this.task_ref_niigz_)
+                ic = this.task_ref_niigz_;
                 return
             end
 
-            ic = this.bold_data_.task_signal_reference();
+            ic = this.bold_data_.task_ref_niigz();
             ic.ensureSingle();
-            this.task_signal_reference_ = ic;
+            this.task_ref_niigz_ = ic;
         end
 
         function tseries = trim_frames(this, tseries)
@@ -419,11 +420,11 @@ classdef HCP < handle & mlsystem.IHandle
         subjects_
         tasks_
         task_dtseries_
+        task_mask_niigz_
         task_niigz_  % cached here and in mlraut.BOLDData
-        task_signal_mask_
-        task_signal_reference_
         template_cifti_
         template_niigz_
+        task_ref_niigz_
         twistors_
     end
 
@@ -434,12 +435,12 @@ classdef HCP < handle & mlsystem.IHandle
                 that.bold_data_ = copy(this.bold_data_); end
             if ~isempty(this.cohort_data_)
                 that.cohort_data_ = copy(this.cohort_data_); end
+            if ~isempty(this.task_mask_niigz_)
+                that.task_mask_niigz_ = copy(this.task_mask_niigz_); end
             if ~isempty(this.task_niigz_)
                 that.task_niigz_ = copy(this.task_niigz_); end
-            if ~isempty(this.task_signal_mask_)
-                that.task_signal_mask_ = copy(this.task_signal_mask_); end
-            if ~isempty(this.task_signal_reference_)
-                that.task_signal_reference_ = copy(this.task_signal_reference_); end
+            if ~isempty(this.task_ref_niigz_)
+                that.task_ref_niigz_ = copy(this.task_ref_niigz_); end
             if ~isempty(this.twistors_)
                 that.twistors_ = copy(this.twistors_); end
         end

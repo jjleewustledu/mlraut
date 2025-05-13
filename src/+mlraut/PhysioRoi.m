@@ -33,7 +33,7 @@ classdef PhysioRoi < handle & mlraut.PhysioData
 
             if ~isempty(opts.from_imaging_context)
                 ic = mlfourd.ImagingContext2(opts.from_imaging_context);
-                SBmsk = this.ihcp_.task_signal_mask();  % minimize extra-parenchymal ROI
+                SBmsk = this.ihcp_.task_mask_niigz();  % minimize extra-parenchymal ROI
                 ic = ic .* SBmsk;
                 ic = ic.binarized();
                 if this.flipLR_
@@ -72,14 +72,14 @@ classdef PhysioRoi < handle & mlraut.PhysioData
 
         function view_qc(this)
             %% Performs exactly one flipLR as needed.
-            %  QC by comparison to task_signal_reference.
+            %  QC by comparison to task_ref_niigz.
 
-            task_signal_reference = this.ihcp_.task_signal_reference;
+            task_ref_niigz = this.ihcp_.task_ref_niigz;
             if this.flipLR_
-                assert(isa(task_signal_reference, "mlfourd.ImagingContext2"))
-                task_signal_reference = flip(task_signal_reference, 1);
+                assert(isa(task_ref_niigz, "mlfourd.ImagingContext2"))
+                task_ref_niigz = flip(task_ref_niigz, 1);
             end
-            this.roi_mask.view_qc(task_signal_reference)
+            this.roi_mask.view_qc(task_ref_niigz)
         end
 
         function this = PhysioRoi(ihcp, bold, opts)

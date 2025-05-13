@@ -24,7 +24,8 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
         stats_fqfn
         task_dtseries_fqfn
         task_niigz_fqfn
-        task_signal_reference_fqfn
+        task_ref_niigz_fqfn
+        task_ref_dscalar_fqfn
         thickness_dscalar_fqfn
         t1w_fqfn
         tr
@@ -142,10 +143,17 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
         end
-        function g = get.task_signal_reference_fqfn(this)
+        function g = get.task_ref_niigz_fqfn(this)
             mg = mglob(fullfile(this.task_dir, sprintf("%s*.nii.gz", this.task)));
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
+        end
+        function g = get.task_ref_dscalar_fqfn(this)
+            % disp(this.task_dir)
+            mg = mglob(fullfile(this.task_dir, sprintf("%s*_Atlas_s0_avgt.dtseries.nii", this.task)));
+            if isempty(mg)
+                g = this.ihcp_.cifti.average_times(this.task_dtseries_fqfn);
+            end
         end
         function g = get.thickness_dscalar_fqfn(this)
             g = fullfile(this.mninonlinear_dir, this.sub + ".thickness.164k_fs_LR.dscalar.nii");
