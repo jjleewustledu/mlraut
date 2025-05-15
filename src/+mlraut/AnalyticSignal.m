@@ -242,9 +242,20 @@ classdef AnalyticSignal < handle & mlraut.HCP
             error("mlraut:ValueError", stackstr())
         end
 
-        function dat1 = build_band_passed(this, dat)
+        function dat1 = build_band_passed(this, dat, opts)
             %% Implements designfilt, caching results
             %  web(fullfile(docroot, 'signal/ug/practical-introduction-to-digital-filtering.html?browser=F1help'))
+            %  
+            %  Args:
+            %      this mlraut.AnalyticSignal
+            %      dat double
+            %      opts.do_reset logical = false            
+
+            arguments
+                this mlraut.AnalyticSignal
+                dat double
+                opts.do_reset logical = false
+            end
 
             if isempty(this.lp_thresh) && isempty(this.hp_thresh)
                 dat1 = dat;
@@ -257,8 +268,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
 
             try
-                if isempty(this.digital_filter_)
+                if isempty(this.digital_filter_) || opts.do_reset
+
                     % default design is 'butter'
+
                     if isempty(this.lp_thresh) && ~isempty(this.hp_thresh)
                         this.digital_filter_ = designfilt("highpassiir", ...
                             FilterOrder=this.filter_order, ...
@@ -277,7 +290,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     end
                 end
 
-                dat1 = filtfilt(this.digital_filter_, double(dat));  % zero-phase digital filtering; https://www.mathworks.com/help/releases/R2024b/signal/ref/filtfilt.html
+                % zero-phase digital filtering; https://www.mathworks.com/help/releases/R2024b/signal/ref/filtfilt.html
+                dat1 = filtfilt(this.digital_filter_, double(dat));
                 if isa(dat, 'single')
                     dat1 = single(dat1);
                 end
