@@ -23,13 +23,16 @@ classdef PhysioHRV < handle & mlraut.PhysioData
                 [~,phys_start] = min(abs(time_vec_phys - (time_vec_bold(idx) - 3)));
                 [~,phys_end] = min(abs(time_vec_phys - (time_vec_bold(idx) + 3)));
                
-                % For HRV
+                % For HRV, use native to avoid conflicts with chronux
+                path_0 = path;
+                rmpath(fullfile(getenv("HOME"), "MATLAB-Drive", "chronux_2_12", "spectral_analysis", "continuous"))
                 [pks,locs] = findpeaks(data_(phys_start:phys_end,3), ...
-                    'minpeakdistance', round(this.physFs/(180/60)));
+                    'MinPeakDistance', round(this.physFs/(180/60)));
                              %,'minpeakwidth',400/(1/(200/60))); 
                              % max heart rate = 180 bpm; at 400 Hz, minimum of 100 samples apart
                 locs = locs(pks > prctile(data_(phys_start:phys_end,3), 60));
                 physio(idx) = mean(diff(locs), 'omitnan') / this.physFs;
+                path(path_0)
             end
         end
 
