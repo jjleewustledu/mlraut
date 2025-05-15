@@ -88,7 +88,35 @@ classdef FultzMulti < handle
             this.anat_weights = nets.anat_weights;
         end
 
-        function [phi,psi] = build_tseries_phi_psi(this, opts)
+        function this = add_phi_psi_from_aso(this)
+
+            % preallocate large arrays
+            Nt = size(this.asobj.bold_signal, 1);
+            Nsub = 1;
+            Nr = numel(this.regions);
+            this.phi_multi = zeros(Nt, Nsub, Nr);
+            this.psi_multi = zeros(Nt, Nsub, Nr);
+
+            % load and assign phi, psi
+            failures = 0;
+            ig = 1;
+            try
+                for ir = 1:Nr
+                    region = this.regions(ir);
+                    signal = this.asobj.HCP_signals.(region);
+                    this.phi_multi(:, ig, ir) = this.build_weighted(signal.phi, region);
+                    this.psi_multi(:, ig, ir) = this.build_weighted(signal.psi, region);
+                end
+            catch ME
+                fprintf("%s: fault in %s\n", ME.identifier, g);
+                failures = failures + 1;
+            end
+
+            this.phi_multi = this.phi_multi(:,end-failures,:);
+            this.psi_multi = this.psi_multi(:,end-failures,:);
+        end
+
+        function [phi,psi] = build_tseries_phi_psi_from_mat(this, opts)
             arguments
                 this mlraut.FultzMulti
                 opts.mat_pattern {mustBeTextScalar} = fullfile("**", "*" + this.source_physio + "-scaleiqr*.mat")
@@ -198,7 +226,6 @@ classdef FultzMulti < handle
             end
 
             % prepare chronux params
-            Nt = 328;  % chronux magic number?
             Nr = numel(this.regions);
             T = size(tseries_phi, 1) * this.tr;
             W = this.asobj.lp_thresh;  % bandwidth
@@ -211,6 +238,8 @@ classdef FultzMulti < handle
             params.trialave = 1;  % T/F
             params.tapers = [W, T, p];
             params.err = [2, pval];  % jack-knife resampling
+            trial = coherencyc(tseries_psi(:,:,1), tseries_phi(:,:,1), params);
+            Nt = size(trial, 1); % chronux calls its getfgrid()
 
             % call chronux per region
             coh = zeros(Nt, Nr);
