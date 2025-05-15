@@ -67,9 +67,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %% global_signal <- double greyordinates <- mean(this.task_niigz, "greyords")
 
             if ~isempty(this.global_signal_)
-            g = this.global_signal_;
+                g = this.global_signal_;
                 return
-        end
+            end
 
             % task niigz in 4D
             niigz = this.task_niigz();
@@ -139,7 +139,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             g = this.tags_user_;
         end        
         
-        function set.tags_user(this, s)
+        function     set.tags_user(this, s)
             this.tags_user_ = s;
         end
 
@@ -715,81 +715,84 @@ classdef AnalyticSignal < handle & mlraut.HCP
                         this.build_rescaled( ...
                         this.build_band_passed( ...
                         this.build_centered(physio_vec_)));
-                    physio = ones(opts.size_reference).*physio_vec;
-                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty") 
+                    physio = physio_vec;
+                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")
+
+                case 'ROI'
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, ...
+                        from_imaging_context=opts.roi, flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
 
                 case '3rdV'  % propagated
-                    pROI = mlraut.ThirdVentricle(this, bold, flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.ThirdVentricle(this, bold_niigz, flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
                 case '4thV'  % propagated
-                    pROI = mlraut.IFourthVentricle(this, bold, selected_voxels="all", flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference); 
+                    pROI = mlraut.IFourthVentricle(this, bold_niigz, selected_voxels="all", flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI(); 
                 case 'iFV'  % propagated
-                    pROI = mlraut.IFourthVentricle(this, bold, selected_voxels="inferior-half", flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.IFourthVentricle(this, bold_niigz, selected_voxels="inferior-half", flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
                 case 'iFV-brightest'  % propagated
-                    pROI = mlraut.IFourthVentricle(this, bold, selected_voxels="brightest", flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.IFourthVentricle(this, bold_niigz, selected_voxels="brightest", flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
                 case 'iFV-quantile'  % propagated
-                    pROI = mlraut.IFourthVentricle(this, bold, selected_voxels="inferior-quantile", flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.IFourthVentricle(this, bold_niigz, selected_voxels="inferior-quantile", flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
                 case 'sFV'  % propagated
-                    pROI = mlraut.IFourthVentricle(this, bold, selected_voxels="superior-half", flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.IFourthVentricle(this, bold_niigz, selected_voxels="superior-half", flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
                 case 'latV'% propagated
-                    pROI = mlraut.LateralVentricles(this, bold, flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.LateralVentricles(this, bold_niigz, flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
 
                 case {'CE', 'CE_on_T1w'}  % obtains CE_on_T1w.nii.gz
                     assert(isa(this, "mlraut.AnalyticSignalGBM"))                    
-                    pROI = mlraut.PhysioRoi(this, bold, ...
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, ...
                         from_imaging_context=this.cohort_data.CE_ic, flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    physio = pROI.build_physio_from_ROI();
                 case {'WT', 'WT_on_T1w'}  % obtains WT_on_T1w.nii.gz
                     assert(isa(this, "mlraut.AnalyticSignalGBM"))
-                    pROI = mlraut.PhysioRoi(this, bold, ...
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, ...
                         from_imaging_context=this.cohort_data.WT_ic, flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    physio = pROI.build_physio_from_ROI();
                 case {'edema', 'edema_on_T1w'}  % obtains edema_on_T1w.nii.gz
                     assert(isa(this, "mlraut.AnalyticSignalGBM"))
-                    pROI = mlraut.PhysioRoi(this, bold, ...
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, ...
                         from_imaging_context=this.cohort_data.edema_ic, flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
-                case 'ROI'
-                    pROI = mlraut.PhysioRoi(this, bold, ...
-                        from_imaging_context=opts.roi, flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    physio = pROI.build_physio_from_ROI();
                 case {'ctx', 'cortex', 'gray', 'grey'}
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
                     ic = wmparc.select_gray();
-                    pROI = mlraut.PhysioRoi(this, bold, from_imaging_context=ic, flipLR=opts.flipLR);                    
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, from_imaging_context=ic, flipLR=opts.flipLR);                    
+                    physio = pROI.build_physio_from_ROI();
                 case {'cbm', 'cereb', 'cerebellum'}
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
                     ic = wmparc.select_cerebellum();
-                    pROI = mlraut.PhysioRoi(this, bold, from_imaging_context=ic, flipLR=opts.flipLR); 
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, from_imaging_context=ic, flipLR=opts.flipLR); 
+                    physio = pROI.build_physio_from_ROI();
                 case {'str', 'striatum'}
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
                     ic = wmparc.select_striatum();
-                    pROI = mlraut.PhysioRoi(this, bold, from_imaging_context=ic, flipLR=opts.flipLR); 
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, from_imaging_context=ic, flipLR=opts.flipLR); 
+                    physio = pROI.build_physio_from_ROI();
                 case {'thal', 'thalamus'}
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
                     ic = wmparc.select_thalamus();
-                    pROI = mlraut.PhysioRoi(this, bold, from_imaging_context=ic, flipLR=opts.flipLR); 
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, from_imaging_context=ic, flipLR=opts.flipLR); 
+                    physio = pROI.build_physio_from_ROI();
                 case {'no-physio', 'nophys', 'none'}
                     pROI = [];
-                    physio_vec = ones(opts.size_reference(1), 1);
-                    physio = ones(opts.size_reference).*physio_vec;
-                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
+                    size_dtseries = size(this.task_dtseries());
+                    physio = ones(size_dtseries(1), 1);
+                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")
+
                 otherwise  % other wmparc regions, propagated
                     wmparc = mlsurfer.Wmparc(this.wmparc_fqfn);
-                    nn = wmparc.label_to_num(convertStringsToChars(this.source_physio));
+                    nn = wmparc.label_to_num(convertStringsToChars(opts.source_physio));
                     assert(~all(nn == 0), stackstr())
-                    pROI = mlraut.PhysioRoi(this, bold, from_wmparc_indices=nn, flipLR=opts.flipLR);
-                    [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
+                    pROI = mlraut.PhysioRoi(this, bold_niigz, from_wmparc_indices=nn, flipLR=opts.flipLR);
+                    physio = pROI.build_physio_from_ROI();
+
             end
             % physio_vec = single(physio_vec);
             % physio = single(physio);
@@ -1024,7 +1027,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 that.roi_ = copy(this.roi_); end
         end
     end
-
+    
     %% PRIVATE
 
     methods (Access = private)
