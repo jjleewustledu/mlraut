@@ -302,6 +302,13 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
         end
 
+        function h = plot_coherencyc(this, varargin)
+            warning("off", "MATLAB:plot:IgnoreImaginaryXYPart")
+            fultz = mlraut.FultzMulti(this);
+            fultz.add_phi_psi_from_aso();
+            h = figure;
+            fultz.plot_coherencyc(varargin{:});
+            warning("on", "MATLAB:plot:IgnoreImaginaryXYPart")
         end
 
         function save(this)
