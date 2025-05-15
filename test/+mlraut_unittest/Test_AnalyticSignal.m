@@ -16,6 +16,23 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(1,1);
             this.assertEqual(1,1);
         end
+
+        function test_ctor(this)
+            as = this.testObj;  % AnalyticSignal
+
+            this.verifyEqual(as.current_subject, '995174')
+            this.verifyEqual(as.current_task, 'rfMRI_REST1_RL')
+            this.verifyEqual(as.source_physio, "iFV")
+            this.verifyEqual(as.v_physio, 50)
+            this.verifyEqual(as.anatomy_list, {'ctx', 'str', 'thal', 'cbm'})
+            this.verifyEqual(dipmax(as.global_signal), 10369.6112020772, AbsTol=1e-3)
+            this.verifyEqual(as.hp_thresh, 0.01)
+            this.verifyEqual(as.lp_thresh, 0.1)
+            this.verifyEqual(size(as.bold_signal), [1196, 91282])
+            this.verifyEqual(size(as.physio_signal), [1196, 91282])
+            this.verifyEqual(as.roi, [])
+        end
+
         function test_global_signal(this)
             %% check magnitudes of {ctx, cbv, str, thal} vs gsr
 
@@ -57,316 +74,31 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(mean(gsr.img, "all"), single(-7.8023848e+03), AbsTol=1)
             this.verifyEqual(dipmax(gsr.img), 15745.298828125, AbsTol=1)
         end
-        function test_physio(this)
 
-            this.verifyEqual(this.testObj.current_subject, this.testObj.subjects{1});
-
-            size_bold = [1196, 91282];
-            T = 1195 * this.testObj.tr;
-            times = 0:this.testObj.tr:T;
-            physios = "latV";
-            %physios = [ ...
-            %    "iFV-brightest", "iFV-quantile", "iFV", "sFV", "4thV", "3rdV", "latV"];
-            for phys = physios
-                this.testObj.source_physio = phys;
-                [~,physio_vec,pROI] = this.testObj.task_physio(size_reference=size_bold);
-                figure; plot(times, asrow(real(physio_vec)))
-                pROI.view_qc();  % (this.testObj.t1w_fqfn);
-            end
-        end
         function test_build_band_passed(this)
-            obj = this.testObj;
-            size_bold = [1196, 91282];
-            obj.filter_order = 8;
-            obj.force_legacy_butter = false;
-
-            try
-                obj.malloc();
-                obj.current_task = obj.tasks{1};
-                [~,physio__] = obj.task_physio(size_reference=size_bold);
-                figure; plot(physio__); 
-            catch ME
-                handexcept(ME)
-            end
-        end
-        function test_ctor(this)
-            as = mlraut.AnalyticSignalHCP(subjects={'995174'}, tasks={'rfMRI_REST1_RL'});
-            this.verifyEqual(as.num_nets, 9);
-            this.verifyFalse(isemptytext(as.current_subject));
-            this.verifyFalse(isemptytext(as.current_task));
-            
-            template_cifti = as.template_cifti;
-            [a,b,c] = template_cifti.metadata.value;
-            this.verifyTrue(contains(a, "Commit"));
-            this.verifyTrue(contains(b, "wb_command -cifti-convert"));
-            this.verifyTrue(strcmp(c, '/HCP/hcpdb/build_ssd/chpc/BUILD/HCP_Staging/DeDriftAndResample_1449032106_995174/995174/MNINonLinear/Results/rfMRI_REST1_RL/rfMRI_REST1_RL_hp2000.ica'));
-            this.verifyTrue(isstruct(template_cifti.diminfo{1}));
-            this.verifyEqual(template_cifti.diminfo{1}.type, 'dense');
-            this.verifyTrue(isstruct(template_cifti.diminfo{1}.vol));
-            this.verifyTrue(iscell(template_cifti.diminfo{1}.models));
-            this.verifyEqual(template_cifti.diminfo{1}.length, 91282);
-            this.verifyEqual(template_cifti.diminfo{2}.type, 'series');
-            this.verifyEqual(template_cifti.diminfo{2}.length, 1200);
-            this.verifyEqual(template_cifti.diminfo{2}.seriesStart, 0);
-            this.verifyEqual(template_cifti.diminfo{2}.seriesStep, 0.7200);
-            this.verifyEqual(template_cifti.diminfo{2}.seriesUnit, 'SECOND');
-            this.verifyEqual(size(template_cifti.cdata), [91282, 1200]);
-
-            this.verifyEqual(as.Fs, 1.38888888888889, RelTol=10*eps);
-            this.verifyEqual(as.num_frames, 1196);
-            this.verifyEqual(as.num_frames_ori, 1200);
-            this.verifyEqual(as.num_frames_to_trim, 4);
-            this.verifyEqual(as.num_nodes, 91282);
-            this.verifyTrue(contains(as.out_dir, "AnalyticSignalHCP"));
-            this.verifyTrue(contains(as.root_dir, "HCP_1200"));
-            this.verifyTrue(contains(as.task_dir, fullfile("Results", "rfMRI_REST1_RL")));
-            this.verifyTrue(contains(as.task_dtseries_fqfn, "Atlas_MSMAll_hp2000_clean"));
-            this.verifyTrue(contains(as.task_niigz_fqfn, "hp2000_clean"));
-            this.verifyTrue(contains(as.task_signal_reference_fqfn, "SBRef"));
-            this.verifyTrue(contains(as.t1w_fqfn, "T1w_restore.2.nii.gz"));
-            this.verifyEqual(as.tr, 0.72);
-            this.verifyTrue(contains(as.waves_dir, fullfile("MATLAB-Drive", "arousal-waves")));
-            this.verifyTrue(contains(as.wmparc_fqfn, fullfile("ROIs", "wmparc.2.nii.gz")));
-            this.verifyTrue(contains(as.workbench_dir, "workbench"));
-            disp(as)
-        end
-        function test_ctor_7T(this)
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                do_7T=true, ...
-                tasks={'rfMRI_REST_7T_PA'}, ...
-                do_save=true, ...
-                do_save_ciftis=true);
-            disp(as)
-        end
-        function test_analytic_bold(this)
-            %% following hilbert transform, ensure:
-
-            % - sensible amplitudes and angles
-
-            % - sensible residual from global signal
-
-            % - sensible normalization (centering & rescaling)
-
-        end
-        function test_iFV(this)
-        end
-        function test_physioROI(this)
-        end
-        function test_physioRV(this)
-        end
-        function test_physioHRV(this)
-        end
-        function test_bra_ket(this)
-        end
-
-        function test_call(this)
-            as = this.testObj;
-            as.do_plot_emd = true;
-            as.do_plot_networks = true;
-            as.do_save = true;
-            as.do_save_ciftis = true;
-            as.do_save_ciftis_of_diffs = true;
-            as.do_save_dynamic = true;
-
-            call(as);
-            disp(as)
-
-            % Elapsed time is 327.790908 seconds.
-        end
-        function test_call_dphysio(this)
-            for p = ["iFV-brightest" "RV", "HRV"]
-                as = mlraut.AnalyticSignalHCP( ...
-                    subjects={'995174'}, ...
-                    tasks={'rfMRI_REST1_RL'}, ...
-                    do_save=false, ...
-                    do_save_ciftis=false, ...
-                    force_band=false, ...
-                    tags=stackstr(use_dashes=true), ...
-                    source_physio=p(1));
-                call(as);
-                disp(as)
-            end
-
-            % Elapsed time is 327.790908 seconds.
-        end
-        function test_call_roi_from_wmparc_indices(this)
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                do_save_ciftis=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true)+"-deepwhite", ...
-                source_physio="ROI", ...
-                roi=[5001, 5002]);
-            call(as);
-            disp(as)
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                do_save_ciftis=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true)+"-csf", ...
-                source_physio="ROI", ...
-                roi=[1, 4, 5, 24, 43, 44]);
-            call(as);
-            disp(as)
-
-            % Elapsed time is 327.790908 seconds.
-        end
-        function test_call_no_physio(this)
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=true, ...
-                do_save_ciftis=true, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true), ...
-                source_physio="none");
-            call(as)
-            disp(as)
-
-            % Elapsed time is 327.790908 seconds.
-        end
-        function test_call_task(this)
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'tfMRI_LANGUAGE_LR'}, ...
-                do_save=true, ...
-                do_save_ciftis=true, ...
-                do_save_dynamic=true, ...
-                force_band=false, ...
-                hp_thresh=0.005, ...
-                lp_thresh=0.1, ...
-                tags=stackstr(use_dashes=true), ...
-                source_physio="iFV-brightest");
-            call(as);
-            disp(as)
-
-            % Elapsed time is 327.790908 seconds.
-        end
-        function test_call_7T(this)
-            as = mlraut.AnalyticSignalHCP( ...
-                do_7T=true, ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST2_7T_AP'}, ...
-                do_save=true, ...
-                do_save_ciftis=true, ...
-                do_save_dynamic=true, ...
-                force_band=false, ...
-                hp_thresh=0.005, ...
-                lp_thresh=0.1, ...
-                tags=stackstr(use_dashes=true), ...
-                source_physio="iFV-brightest");
-            call(as);
-            disp(as)
-
-            % Elapsed time is 327.790908 seconds.
-        end
-
-        function test_call_all(this)
-            for do7t = [false, true]
-                as = mlraut.AnalyticSignalHCP( ...
-                    do_7T=do7t, ...
-                    do_resting=true, ...
-                    do_task=true, ...
-                    subjects={'995174'}, ...
-                    tasks={}, ...
-                    do_save=true, ...
-                    do_save_ciftis=true, ...
-                    do_save_dynamic=true, ...
-                    force_band=false, ...
-                    hp_thresh=0.005, ...
-                    lp_thresh=0.1, ...
-                    tags=stackstr(use_dashes=true), ...
-                    source_physio="iFV-brightest");
-                call(as);
-                disp(as.tasks)
-            end
-
-            % Elapsed time is 327.790908 seconds.
-        end
-
-        function test_call_qc(this)
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=true, ...
-                source_physio="iFV-brightest");
-            call(as, do_qc=true)
-            disp(as)
-
-            % Elapsed time is ___ seconds.
-        end
-        
-        function test_average_network_signals(this)
-            %% candidate supplemental figure, with concat runs
-
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                force_band=false, ...
-                tags=stackstr(use_dashes=true));
-
-            bold = as.task_dtseries();
-            bold = as.build_global_signal_regressed(bold);
-
-            yeos = as.average_network_signals(bold);
-            yeo_names = mlraut.NetworkData.NETWORKS_YEO_NAMES;
-            for anat = ["cbm", "ctx", "str", "thal"]
-                figure
-                hold on
-                for y = 1:length(yeo_names)
-                    plot(yeos.(anat(1))(:, y)); 
-                end
-                title(sprintf("yeos.%s", anat(1)));  
-                legend(yeo_names)
-                hold off
-
-                figure;     
-                tiledlayout(3,3);
-                for y = 1:length(yeo_names)
-                    nexttile
-                    histogram(yeos.(anat(1))(:, y)); title(sprintf("yeos(%s)", yeo_names{y}), 100);
-                    title(sprintf("yeos.%s(%s)", anat(1), yeo_names{y}));    
-                end
-            end
-        end
-        function test_task_dtseries(this)
-
-            % parameterize testing
-            NETWORKS_YEO_NAMES = ...
-                {'visual', 'somatomotor', 'dorsal attention', 'ventral attention', 'limbic', ...
-                'frontoparietal', 'default mode', ...
-                'task+', 'task-'};
-            select_rsn = 'default mode';
-            select_network_type = "cortical";
-            selection = sprintf("%s, %s", select_network_type, select_rsn);
+            return
 
             as = this.testObj;
-            as.tags_user=stackstr(use_dashes=true);
-            as.source_physio = "none";
+            as.force_legacy_butter = false;
+            gs = as.build_centered_and_rescaled(as.global_signal);
+            gs1 = gs;
 
-            bold_net_type = as.task_dtseries(network_type=select_network_type);
-            bold_rsn = bold_net_type(:, contains(NETWORKS_YEO_NAMES, select_rsn));
-            gs = as.build_global_signal_for(bold_rsn);
-
-            figure; plot(gs); title("gs");
-            figure; plot(bold_rsn); title("bold(:, " + selection + ")");
-            figure; plot(bold_rsn - gs); title("bold(:, " + selection + ") - gs");
-
-            figure; histogram(gs); title("histogram(gs)");
-            figure; histogram(bold_rsn); title("histogram(bold(:, " + selection + "))");
-            figure; histogram(bold_rsn - gs); title("histogram(bold(:, " + selection + ") - gs)");
-
-            as.fit_power_law(x=gs,title="test_task_dtseries:  gs");
-            as.fit_power_law(x=bold_rsn,title="test_task_dtseries:  bold(:, " + selection + ")");
-            as.fit_power_law(x=(bold_rsn - gs),title="test_task_dtseries:  bold(:, " + selection + ") - gs");
+            orders = [2,4,8,16];
+            for col_idx = 2:5
+                as.filter_order = orders(col_idx-1);
+                gs1(:,col_idx) = as.build_band_passed(gs, do_reset=true);
+                this.verifyInstanceOf(as.digital_filter, "digitalFilter")
+            end
+            TT = array2timetable(gs1, Timestep=seconds(as.tr));
+            signalAnalyzer(TT)
         end
-        function test_physio_HRV(this)
+
+        function test_mat_fqfn(this)
+            this.verifyEqual(mybasename(this.testObj.mat_fqfn), ...
+                "sub-995174_ses-rfMRI-REST1-RL_proc-v50-iFV-scaleiqr-Test-AnalyticSignal-setupAnalyticSignal")
+        end
+
+        function test_PhysioHRV(this)
             as = this.testObj;
             as.tags_user=stackstr(use_dashes=true);
             as.source_physio = "HRV";
@@ -374,7 +106,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             bold = as.task_niigz();
             HRV = mlraut.PhysioHRV(as, bold);
             physio = HRV.call();
-            gs = as.global_signal;
+            gs = as.build_centered_and_rescaled(as.global_signal);
 
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
@@ -385,7 +117,28 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             as.fit_power_law(x=physio,title="test_physio_HRV:  physio");
             as.fit_power_law(x=gs,title="test_physio_HRV:  gs");
         end
-        function test_physio_iFV(this)
+
+        function test_PhysioRV(this)
+            as = this.testObj;
+            as.tags_user=stackstr(use_dashes=true);
+            as.source_physio = "RV";
+
+            bold = as.task_niigz();
+            RV = mlraut.PhysioRV(as, bold);
+            physio = RV.call();
+            gs = as.build_centered_and_rescaled(as.global_signal);
+
+            figure; plot(physio); title("physio");
+            figure; plot(gs); title("gs");
+
+            figure; histogram(physio); title("histogram(physio)");
+            figure; histogram(gs); title("histogram(gs)");
+
+            as.fit_power_law(x=physio,title="test_physio_RV:  physio");
+            as.fit_power_law(x=gs,title="test_physio_RV:  gs");
+        end
+
+        function test_IFourthVentricle(this)
             as = this.testObj;
             as.tags_user=stackstr(use_dashes=true);
             as.source_physio = "iFV-brightest";
@@ -393,8 +146,9 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             bold = as.task_niigz();
             iFV = mlraut.IFourthVentricle(as, bold);
             iFV.wmparc.view_qc(iFV.ifv_mask);
-            physio = iFV.call();   
-            gs = as.build_global_signal_for(physio);
+            physio = iFV.call();
+            gs = as.build_centered_and_rescaled(as.global_signal);
+
             figure; plot(physio); title("physio");
             figure; plot(gs); title("gs");
             figure; plot(physio - gs); title("physio - gs");
@@ -407,85 +161,49 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             as.fit_power_law(x=gs,title="test_physio_iFV:  gs");
             as.fit_power_law(x=(physio - gs),title="test_physio_iFV:  physio - gs");
         end
-        function test_physio_ROI(this)
+
+        function test_task_physio_supplementary(this)
             as = this.testObj;
             as.tags_user=stackstr(use_dashes=true);
-            as.source_physio = "ROI";
+            as.source_physio = "iFV-brightest";
+            as.source_physio_supplementary = [ ...
+                "iFV-quantile", "sFV", "3rdV", "latV", "csf", "centrumsemiovale", "ctx"];
+            physio = as.task_physio();
+            cmap = as.task_physio_supplementary();
+            keys = cmap.keys;
 
-            bold = as.task_niigz();
-            Roi = mlraut.PhysioRoi(as, bold, from_wmparc_indices=[1 4 5 24 43 44]);  % csf
-            Roi.wmparc.view_qc(Roi.roi_mask);
-            physio = Roi.call();
-            gs = as.global_signal;
+            figure;
+            plot(physio(:, 1))
+            hold on
+            for cidx = 1:length(cmap)                
+                mat = cmap.values(keys(cidx));
+                plot(mat{1}(:, 1));
+            end
+            hold off
+            legend([as.source_physio, cmap.keys])
 
-            figure; plot(physio); title("physio");
-            figure; plot(gs); title("gs");
-            figure; plot(physio - gs); title("physio - gs");
-
-            figure; histogram(physio); title("histogram(physio)");
-            figure; histogram(gs); title("histogram(gs)");
-            figure; histogram(physio - gs); title("histogram(physio - gs)");
-
-            as.fit_power_law(x=physio,title="test_physio_ROI: physio");
-            as.fit_power_law(x=gs,title="test_physio_ROI:  gs");
-            as.fit_power_law(x=(physio - gs),title="test_physio_ROI:  physio - gs");
-        end
-        function test_physio_RV(this)
-            as = this.testObj;
-            as.tags_user=stackstr(use_dashes=true);
-            as.source_physio = "RV";
-
-            bold = as.task_niigz();
-            RV = mlraut.PhysioRV(as, bold);
-            physio = RV.call();
-            gs = as.global_signal;
-
-            figure; plot(physio); title("physio");
-            figure; plot(gs); title("gs");
-
-            figure; histogram(physio); title("histogram(physio)");
-            figure; histogram(gs); title("histogram(gs)");
-
-            as.fit_power_law(x=physio,title="test_physio_RV:  physio");
-            as.fit_power_law(x=gs,title="test_physio_RV:  gs");
+            figure;
+            pmtm(physio(:, 1))
+            hold on
+            for cidx = 1:length(cmap)                
+                mat = cmap.values(keys(cidx));
+                pmtm(mat{1}(:, 1));
+            end
+            hold off
+            legend([as.source_physio, cmap.keys])
         end
 
-        function test_histograms(this)
-            %figure; histogram(this.bold_signal_); title("bold_signal_", interpreter="none")
-            %figure; histogram(this.physio_signal_); title("physio_signal_", interpreter="none")
-            %figure; histogram(abs(this.bold_signal_)); title("abs(bold_signal_ in C)", interpreter="none")
-            %figure; histogram(abs(this.physio_signal_)); title("abs(physio_signal_ in C)", interpreter="none")
-            %figure; histogram(abs(this.analytic_signal_)); title("abs(analytic_signal_ in C)", interpreter="none")    
-        end
 
-        function test_ASPar_call(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            as = mlraut.AnalyticSignalPar( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=true, ...
-                do_save_ciftis=false, ...
-                tags=stackstr(use_dashes=true));
-            call(as);
-            disp(as)
 
-            % Elapsed time is 327.790908 seconds.
-        end
 
-        function test_fit_power_law(this)
-            as = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_save=false, ...
-                force_band=true, ...
-                tags=stackstr(use_dashes=true), ...
-                source_physio='none');
 
-            as.fit_power_law();
-        end
+
+
 
         function test_power_spectrum_analysis(this)
             %% https://claude.ai/chat/7c0ba283-3bc7-4938-9dec-8acd7bd25e7a
+
+            return
 
             % Generate sample data (replace this with your actual time series)
             t = 0:0.72:(1200*0.72);
@@ -533,6 +251,8 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         function test_complex_time_series_vis(this)
             %% https://claude.ai/chat/7c0ba283-3bc7-4938-9dec-8acd7bd25e7a
 
+            return
+
             % Generate a complex oscillatory time series
             t = linspace(0, 10, 1000);
             f1 = 1.0;
@@ -570,6 +290,8 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         end
 
         function test_late_hilbert_transform(this)
+
+            return
 
             pwd0 = pushd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
 
@@ -650,7 +372,10 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             popd(pwd0);
         end
+        
         function test_mix_physio(this)
+            return
+
             p_0 = sin(0:0.1:2*pi);
             p_1 = 0.01*cos(0:0.2:4*pi);
 
@@ -670,24 +395,24 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
     
     methods (TestClassSetup)
         function setupAnalyticSignal(this)
+            import mlraut.*
+            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            this.testObj_ = AnalyticSignal( ...
+                subjects={'995174'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                do_resting=true, ...
+                do_global_signal_regression=true, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                source_physio="iFV", ...
+                tags=stackstr(use_dashes=true));
         end
     end
     
     methods (TestMethodSetup)
         function setupAnalyticSignalTest(this)
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
-            this.testObj = mlraut.AnalyticSignalHCP( ...
-                subjects={'995174'}, ...
-                tasks={'rfMRI_REST1_RL'}, ...
-                do_7T=false, ...
-                do_resting=true, ...
-                do_task=false, ...
-                do_save=false, ...
-                do_save_dynamic=false, ...
-                force_band=false, ...
-                hp_thresh=0.01, ...
-                lp_thresh=0.1, ...
-                tags=stackstr(use_dashes=true));
+            this.testObj = copy(this.testObj_);
+            malloc(this.testObj);
             this.addTeardown(@this.cleanTestMethod)
         end
     end

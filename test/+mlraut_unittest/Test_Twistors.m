@@ -109,7 +109,7 @@ classdef Test_Twistors < matlab.unittest.TestCase
 
             bold_signal = hilbert(bold_);
             physio_signal = hilbert(physio_);
-            propagated = tw.propagate_physio(size(bold_signal), physio_signal);
+            propagated = tw.propagate_physio(physio_signal, size_bold_signal=size(bold_signal));
 
             as.write_ciftis( ...
                 abs(propagated), ...

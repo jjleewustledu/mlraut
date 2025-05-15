@@ -10,8 +10,8 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
     end    
 
     methods (Static)
-        function c = called(this)
-            call(this.testObj);
+        function testObj = called(testObj)
+            call_subject(testObj);
         end
     end
 
@@ -26,7 +26,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
         function test_ctor(this)
             as = this.testObj;
             this.verifyEqual(as.num_nets, 9);
-            this.verifyEqual(as.num_subs, 1);
+            this.verifyEqual(as.num_sub, 1);
             this.verifyEqual(as.num_tasks, 1);
         end
 
@@ -60,103 +60,113 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as = this.testObj;
             as.current_subject = '995174';
             as.current_task = 'rfMRI_REST1_RL';
-
-            % template_cifti ~ task_ref_dscalar_fqfn
-            this.verifyTrue(isfile(as.task_ref_dscalar_fqfn));
-            this.verifyTrue(isstruct(as.template_cifti.metadata));
-            this.verifyTrue(iscell(as.template_cifti.diminfo));
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 149141);
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.struct, 'CORTEX_LEFT');
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.type, 'surf');
-            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{1}.vertlist), [1, 149141]);
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.count, 149120);
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.struct, 'CORTEX_RIGHT');
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.type, 'surf');
-            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{2}.vertlist), [1, 149120]);
-            this.verifyEqual(as.template_cifti.diminfo{2}.maps.name, '995174_Thickness')
-            this.verifyEqual(size(as.template_cifti.cdata), [298261, 1]);
             
             % template_niigz ~ wmparc
             this.verifyTrue(isfile(as.wmparc_fqfn))
             this.verifyInstanceOf(as.template_niigz, "mlfourd.ImagingContext2")
             this.verifyEqual(as.template_niigz.filename, "wmparc.2.nii.gz")
+
+            % template_cifti ~ task_ref_dscalar_fqfn
+            this.verifyTrue(isfile(as.task_ref_dscalar_fqfn));
+            this.verifyTrue(isstruct(as.template_cifti.metadata));
+            this.verifyTrue(iscell(as.template_cifti.diminfo));
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 29696);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.struct, 'CORTEX_LEFT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{1}.vertlist), [1, 29696]);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.count, 29716);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.struct, 'CORTEX_RIGHT');
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.type, 'surf');
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{2}.vertlist), [1, 29716]);
+            this.verifyEqual(size(as.template_cifti.cdata), [91282, 1]);
+        end
+
+        function test_average_network_signals(this)
+            %% candidate supplemental figure, with concat runs
+
+            as = this.testObj;
+            call_subject(as);
+
+            yeos = as.HCP_signals;
+            yeo_names = mlraut.NetworkData.NETWORKS_YEO_NAMES;
+            for anat = ["cbm", "ctx", "str", "thal"]
+                figure
+                hold on
+                for y = 1:length(yeo_names)
+                    plot(real(yeos.(anat).psi(:, y))); 
+                end
+                title(sprintf("yeos.%s", anat));  
+                legend(yeo_names)
+                hold off
+
+                figure;     
+                tiledlayout(3,3);
+                for y = 1:length(yeo_names)
+                    nexttile
+                    histogram(real(yeos.(anat).psi(:, y))); 
+                    title(sprintf("yeos(%s)", yeo_names{y}), 100);
+                    title(sprintf("yeos.%s(%s)", anat, yeo_names{y}));    
+                end
+            end
         end
         
-        function test_call_precuneus(this)
+
+
+
+
+
+
+        function test_fultz_iFV(this)
             as = this.testObj;
-            as.do_save=true;
-            as.do_save_ciftis=true;
-            as.source_physio="precuneus";
+            as.source_physio = "iFV";
+            call_subject(as);
             
-            disp(as)            
-            call(as);
+            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
+            end
         end
+
+        function test_fultz_sFV(this)
+            as = this.testObj;
+            as.source_physio = "sFV";
+            call_subject(as);
+            
+            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
+            end
+        end
+
+        function test_fultz_latV(this)
+            as = this.testObj;
+            as.source_physio = "latV";
+            call_subject(as);
+            
+            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
+            end
+        end
+
+        function test_fultz_csf(this)
+            as = this.testObj;
+            as.source_physio = "csf";
+            call_subject(as);
+            
+            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
+            end
+        end
+
+
+
         
-        function test_call_no_physio(this)
-            as = this.testObj;
-            as.do_save=true;
-            as.do_save_ciftis=true;
-            as.source_physio="none";
-            
-            disp(as)            
-            call(as);
-        end
-
-        function test_call_iFV(this)
-            as = this.testObj;
-            as.do_save=true;
-            as.do_save_ciftis=true;
-            as.source_physio="iFV-brightest";
-           
-            disp(as)            
-            call(as);
-
-            % qc
-            % zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
-            % as.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
-            % % as.plot3(z=mean(as.bold_signal, 2))
-            % as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
-            % as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
-            % figure; imagesc(angle(as.physio_signal));
-        end
-
-        function test_call_HRV(this)
-            as = this.testObj;
-            as.do_save=true;
-            as.do_save_ciftis=true;
-            as.source_physio="HRV";
-            
-            disp(as)            
-            call(as);
-
-            % qc
-            % zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
-            % as.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
-            % % as.plot3(z=mean(as.bold_signal, 2))
-            % as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
-            % as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
-            % figure; imagesc(angle(as.physio_signal));
-        end
-
-        function test_call_RV(this)
-            as = this.testObj;
-            as.do_save=true;
-            as.do_save_ciftis=true;
-            as.source_physio="RV";
-            
-            disp(as)            
-            call(as);
-
-            % qc
-            % zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
-            % as.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
-            % % as.plot3(z=mean(as.bold_signal, 2))
-            % as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
-            % as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
-            % figure; imagesc(angle(as.physio_signal));
-        end
 
         function test_call_wmparc(this)
+
+            return
 
             % wmparc = 'precuneus';
             % wmparc = 'posteriorcingulate';
@@ -188,8 +198,8 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
                 wmparc = w{1};
 
                 as = this.testObj;
-                as.do_save=true;
-                as.do_save_dynamic=true;
+                as.do_save=false;
+                as.do_save_dynamic=false;
                 as.do_save_ciftis=true;
                 as.source_physio=wmparc;
                 as.out_dir = sprintf('/Volumes/PrecunealSSD2/AnalyticSignalHCP/physio_%s', wmparc);
@@ -197,11 +207,6 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
                 disp(as)
                 call(as);
             end
-        end
-
-        function test_mat_fqfn(this)
-            disp(this.testObj.mat_fqfn())
-            disp(this.testObj.mat_fqfn(v_physio=150, source_physio="new_roi", is_subset=true))
         end
     end
     

@@ -39,12 +39,11 @@ classdef Test_FultzCSF < matlab.unittest.TestCase
                     filter_order=8, ...
                     force_legacy_butter=false, ...
                     tag="fultz");
-            size_bold = [320, 91282];
 
             try
                 obj.malloc();
                 obj.current_task = obj.tasks{1};
-                [~,physio__] = obj.task_physio(size_reference=size_bold);
+                physio__ = obj.task_physio();
                 figure; plot(physio__); 
                 figure; freqz(obj.digital_filter, [], obj.Fs)
             catch ME

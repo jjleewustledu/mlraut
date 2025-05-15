@@ -11,6 +11,25 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
     end
 
     methods (Static)
+        function as = analytic_signal_gbm(SUB)
+            arguments
+                SUB cell = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
+            end
+
+            root_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/dockerout/ciftify';
+            cd(root_dir);
+
+            out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalGBM/analytic_signal/matlabout';
+            ensuredir(out_dir);
+
+            as = mlraut.AnalyticSignalGBM( ...
+                subjects=SUB, ...
+                tasks={'ses-1_task-rest_run-01_desc-preproc', 'ses-1_task-rest_run-02_desc-preproc'}, ...
+                do_resting=true, ...
+                out_dir=out_dir, ...
+                source_physio="iFV");
+            as.malloc();
+        end
     end
     
     methods (Test)
@@ -30,14 +49,15 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_resting=true, ...
                 out_dir=out_dir, ...
                 source_physio="iFV");
-
-            as.current_task = 'ses-1_task-rest_run-01_desc-preproc';
             as.malloc();
+
+            %%
+
             dtseries = as.task_dtseries();
             this.verifyEqual(dtseries(end, 45000), single(718.4252), AbsTol=single(1e-4))
             niigz = as.task_niigz;
             this.verifyEqual(niigz.imagingFormat.img(45,54,45,end), single(709.5502), AbsTol=single(1e-4))
-            physio_vec = as.task_physio(size_reference=size(dtseries));
+            physio_vec = as.task_physio();
             this.verifyEqual(physio_vec(80), single(-2.194979), AbsTol=single(1e-4));
 
             as.current_task = 'ses-1_task-rest_run-02_desc-preproc';
@@ -46,7 +66,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             this.verifyEqual(dtseries(end, 45000), single(725.32208), AbsTol=single(1e-4))
             niigz = as.task_niigz;
             this.verifyEqual(niigz.imagingFormat.img(45,54,45,end), single(645.29858), AbsTol=single(1e-4))
-            physio_vec = as.task_physio(size_reference=size(dtseries));
+            physio_vec = as.task_physio();
             this.verifyEqual(physio_vec(80), single(-0.8372463), AbsTol=single(1e-4));
         end
 
@@ -82,7 +102,7 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
             % SUB = {'sub-I3CR0433'};  % OS ~ 2696 days, 35 yo
             % SUB = {'sub-I3CR0668'};  % OS ~ 2568 days, 46 yo
             % SUB = {'sub-I3CR0311'};  % OS ~ 2246 days, 36 yo
-            % SUB = {'sub-I3CR0111'};  % OS ~ 2246 days   
+            % SUB = {'sub-I3CR0111'};  % OS ~ ____ days, __ yo
             % SUB = {'sub-I3CR1088'};  % OS ~ 22 days, 76 yo
             SUB = {'sub-I3CR1488'};  % OS ~ 60 days, 60 yo
 
@@ -96,12 +116,12 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 subjects=SUB, ...
                 tasks={'ses-1_task-rest_run-all_desc-preproc'}, ...
                 do_resting=true, ...
+                do_global_signal_regression=true, ...
                 out_dir=out_dir, ...
                 v_physio=50, ...
                 plot_range=1:69, ...
-                do_plot_networks=false, ...
-                do_plot_wavelets=false, ...
                 source_physio="none");
+            malloc(as);
 
             % template_cifti ~ task_ref_dscalar_fqfn
             this.verifyTrue(isfile(as.task_ref_dscalar_fqfn));
@@ -179,19 +199,18 @@ classdef Test_AnalyticSignalGBM < matlab.unittest.TestCase
                 do_plot_wavelets=false, ...
                 source_physio="none");
 
-            size_bold = [320, 91282];
             T = 319 * this.testObj.tr;
             times = 0:this.testObj.tr:T;
 
             % this.testObj.source_physio = "ROI";
-            % this.testObj.task_physio(size_reference=size_bold);
+            % this.testObj.task_physio();
             % must throw RuntimeError
 
             physios = [ ...
                 "iFV-brightest", "iFV-quantile", "iFV", "sFV", "4thV", "3rdV", "latV", "CE"];
             for phys = physios
                 this.testObj.source_physio = phys;
-                [~,physio_vec,pROI] = this.testObj.task_physio(size_reference=size_bold);
+                [physio_vec,pROI] = this.testObj.task_physio();
                 figure; plot(times, asrow(real(physio_vec)))
                 title(phys + ", averaged time-series");
                 pROI.view_qc();  % (this.testObj.t1w_fqfn);

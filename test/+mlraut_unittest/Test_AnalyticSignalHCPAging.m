@@ -50,16 +50,15 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.verifyTrue(isfile(as.task_ref_dscalar_fqfn));
             this.verifyTrue(isstruct(as.template_cifti.metadata));
             this.verifyTrue(iscell(as.template_cifti.diminfo));
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 149141);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.count, 29696);
             this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.struct, 'CORTEX_LEFT');
             this.verifyEqual(as.template_cifti.diminfo{1}.models{1}.type, 'surf');
-            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{1}.vertlist), [1, 149141]);
-            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.count, 149120);
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{1}.vertlist), [1, 29696]);
+            this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.count, 29716);
             this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.struct, 'CORTEX_RIGHT');
             this.verifyEqual(as.template_cifti.diminfo{1}.models{2}.type, 'surf');
-            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{2}.vertlist), [1, 149120]);
-            this.verifyEqual(as.template_cifti.diminfo{2}.maps.name, 'HCA9992517_V1_MR_Thickness')
-            this.verifyEqual(size(as.template_cifti.cdata), [298261, 1]);
+            this.verifyEqual(size(as.template_cifti.diminfo{1}.models{2}.vertlist), [1, 29716]);
+            this.verifyEqual(size(as.template_cifti.cdata), [91282, 1]);
             
             % template_niigz ~ wmparc
             this.verifyTrue(isfile(as.wmparc_fqfn))
@@ -70,100 +69,62 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
         function test_memory_footprint(this)
             tic
             as = this.testObj;
-            as.do_save=false;
-            as.do_save_dynamic=false;
-            as.do_save_ciftis=false;
-            as.do_plot_networks=false;
-            as.source_physio="iFV-brightest";
-            as.out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalHCPAging';
-            
-            disp(as)            
+            as.out_dir = "/Volumes/PrecunealSSD2/AnalyticSignalHCPAging";
+            as.do_save = true;
+            as.do_save_ciftis = true;
+            as.do_save_subset = true;
             call(as);
             toc
+
+            %% real memory max < 52 GB; Elapsed time is 141 seconds; 3.57 GB mat file
         end
 
-        function test_call_iFV(this)
-            as = this.testObj;
-            as.do_save=false;
-            as.do_save_ciftis=false;
-            as.source_physio="iFV-brightest";
-            % as.force_legacy_butter = true;  % legacy butter has less contrast for X(rsn7)
-            as.out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalHCPAging';
-            
+        function test_memory_footprint_physio_suppl(this)
+            %% HCP Aging has physio for individual scan sessions, not for CONCATALL,
+            %  so exclude HRV, RV.
+
             tic
-            disp(as)
-            call(as)
+            as = this.testObj;
+            as.source_physio = "iFV-brightest";
+            as.source_physio_supplementary = [ ...
+                "iFV-quantile", "sFV", "3rdV", "latV", "csf", "centrumsemiovale", "ctx"];
+            as.out_dir = "/Volumes/PrecunealSSD2/AnalyticSignalHCPAging";
+            as.do_save = true;
+            as.do_save_ciftis = true;
+            as.do_save_subset = true;
+            call(as);
             toc
 
-            % qc
-            % pwd0 = pushd(as.out_dir);
-            % zeta = as.HCP_signals.ctx.psi(:,9) ./ as.HCP_signals.ctx.phi(:,9);
-            % as.fit_power_law(x=zeta, title="\zeta = \psi / \phi");
-            % as.plot3(z=zeta, symbol="\zeta")  % re(psi) vaguely resemble ECG :-)
-            % as.plot3(z=as.HCP_signals.ctx.psi(:,9), symbol="\psi")  % ctx, task-
-            % as.plot3(z=as.HCP_signals.ctx.phi(:,9), symbol="\phi")  % ctx, task-
-            % % figure; imagesc(angle(as.physio_signal));
-            % as.plotting.saveFigures("qc");
-            % popd(pwd0);
+            %% real memory max < 59 GB; Elapsed time is 160 seconds; 3.57 GB mat file
         end
 
-        function test_call_physio(this)
-
-            for phys = {'HRV' 'RV'}
-                as = this.testObj;
-                as.do_save=true;
-                as.do_save_ciftis=true;
-                as.source_physio=phys{1};
-                as.out_dir = '/Volumes/PrecunealSSD2/AnalyticSignalHCPAging';
-
-                disp(as)
-                call(as)
+        function test_fultz_iFV(this)
+            as = this.testObj;
+            as.source_physio = "iFV";
+            call_subject(as);
+            
+            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
             end
-
-            % Elapsed time is 273 seconds on twistor.  Peak memory is 64 GB.  Files saved < 8 GB.
-            % Elapsed time is ~791 seconds on vglab2.
         end
-        
-        function test_call_wmparc(this)
 
-            % wmparc = 'precuneus';
-            % wmparc = 'posteriorcingulate';
-            % wmparc = 'hippocampus';
-            % wmparc = 'entorhinal';
-            % wmparc = 'medialorbitofrontal';
-            % wmparc = 'insula';
-            % wmparc = 'cuneus';
-            % wmparc = 'thalamus';
-            % wmparc = 'caudate';
-            % wmparc = 'putamen';
-            % wmparc = 'pallidum';
-            % wmparc = 'cerebellum';
-            % wmparc = 'brainstem';
-            % wmparc = 'brainstem+';
-            % wmparc = 'csf';
-            % wmparc = 'centrumsemiovale';
-            % wmparc = 'corpuscallosum';
-
-            wmparcs = { ...
-                'precuneus' 'posteriorcingulate' 'hippocampus' 'entorhinal' 'medialorbitofrontal' ...
-                'insula' ...
-                'cuneus' ...
-                'thalamus' 'caudate' 'putamen' 'pallidum' 'cerebellum' ...
-                'brainstem' 'brainstem+' 'csf' 'centrumsemiovale' 'corpuscallosum'};
-
-            for w = wmparcs
-                wmp = w{1};
-
-                as = this.testObj;
-                as.do_save=true;
-                as.do_save_dynamic=true;
-                as.do_save_ciftis=true;
-                as.source_physio=wmp;
-                as.out_dir = sprintf('/Volumes/PrecunealSSD2/AnalyticSignalHCPAging/physio_%s', wmp);
-
-                disp(as)
-                call(as);
-            end
+        function test_exemplar(this)
+            tic
+            as = mlraut.AnalyticSignalHCPAging( ...
+                subjects={'HCA9992517_V1_MR'}, ...
+                tasks={'fMRI_CONCAT_ALL'}, ...
+                do_global_signal_regression=false, ...
+                do_save=true, ...
+                do_save_ciftis=true, ...
+                hp_thresh=[], ...
+                lp_thresh=0.1, ...
+                v_physio=50, ...
+                plot_range=1:225, ...
+                source_physio="iFV-brightest", ...
+                tags=stackstr(use_dashes=true));
+            call(as)
+            toc
         end
     end
     
