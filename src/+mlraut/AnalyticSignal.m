@@ -440,53 +440,19 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             arguments
                 this mlraut.AnalyticSignal
-                opts.v_physio double = this.v_physio
-                opts.source_physio {mustBeTextScalar} = this.source_physio
-                opts.is_subset logical = false
+                opts.more_tags {mustBeTextScalar} = ""
             end
 
-            t = "proc";
-            if ~isempty(opts.v_physio)
-                t = t + "-v" + strrep(num2str(opts.v_physio), ".", "p");
-            end
-            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
-                t = t + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
-            end
-            if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
-                t = t + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
-            end
-            if isempty(this.lp_thresh)
-                t = t + "-lpnone";
-            end
-            if isempty(this.hp_thresh)
-                t = t + "-hpnone";
-            end
-            if ~isemptytext(opts.source_physio)
-                t = t + "-" + opts.source_physio;
-            end
-            if isfinite(this.max_frames)
-                t = t + "-maxframes" + num2str(this.max_frames);
-            end
-            if ~isemptytext(this.rescaling)
-                t = t + "-scale" + this.rescaling;
-            end
-            if ~isemptytext(this.tags_user_) 
-                t = t + "-" + this.tags_user_;
-            end
+            t = this.tags(opts.more_tags);
 
             sub = strrep(this.current_subject, "sub-", "");
             sub = strrep(sub, filesep, "");
             ses = strrep(this.current_task, "ses-", "");
             ses = strrep(ses, "_", "-");
-            if opts.is_subset
-                t_subset = "-subset";
-            else
-                t_subset = "";
-            end
 
             assert(isfolder(this.out_dir), stackstr())
             fqfn = fullfile(this.out_dir, ...
-                sprintf("sub-%s_ses-%s_%s%s.mat", sub, ses, t, t_subset));
+                sprintf("sub-%s_ses-%s_%s.mat", sub, ses, t));
             % disp(stackstr() + ": mat_fqfn=" + fqfn)
         end
 
@@ -861,7 +827,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         %% misc. helpers
 
-        function g = tags(this, more_tags)
+        function t = tags(this, more_tags)
             %% for filenames; see also mat_fqfn()
 
             arguments
@@ -869,39 +835,42 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 more_tags {mustBeTextScalar} = ""
             end
 
-            g = "proc";
-            if ~isempty(this.v_physio)
-                g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
             t = "proc";
             if ~this.v_physio_is_inf
                 t = t + "-v" + strrep(num2str(this.v_physio), ".", "p");
             end
             if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
-                g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
+                t = t + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
             end
             if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
-                g = g + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
+                t = t + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
             end
             if isempty(this.lp_thresh)
-                g = g + "-lpnone";
+                t = t + "-lpnone";
             end
             if isempty(this.hp_thresh)
-                g = g + "-hpnone";
+                t = t + "-hpnone";
+            end
+            if ~this.do_global_signal_regression
+                t = t + "-nogsr";
             end
             if isfinite(this.max_frames)
-                g = g + "-maxframes" + num2str(this.max_frames);
+                t = t + "-maxframes" + num2str(this.max_frames);
             end
             if ~isemptytext(this.rescaling)
-                g = g + "-scale" + this.rescaling;
+                t = t + "-scale" + this.rescaling;
             end
             if ~isemptytext(this.source_physio)
-                g = g + "-" + this.source_physio;
+                t = t + "-" + this.source_physio;
+            end
+            if this.do_save_subset
+                t = t + "-subset";
             end
             if ~isemptytext(this.tags_user) 
-                g = g + "-" + this.tags_user;
+                t = t + "-" + this.tags_user;
             end
             if ~isemptytext(more_tags) 
-                g = g + "-" + more_tags;
+                t = t + "-" + more_tags;
             end
         end
 
