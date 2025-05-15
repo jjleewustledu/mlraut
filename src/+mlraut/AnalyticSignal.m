@@ -840,32 +840,36 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
 
             t = "proc";
+
+            if ~isemptytext(this.source_physio)
+                t = t + "-" + this.source_physio;
+            end            
             if ~this.v_physio_is_inf
                 t = t + "-v" + strrep(num2str(this.v_physio), ".", "p");
             end
-            if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
+
+            t = t + "-gsr" + double(this.do_global_signal_regression);
+
+            if ~this.force_legacy_butter
+                t = t + "-butter" + this.filter_order;
+            else
+                t = t + "-legacybutter" + this.filter_order;
+            end   
+            if ~isempty(this.lp_thresh)
                 t = t + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");
-            end
-            if ~isempty(this.hp_thresh) && this.hp_thresh ~= 0.01
-                t = t + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
-            end
-            if isempty(this.lp_thresh)
+            else
                 t = t + "-lpnone";
             end
-            if isempty(this.hp_thresh)
+            if ~isempty(this.hp_thresh)
+                t = t + "-hp" + strrep(num2str(this.hp_thresh), ".", "p");
+            else
                 t = t + "-hpnone";
-            end
-            if ~this.do_global_signal_regression
-                t = t + "-nogsr";
-            end
+            end         
             if isfinite(this.max_frames)
                 t = t + "-maxframes" + num2str(this.max_frames);
             end
             if ~isemptytext(this.rescaling)
                 t = t + "-scale" + this.rescaling;
-            end
-            if ~isemptytext(this.source_physio)
-                t = t + "-" + this.source_physio;
             end
             if this.do_save_subset
                 t = t + "-subset";
