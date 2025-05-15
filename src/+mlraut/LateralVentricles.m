@@ -37,7 +37,7 @@ classdef LateralVentricles < handle & mlraut.PhysioData
             bold = call(this.physio_roi_);
         end
         function view_qc(this)
-            this.ifv_mask.view_qc(this.ihcp_.task_signal_reference)
+            this.ifv_mask.view_qc(this.ihcp_.task_ref_niigz)
         end
 
         function this = LateralVentricles(ihcp, bold, opts)
