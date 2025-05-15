@@ -43,13 +43,13 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
 
             this.HCP_signals_.cbm.psi = this.average_network_signal(this.bold_signal_, network_type="cerebellar");
-            this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
+            % this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
             this.HCP_signals_.ctx.psi = this.average_network_signal(this.bold_signal_, network_type="cortical");
-            this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
+            % this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
             this.HCP_signals_.str.psi = this.average_network_signal(this.bold_signal_, network_type="striatal");
-            this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
+            % this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
             this.HCP_signals_.thal.psi = this.average_network_signal(this.bold_signal_, network_type="thalamic");
-            this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
+            % this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
             psis = this.HCP_signals;
         end
 
@@ -110,8 +110,13 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
                     % physio
                     try
-                        [physio_,physio__] = this.task_physio(size_reference=size(bold_));
+                physio_ = this.task_physio();
                         if ~isemptytext(getenv("VERBOSITY")); fprintf("size(physio_):\n"); disp(size(physio_)); end
+                this.physio_supplementary_ = this.task_physio_supplementary();
+                if ~isemptytext(getenv("VERBOSITY"))
+                    fprintf("size(physio_supplementary):\n");
+                    disp(size(this.physio_supplementary_));
+                end
                     catch ME
                         disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
                         handwarning(ME)

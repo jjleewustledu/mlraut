@@ -27,9 +27,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
         force_legacy_butter  
         frac_ext_physio  % fraction of external physio power
         norm  % see also this.rescaling for kind of norm
-        source_physio
-        v_physio  % velocity of physio signal, m/s
-        v_physio_iFV  % velocity of physio signal, m/s
+        source_physio  % isscalartext
+        source_physio_supplementary  % string
+        v_physio  % velocity of putative physio signal, m/s
     end
 
     properties (Dependent)
@@ -708,10 +708,16 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         %% helpers for BOLD
 
-        function [physio,physio_vec,pROI] = task_physio(this, opts)
+        function [physio,pROI] = task_physio(this, opts)
+            %  Args:
+            %      this mlraut.AnalyticSignal
+            %      opts.roi mlfourd.ImagingContext2 = this.roi
+            %      opts.flipLR logical = false
+            %      opts.source_physio {mustBeText} = this.source_physio
+            %      opts.size_dtseries {mustBeNumeric} = size(this.task_dtseries())            
             %  Returns:
-            %      physio numeric Nt x 1
-            %      physio_0 numeric Nt x 1
+            %      physio numeric Nt x Ngo
+            %      physio_vec numeric Nt x 1
             %      pROI mlraut.PhysioData : for view_qc(), prop. roi_mask 
             %  Throws:
             %      mlraut:ValueError if this.source_physio not supported
@@ -721,24 +727,23 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.roi = this.roi
                 opts.flipLR logical = false
                 opts.source_physio {mustBeText} = this.source_physio
-                opts.size_reference {mustBeNumeric} = []
             end
 
-            bold = this.task_niigz();
+            bold_niigz = this.task_niigz();
             switch convertStringsToChars(opts.source_physio)
                 case 'HRV'
                     pROI = [];
-                    HRV = mlraut.PhysioHRV(this, bold);
+                    HRV = mlraut.PhysioHRV(this, bold_niigz);
                     physio_vec_ = HRV.call();
                     physio_vec = ...
                         this.build_rescaled( ...
                         this.build_band_passed( ...
                         this.build_centered(physio_vec_)));
-                    physio = ones(opts.size_reference).*physio_vec;
+                    physio = physio_vec;
                     assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
                 case 'RV'
                     pROI = [];
-                    RV = mlraut.PhysioRV(this, bold);
+                    RV = mlraut.PhysioRV(this, bold_niigz);
                     physio_vec_ = RV.call();
                     physio_vec = ...
                         this.build_rescaled( ...
@@ -820,8 +825,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
                     pROI = mlraut.PhysioRoi(this, bold, from_wmparc_indices=nn, flipLR=opts.flipLR);
                     [physio, physio_vec] = this.build_physio_from_ROI(pROI, opts.size_reference);
             end
-            physio_vec = single(physio_vec);
-            physio = single(physio);
+            % physio_vec = single(physio_vec);
+            % physio = single(physio);
             assert(~isempty(physio))
         end
 
@@ -931,12 +936,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.max_frames double = Inf
             %      opts.out_dir {mustBeFolder} = pwd
             %      opts.rescaling {mustBeTextScalar} = 'iqr' : rescales bold and physio before creating twistor [X,Y,Z,T]
-            %      opts.source_physio {mustBeTextScalar} = 'iFV-brightest'
+            %      opts.source_physio {mustBeText} = "iFV-brightest" | ["iFV-brightest","iFV-quantile","sFV"]
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
             %      opts.tasks cell {mustBeText} = {}
-            %      opts.v_physio double = 0.1
-            %      opts.v_physio_iFV double = 50
+            %      opts.v_physio double = 50
             
             arguments
                 opts.anatomy_list {mustBeText} = {'ctx', 'str', 'thal', 'cbm'}
@@ -950,7 +954,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_radar logical = false
                 opts.do_plot_wavelets logical = false
                 opts.do_save logical = false
-                opts.do_save_bias_to_rsns logical = true
+                opts.do_save_bias_to_rsns logical = false
                 opts.do_save_ciftis logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
@@ -965,16 +969,23 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.out_dir {mustBeTextScalar} = ""
                 opts.plot_range double = []
                 opts.rescaling {mustBeTextScalar} = "iqr"
-                opts.source_physio = "iFV-brightest"
+                opts.source_physio {mustBeText} = "iFV-brightest"
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}
                 opts.v_physio double = 50
-                opts.v_physio_iFV double = 50
             end
 
             this = this@mlraut.HCP(max_frames=opts.max_frames, subjects=opts.subjects, tasks=opts.tasks)
 
+            % char|string management
+            opts.anatomy_list = convertStringsToChars(opts.anatomy_list);
+            opts.out_dir = convertCharsToStrings(opts.out_dir);
+            opts.rescaling = convertCharsToStrings(opts.rescaling);
+            opts.source_physio = convertCharsToStrings(opts.source_physio);
+            opts.tags = convertCharsToStrings(opts.tags);
+
+            % path management
             addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
             addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
 
@@ -1007,10 +1018,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.max_frames = opts.max_frames;
             this.cohort_data_.out_dir = opts.out_dir;
             this.rescaling_ = opts.rescaling;
-            this.source_physio = opts.source_physio;
+            this.source_physio = opts.source_physio(1);
+            if ~isscalar(opts.source_physio)
+                this.source_physio_supplementary = opts.source_physio(2:end);
+            end
             this.tags_user_ = opts.tags;
             this.v_physio = opts.v_physio;
-            this.v_physio_iFV = opts.v_physio_iFV;
         end
     end
 
