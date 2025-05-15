@@ -429,6 +429,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             % accumulate for statistics on serialized AnalyticSignalHCP
             this.bold_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
             this.physio_signal_ = complex(nan(this.num_frames, this.num_nodes));  % largest
+            this.digital_filter_ = [];
 
             % utilities
             plot_range_ = 1:round(200/this.tr);
