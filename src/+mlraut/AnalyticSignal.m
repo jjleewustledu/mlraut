@@ -49,6 +49,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         physio_signal
         plotting
         roi
+        v_physio_is_inf  % v_physio reaches head diameter in time << tr
     end
 
     methods %% GET, SET
@@ -166,6 +167,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.roi(this)
             g = this.roi_;
+        end
+
+        function g = get.v_physio_is_inf(this)
+            g = this.v_physio > 10/this.tr;  % m/s
         end
     end
     
@@ -814,6 +819,9 @@ classdef AnalyticSignal < handle & mlraut.HCP
             g = "proc";
             if ~isempty(this.v_physio)
                 g = g + "-v" + strrep(num2str(this.v_physio), ".", "p");
+            t = "proc";
+            if ~this.v_physio_is_inf
+                t = t + "-v" + strrep(num2str(this.v_physio), ".", "p");
             end
             if ~isempty(this.lp_thresh) && this.lp_thresh ~= 0.1
                 g = g + "-lp" + strrep(num2str(this.lp_thresh), ".", "p");

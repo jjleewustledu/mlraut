@@ -8,6 +8,7 @@ classdef Twistors < handle & mlsystem.IHandle
     properties (Dependent)
         bold_signal  % hilbert(bold) ~ Nt x Nx
         physio_signal  % hilbert(physio) ~ Nt x 1
+        v_physio_is_inf % v_physio reaches head diameter in time << tr
     end
 
     methods  %% GET
@@ -16,6 +17,9 @@ classdef Twistors < handle & mlsystem.IHandle
         end
         function g = get.physio_signal(this)
             g = this.ihcp_.physio_signal;
+        end
+        function g = get.v_physio_is_inf(this)
+            g = this.ihcp_.v_physio_is_inf;
         end
     end
 
@@ -96,33 +100,42 @@ classdef Twistors < handle & mlsystem.IHandle
             pos = [gl_pos, gr_pos, sc_pos];  % [3x29696, 3x29716, 3x31870] ~ [3x91282]
         end
 
-        function propagated_signal = propagate_physio(this, size_bold_signal, physio_signal, opts)
+        function propagated_signal = propagate_physio(this, physio_signal, opts)
             %% Propagate physio_signal from physio_pos radially according to propagation velocity v.
             %  Prior to arrival of physio signal, the array for propagated_signal will be Inf or one
             %  according to unvisited_is_inf.
             %  bold_signal is only needed for array sizes.
+            %
+            %  Args:
+            %      this mlraut.Twistors
+            %      physio_signal double  % N_t x 1
+            %      opts.size_bold_signal double  % [N_t, N_x]
+            %      opts.physio_pos double = this.center_of_mass_position()  % 3 x 1
+            %      opts.unvisited_is_inf logical = false            
+            %  Returns:
+            %      propagated_signal (N_t, N_x) double 
 
             arguments
                 this mlraut.Twistors
-                size_bold_signal double  % [N_t, N_x]
                 physio_signal double  % N_t x 1
+                opts.size_bold_signal double  % [N_t, N_x]
                 opts.physio_pos double = this.center_of_mass_position()  % 3 x 1
-                opts.v double {mustBeScalarOrEmpty} = this.ihcp_.v_physio  % m/s
                 opts.unvisited_is_inf logical = false
             end
-            % physio_signal = ascol(physio_signal);
-            v = 1e3*opts.v;  % mm/s
             
-            if v*this.ihcp_.tr > 0.95*5e4  % 50 m/s is lower limit of myelinated conduction velocity
-                propagated_signal = ones(size_bold_signal).*physio_signal;
+            if this.v_physio_is_inf
+                propagated_signal = ones(opts.size_bold_signal).*physio_signal;
                 return
             end
 
+            % privately, use mm/s
+            v = 1e3*this.ihcp_.v_physio;
+
             if opts.unvisited_is_inf
                 big = 1e3*max(physio_signal, [], "all");
-                propagated_signal = big*ones(size_bold_signal);
+                propagated_signal = big*ones(opts.size_bold_signal);
             else
-                propagated_signal = physio_signal(1)*ones(size_bold_signal);
+                propagated_signal = physio_signal(1)*ones(opts.size_bold_signal);
             end
             bold_pos = this.grayordinate_positions();  % 3 x N_x
             x = abs(vecnorm(bold_pos - opts.physio_pos));  % Nx x 1, in mm

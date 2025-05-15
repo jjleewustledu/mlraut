@@ -15,6 +15,7 @@ classdef PhysioData < handle & mlsystem.IHandle
         is_7T
         sub
         task
+        v_physio_is_inf
         wmparc
     end
 
@@ -28,10 +29,13 @@ classdef PhysioData < handle & mlsystem.IHandle
         function g = get.task(this)
             g = this.ihcp_.current_task;
         end
+        function g = get.v_physio_is_inf(this)
+            g = this.ihcp_.v_physio_is_inf;
+        end
         function g = get.wmparc(this)
-            % if ~isempty(this.wmparc_)
-            %     g = this.wmparc_;
-            % end
+            if ~isempty(this.wmparc_)
+                g = this.wmparc_;
+            end
 
             this.wmparc_ = mlfourd.ImagingContext2(this.ihcp_.wmparc_fqfn);
             g = this.wmparc_;
@@ -39,7 +43,13 @@ classdef PhysioData < handle & mlsystem.IHandle
     end
 
     methods
-        function [physio,physio_vec] = build_physio_from_ROI(this, size_dtseries)
+        function physio = build_physio_from_ROI(this)
+            %% Constructs physio vector|matrix for implementations of PhysioData 
+            %  (PhysioROI, IFourthVentricle, LateralVentricles, ...)
+            %
+            %  Returns:
+            %      physio double ~ Nt x 1 if this.v_physio_is_inf else Nt x Ngo
+
             physio_vec_ = this.call();
             physio_vec_gsr_ = ...
                 this.ihcp_.build_global_signal_regressed(physio_vec_);
@@ -48,13 +58,17 @@ classdef PhysioData < handle & mlsystem.IHandle
                 this.ihcp_.build_band_passed( ...
                 this.ihcp_.build_centered(physio_vec_gsr_)));
 
-            proi_pos = this.ihcp_.twistors.center_of_mass_position(this.roi_mask);
-            physio = this.ihcp_.twistors.propagate_physio( ...
-                size_dtseries, physio_vec, ...
-                physio_pos=proi_pos, ...
-                v=this.ihcp_.v_physio);
-            
-            assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")  
+            if this.v_physio_is_inf
+                physio = physio_vec;
+            else
+                size_dtseries = size(this.ihcp_.task_dtseries());
+                proi_pos = this.ihcp_.twistors.center_of_mass_position(this.roi_mask);
+                physio = this.ihcp_.twistors.propagate_physio( ...
+                    physio_vec, ...
+                    size_bold_signal=size_dtseries, ...
+                    physio_pos=proi_pos);
+                assert(all(isfinite(physio), "all"), "likely that Twistors.propagate_physio is faulty")
+            end
         end
 
         function data = physio_log(this)
