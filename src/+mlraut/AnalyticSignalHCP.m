@@ -53,101 +53,91 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             psis = this.HCP_signals;
         end
 
-        function this = call(this, opts)
-            %% CALL only one subject to avoid problems with caching this.roi
-
-            arguments
-                this mlraut.AnalyticSignalHCP
-                opts.do_qc logical = false
-            end
+        function this = call(this)
 
             % exclude subjects
-            this.subjects = this.subjects(~contains(this.subjects, '_7T'));  % 7T studies still listed under tasks
-            %this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
+            % this.subjects = this.subjects(~contains(this.subjects, '_7T'));  % 7T studies still listed under tasks
+            % this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
 
             out_dir_ = this.out_dir;
-            s = 1;
-            try
-                this.current_subject = this.subjects{s};
-                if ~contains(out_dir_, this.current_subject)
-                    proposed_dir = fullfile(out_dir_, this.current_subject);
-                    this.out_dir = proposed_dir;
-                    ensuredir(proposed_dir);
+
+            for s = 1:this.num_sub
+                try
+                    this.current_subject = this.subjects{s};
+                    if ~contains(out_dir_, this.current_subject)  % add subject folder to out_dir as needed
+                        proposed_dir = fullfile(out_dir_, this.current_subject);
+                        this.out_dir = proposed_dir;
+                        ensuredir(proposed_dir);
+                    end
+                    this.call_subject();
+                catch ME
+                    handwarning(ME)
                 end
-                this.call_subject();
-            catch ME
-                handexcept(ME)
             end
         end
 
         function this = call_subject(this)
 
-            %% Hilbert transform is applied after most other operations
-
-            arguments
-                this %  mlraut.AnalyticSignalHCP; avoid down-casting
-            end
-
             for t = 1:this.num_tasks     
                 try
                     this.current_task = this.tasks{t};
-                    this.malloc();  % resets caches for each task
+                    this.call_task();
+                catch ME
+                    handwarning(ME)
+                end
+            end
+        end
 
-                    % BOLD
-                    try
-                        bold_gsr_ = ...
-                            this.build_global_signal_regressed(this.task_dtseries());
-                        bold_ = ...
-                            this.build_rescaled( ...
-                            this.build_band_passed( ...
-                            this.build_centered(bold_gsr_)));
-                        if ~isemptytext(getenv("VERBOSITY")); fprintf("size(bold_):\n"); disp(size(bold_)); end
-                    catch ME
-                        disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
-                        handwarning(ME)
-                        continue
-                    end
+        function this = call_task(this)
 
-                    % physio
-                    try
+            %% Hilbert transform is applied after most other operations
+            
+            this.malloc();  % resets caches for each task
+
+            % BOLD
+            try
+                bold_gsr_ = ...
+                    this.build_global_signal_regressed(this.task_dtseries());
+                bold_ = ...
+                    this.build_rescaled( ...
+                    this.build_band_passed( ...
+                    this.build_centered(bold_gsr_)));
+                if ~isemptytext(getenv("VERBOSITY")); fprintf("size(bold_):\n"); disp(size(bold_)); end
+            catch ME
+                disp([this.current_subject ' ' this.current_task ' BOLD missing or defective:']);
+                handexcept(ME)
+            end
+
+            % physio
+            try
                 physio_ = this.task_physio();
-                        if ~isemptytext(getenv("VERBOSITY")); fprintf("size(physio_):\n"); disp(size(physio_)); end
+                if ~isemptytext(getenv("VERBOSITY")); fprintf("size(physio_):\n"); disp(size(physio_)); end
                 this.physio_supplementary_ = this.task_physio_supplementary();
                 if ~isemptytext(getenv("VERBOSITY"))
                     fprintf("size(physio_supplementary):\n");
                     disp(size(this.physio_supplementary_));
                 end
-                    catch ME
-                        disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
-                        handwarning(ME)
-                        continue
-                    end
-
-                    % Store BOLD signals
-                    this.bold_signal_ = hilbert(bold_);
-
-                    % Store physio signals
-                    this.physio_signal_ = hilbert(physio_);
-
-                    % Store averages for networks
-                    this.average_network_signals();
-
-                    % Store connectivity for comparisons
-                    this.comparator_ = this.connectivity(bold_, physio__);
-
-                    % do save
-                    this.meta_save();
-
-                    % do plots
-                    this.meta_plot();
-                catch ME
-                    handwarning(ME)
-                end
+            catch ME
+                disp([this.current_subject ' ' this.current_task ' physio missing or defective:']);
+                handexcept(ME)
             end
-        end 
 
+            % Store BOLD signals
+            this.bold_signal_ = hilbert(bold_);
 
-                    % do save
+            % Store physio signals
+            this.physio_signal_ = hilbert(physio_);
+
+            % Store averages for networks
+            this.average_network_signals();
+
+            % Store connectivity for comparisons
+            this.comparator_ = this.connectivity(bold_, physio_);
+
+            % do plots
+            this.meta_plot();
+
+            % do save
             this.meta_save();
         end
 
@@ -186,7 +176,9 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
         function this = malloc(this)
             %% reset for new tasks or new subjects
 
-            this = malloc@mlraut.AnalyticSignal(this);    
+            this = malloc@mlraut.AnalyticSignal(this);
+
+            this.comparator_ = [];
 
             this.HCP_signals_.cbm.psi = complex(nan(this.num_frames,this.num_nets));
             this.HCP_signals_.cbm.phi = complex(nan(this.num_frames,this.num_nets));
@@ -238,8 +230,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
                 % cortical X(psi, phi) >= 0, region 9 ~ task-, biased but informative
                 % parts = this.X(this.HCP_signals.ctx.psi(:,9), this.HCP_signals.ctx.phi(:,9)) >= 0;  
-                % parts = cos(this.physio_angle) >= 0;  % unbiased, but shows identical features in trues/falses
-                
+                % parts = cos(this.physio_angle) >= 0;  % unbiased, but shows identical features in trues/falses                
                 if this.do_save_bias_to_rsns
                     for rsn = 1:7
                         angle_rsn = this.angle(this.HCP_signals.ctx.psi(:,rsn), this.HCP_signals.ctx.phi(:,rsn));

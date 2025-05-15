@@ -1011,11 +1011,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
         scale_to_hcp_
         tags_user_
 
-        bold_signal_
-        global_signal_
-        physio_angle_
-        physio_signal_
-        roi_
+        bold_signal_  % double
+        global_signal_  % double
+        physio_angle_  % double
+        physio_signal_  % double
+        physio_supplementary_  % containers.Map ~ string x double
+        roi_  % [] | mlfourd.ImagingContext2
     end
 
     methods (Access = protected)
