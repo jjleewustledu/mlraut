@@ -830,7 +830,6 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
     %% PROTECTED
 
     properties (Access = protected)
-        out_dir_
         map_rt_i3cr_   % containers.Map supports text -> char, rt -> i3cr, i3cr -> i3cr
         table_excluded_  % chars
         table_gbm_  % strings

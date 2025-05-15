@@ -203,12 +203,6 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             g = mg(end);
         end
     end
-
-    %% PROTECTED
-
-    properties (Access = protected)
-        out_dir_
-    end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
 end

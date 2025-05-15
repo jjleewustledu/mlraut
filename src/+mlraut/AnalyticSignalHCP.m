@@ -43,32 +43,26 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
 
             this.HCP_signals_.cbm.psi = this.average_network_signal(this.bold_signal_, network_type="cerebellar");
-            % this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
+            this.HCP_signals_.cbm.phi = this.average_network_signal(this.physio_signal_, network_type="cerebellar");
             this.HCP_signals_.ctx.psi = this.average_network_signal(this.bold_signal_, network_type="cortical");
-            % this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
+            this.HCP_signals_.ctx.phi = this.average_network_signal(this.physio_signal_, network_type="cortical");
             this.HCP_signals_.str.psi = this.average_network_signal(this.bold_signal_, network_type="striatal");
-            % this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
+            this.HCP_signals_.str.phi = this.average_network_signal(this.physio_signal_, network_type="striatal");
             this.HCP_signals_.thal.psi = this.average_network_signal(this.bold_signal_, network_type="thalamic");
-            % this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
+            this.HCP_signals_.thal.phi = this.average_network_signal(this.physio_signal_, network_type="thalamic");
             psis = this.HCP_signals;
         end
 
         function this = call(this)
 
-            % exclude subjects
+            % e.g., exclude subjects
             % this.subjects = this.subjects(~contains(this.subjects, '_7T'));  % 7T studies still listed under tasks
             % this.subjects = this.subjects(~contains(this.subjects, 'sub-'));
-
-            out_dir_ = this.out_dir;
 
             for s = 1:this.num_sub
                 try
                     this.current_subject = this.subjects{s};
-                    if ~contains(out_dir_, this.current_subject)  % add subject folder to out_dir as needed
-                        proposed_dir = fullfile(out_dir_, this.current_subject);
-                        this.out_dir = proposed_dir;
-                        ensuredir(proposed_dir);
-                    end
+                    this.update_out_dir();
                     this.call_subject();
                 catch ME
                     handwarning(ME)
@@ -168,9 +162,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 R = corrcoef(bold(pos, :), seed);
                 mat(pos) = R(1, 2);
             end
-        end
-
-        function obj = identity(~, obj)
         end
 
         function this = malloc(this)
@@ -282,6 +273,41 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                     sprintf('unwrap_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
                     partitions=[], ...
                     do_save_dynamic=this.do_save_dynamic);
+
+                % ciftis with mean abs. dev. for wb_view
+                if this.do_save_ciftis_mad
+                    tags = this.tags();
+                    this.write_ciftis( ...
+                        abs(this.T(this.bold_signal_, this.physio_signal_)), ...
+                        sprintf('abs_T_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=[], ...
+                        do_save_dynamic=this.do_save_dynamic);
+                    this.write_ciftis( ...
+                        abs(this.Z(this.bold_signal_, this.physio_signal_)), ...
+                        sprintf('abs_Z_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=[], ...
+                        do_save_dynamic=this.do_save_dynamic);
+                    this.write_ciftis( ...
+                        abs(this.X(this.bold_signal_, this.physio_signal_)), ...
+                        sprintf('abs_X_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=[], ...
+                        do_save_dynamic=this.do_save_dynamic);
+                    this.write_ciftis( ...
+                        abs(this.Y(this.bold_signal_, this.physio_signal_)), ...
+                        sprintf('abs_Y_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=[], ...
+                        do_save_dynamic=this.do_save_dynamic);
+                    this.write_ciftis( ...
+                        abs(this.angle(this.bold_signal_, this.physio_signal_)), ...
+                        sprintf('abs_angle_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=[], ...
+                        do_save_dynamic=this.do_save_dynamic);
+                    this.write_ciftis( ...
+                        abs(this.unwrap(this.bold_signal_, this.physio_signal_)), ...
+                        sprintf('abs_unwrap_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, tags), ...
+                        partitions=[], ...
+                        do_save_dynamic=this.do_save_dynamic);
+                end
             end
             if this.do_save_ciftis_of_diffs                        
                 error("mlraut:NotImplementedError", stackstr())
@@ -405,6 +431,17 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
     properties (Access = protected)
         comparator_
         HCP_signals_
+    end
+
+    methods (Access = protected)
+        function this = update_out_dir(this)
+            out_dir_ = this.out_dir;
+            if ~contains(out_dir_, this.current_subject)  % add subject folder to out_dir as needed
+                out_dir_ = fullfile(out_dir_, this.current_subject);
+                ensuredir(out_dir_);
+                this.out_dir = out_dir_;
+            end
+        end
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.

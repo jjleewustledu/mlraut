@@ -17,6 +17,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_wavelets
         do_save
         do_save_bias_to_rsns  % see also meta_save()
+        do_save_ciftis_mad  % see also meta_save()
         do_save_ciftis
         do_save_ciftis_of_diffs
         do_save_dynamic
@@ -222,6 +223,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 this mlraut.AnalyticSignal
                 psi {mustBeNumeric}
                 opts.network_type {mustBeText} = "cortical"
+            end
+
+            if isvector(psi)
+                return
             end
 
             if startsWith(opts.network_type, "cerebell", IgnoreCase=true) || strcmp(opts.network_type, "crb")
@@ -899,6 +904,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_save logical = true : save fully populated this to mlraut_AnalyticSignal.mat
             %      opts.do_save_bias_to_rsns logical = true
             %      opts.do_save_ciftis logical = false: save ciftis of {abs,angle} of analytic_signal.
+            %      opts.do_save_ciftis_mad logical = true
             %      opts.do_save_ciftis_of_diffs logical = false: save ciftis of {abs,angle} of analytic_signal, diff from bold.
             %      opts.do_save_dynamic logical = false; save large dynamic dtseries
             %      opts.do_save_subset logical = false : save only subset of this to decrease storage
@@ -933,6 +939,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_save logical = false
                 opts.do_save_bias_to_rsns logical = false
                 opts.do_save_ciftis logical = false
+                opts.do_save_ciftis_mad logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
                 opts.do_save_subset logical = false
@@ -979,6 +986,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_save = opts.do_save;
             this.do_save_bias_to_rsns = opts.do_save_bias_to_rsns;
             this.do_save_ciftis = opts.do_save_ciftis;
+            this.do_save_ciftis_mad = opts.do_save_ciftis_mad;
             this.do_save_ciftis_of_diffs = opts.do_save_ciftis_of_diffs;
             this.do_save_dynamic = opts.do_save_dynamic;
             this.do_save_subset = opts.do_save_subset;

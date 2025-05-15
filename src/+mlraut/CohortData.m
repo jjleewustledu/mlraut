@@ -96,15 +96,21 @@ classdef CohortData < handle & mlsystem.IHandle
     properties (Access = protected)
         ihcp_
         json_
+        out_dir_
     end
 
     methods (Access = protected)
-        function this = CohortData(ihcp)
+        function this = CohortData(ihcp, out_dir)
             arguments
                 ihcp mlraut.HCP
+                out_dir {mustBeTextScalar} = ""
             end
 
             this.ihcp_ = ihcp;
+            if isemptytext(out_dir)
+                out_dir = ihcp.out_dir;
+            end
+            this.out_dir_ = out_dir;
         end
     end
     

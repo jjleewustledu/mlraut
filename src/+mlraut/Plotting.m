@@ -525,6 +525,11 @@ classdef Plotting < handle & mlsystem.IHandle
         ias_
     end
 
+    methods (Access = protected)
+        function obj = identity(~, obj)
+        end
+    end
+
     methods (Static, Access = protected)
         function e = expand_abbr(a)
             switch lower(convertStringsToChars(a))
