@@ -47,6 +47,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         bold_signal
         physio_angle
         physio_signal
+        physio_supplementary
         plotting
         roi
         v_physio_is_inf  % v_physio reaches head diameter in time << tr
@@ -159,6 +160,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.physio_signal(this)
             g = this.physio_signal_;
+        end
+
+        function g = get.physio_supplementary(this)
+            g = this.physio_supplementary_;
         end
 
         function g = get.plotting(this)
@@ -818,6 +823,35 @@ classdef AnalyticSignal < handle & mlraut.HCP
             physio_vec = single(physio_vec);
             physio = single(physio);
             assert(~isempty(physio))
+        end
+
+        function cmap = task_physio_supplementary(this, opts)
+            %  Args:
+            %      this mlraut.AnalyticSignal
+            %      opts.flipLR logical = false
+            %      opts.source_physio_supplementary {mustBeText} = this.source_physio_supplementary        
+            %  Returns:
+            %      cmap containers.Map ~ string x (Nt x Ngo)
+            %  Throws:
+            %      mlraut:ValueError if this.source_physio_supplementary not supported
+
+            arguments
+                this mlraut.AnalyticSignal
+                opts.flipLR logical = false
+                opts.source_physio_supplementary = this.source_physio_supplementary
+            end
+
+            if isempty(opts.source_physio_supplementary)
+                cmap = [];
+                return
+            end
+
+            keys = opts.source_physio_supplementary;
+            values = cell(1, length(keys));
+            for vidx = 1:length(keys)
+                values{vidx} = this.task_physio(flipLR=opts.flipLR, source_physio=keys(vidx));
+            end
+            cmap = containers.Map(keys, values);
         end
 
         %% misc. helpers
