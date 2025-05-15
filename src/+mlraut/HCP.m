@@ -7,7 +7,7 @@ classdef HCP < handle & mlsystem.IHandle
     %  Developed on Matlab 9.13.0.2105380 (R2022b) Update 2 for MACI64.  Copyright 2022 John J. Lee.
     
 
-    properties 
+    properties
         do_7T
         do_resting
         do_task       

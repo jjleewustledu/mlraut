@@ -1030,47 +1030,5 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
     end
     
-    %% PRIVATE
-
-    methods (Access = private)
-        function this = build_roi(this, roi)
-            %% defers to expectations assigned to this.source_physio
-            %  roi ~ empty, this.source_physio ~ "ROI":  return
-            %  roi ~ understood by mlfourd.ImagingContext2:  assigns this.roi_ with mlfourd.ImagingContext2(roi)
-            %  roi ~ 1 | [2 3], but not 3D or 4D:  calls PhysioRoi with from_wmparc_indices := roi
-
-            arguments
-                this mlraut.AnalyticSignal
-                roi = []
-            end
-            if isempty(roi)
-                return
-            end            
-            
-            if isa(roi, "mlfourd.ImagingContext2")
-                this.roi_ = copy(roi);
-                this.source_physio = this.roi_.fileprefix;
-                return
-            end
-            if istext(roi) && isfile(roi)
-                this.roi_ = mlfourd.ImagingContext2(roi);
-                this.source_physio = this.roi_.fileprefix;
-                return
-            end
-            if isnumeric(roi) && ismatrix(roi)
-                pr = mlraut.PhysioRoi(this, this.task_niigz, from_wmparc_indices=roi);
-                this.roi_ = pr.roi_mask;
-                this.source_physio = "ROI";
-                return
-            end
-            if isnumeric(roi) && ~ismatrix(roi)
-                this.roi_ = mlfourd.ImagingContext2(roi);
-                this.source_physio = "ROI";
-                return
-            end
-            error("mlraut:ValueError", stackstr())
-        end
-    end
-    
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
 end
