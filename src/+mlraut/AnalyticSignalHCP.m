@@ -146,54 +146,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
         end 
 
-        function call_superposition(this, physio_keys, physio_vs, weights)
-
-            %% create and write superposition of results from listed physios
-
-            arguments
-                this %  mlraut.AnalyticSignalHCP
-                physio_keys string {mustBeText}
-                physio_vs double = [this.v_physio_iFV, this.v_physio]
-                weights double = [0.5, 0.5]
-            end
-            assert(length(physio_keys) == 2)
-            assert(length(physio_vs) == 2)
-            assert(length(weights) == 2)
-
-            for t = 1:this.num_tasks     
-                try
-
-                    fqfn1 = this.mat_fqfn( ...
-                        v_physio=physio_vs(1), source_physio=physio_keys(1), is_subset=this.do_save_subset);
-                    ld1 = load(fqfn1);
-                    this1 = ld1.this;
-
-                    fqfn2 = this.mat_fqfn( ...
-                        v_physio=physio_vs(2), source_physio=physio_keys(2), is_subset=this.do_save_subset);
-                    ld2 = load(fqfn2);
-                    this2 = ld2.this;
-
-                    %% modify this1 only
-
-                    this1.current_subject = this.current_subject;
-                    this1.current_task = this.tasks{t};
-
-                    this1.source_physio = strrep( ...
-                        sprintf("%s%g-%s%g", ...
-                        this1.source_physio, weights(1), this2.source_physio, weights(2)), ...
-                        ".", "p");
-
-                    % Update BOLD signals
-                    this1.bold_signal_ = weights(1)*this1.bold_signal_ + weights(2)*this2.bold_signal_;
-
-                    % Update physio signals
-                    this1.physio_signal_ = weights(1)*this1.physio_signal_ + weights(2)*this2.physio_signal_;
-
-                    % Update averages for networks
-                    this1.average_network_signals(this1.bold_signal_, this1.physio_signal_);
-
-                    % Null connectivity to avoid saving it
-                    this1.comparator_ = [];
 
                     % do save
             this.meta_save();
