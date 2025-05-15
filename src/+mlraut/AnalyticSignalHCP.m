@@ -169,9 +169,9 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
         end
 
         function mat = connectivity(~, bold, seed)
-            bold = real(bold)';  % Nx x Nt
+            bold = real(bold)';  % N.B.:  Nx x Nt
             seed = real(seed)';
-            seed = mean(seed, 1);  % 1 x Nt
+            seed = mean(seed, 1);  %#ok<UDIM> % N.B.:  1 x Nt
             Nx = size(bold, 1);
             mat = nan(Nx, 1);  % Nx x 1
             for pos = 1:Nx
