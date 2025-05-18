@@ -49,25 +49,9 @@ classdef HCPAgingData < handle & mlraut.CohortData
                 return
             end
 
-            if contains(computer, "MAC")
-                g = "/Volumes/PrecunealSSD2/AnalyticSignalHCPAging";
-                assert(isfolder(g));
-                this.out_dir_ = g;
-                return
-            end
-            if contains(computer, "GLNXA64")
-                g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCPAging");
-                assert(isfolder(g));
-                this.out_dir_ = g;
-                return
-            end
-            if contains(hostname, "cluster")
-                g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCPAging");
-                assert(isfolder(g));
-                this.out_dir_ = g;
-                return
-            end
-            error("mlraut:NotImplementedError", stackstr());
+            g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCPAging");
+            assert(isfolder(g));
+            this.out_dir_ = g;
         end
         function     set.out_dir(this, s)
             assert(istext(s))
@@ -170,8 +154,18 @@ classdef HCPAgingData < handle & mlraut.CohortData
     end
     
     methods
-        function this = HCPAgingData(varargin)
-            this = this@mlraut.CohortData(varargin{:});
+        function this = HCPAgingData(ihcp, out_dir)
+            arguments
+                ihcp mlraut.HCP
+                out_dir {mustBeTextScalar} = ""
+            end
+
+            this = this@mlraut.CohortData(ihcp);
+
+            if isemptytext(out_dir)
+                out_dir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCPAging");
+            end
+            this.out_dir_ = out_dir;
         end
 
         function g = surf_gii_fqfn(this, hemis)
@@ -207,6 +201,12 @@ classdef HCPAgingData < handle & mlraut.CohortData
             assert(~isemptytext(mg), stackstr())
             g = mg(end);
         end
+    end
+
+    %% PROTECTED
+
+    properties (Access = protected)
+        out_dir_
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.

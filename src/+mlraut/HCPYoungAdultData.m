@@ -35,19 +35,13 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 g = this.out_dir_;
                 return
             end
-
-            if contains(computer, "MAC")
-                g = "/Volumes/PrecunealSSD2/AnalyticSignalHCP";
-                assert(isfolder(g));
-                this.out_dir_ = g;
-                return
-            end
+            
             g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP");
             assert(isfolder(g));
             this.out_dir_ = g;
         end
         function     set.out_dir(this, s)
-            if isempty(s) || isemptytext(s)
+            if isemptytext(s)
                 return
             end
             assert(istext(s))
@@ -165,8 +159,18 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
     end
     
     methods
-        function this = HCPYoungAdultData(varargin)
-            this = this@mlraut.CohortData(varargin{:});
+        function this = HCPYoungAdultData(ihcp, out_dir)
+            arguments
+                ihcp mlraut.HCP
+                out_dir {mustBeTextScalar} = ""
+            end
+
+            this = this@mlraut.CohortData(ihcp);
+
+            if isemptytext(out_dir)
+                out_dir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP");
+            end
+            this.out_dir_ = out_dir;
         end
 
         function g = surf_gii_fqfn(this, hemis)
@@ -203,6 +207,12 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             g = mg(end);
         end
     end
-    
+
+    %% PROTECTED
+
+    properties (Access = protected)
+        out_dir_
+    end
+
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
 end

@@ -17,6 +17,11 @@ classdef Test_HCP < matlab.unittest.TestCase
             this.assertEqual(1,1);
         end
 
+        function test_stackStr(this)
+            stackstr()
+            stackstr(use_classname=false)
+        end
+
         function test_ctor(this)
             hcp = this.testObj;  % HCP
 

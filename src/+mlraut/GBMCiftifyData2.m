@@ -89,10 +89,10 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
                 return
             end
 
+            % /home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalGBM/analytic_signal/matlabout
             g = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalGBM", "analytic_signal", "matlabout");
             assert(isfolder(g))
             this.out_dir_ = g;
-            % /home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalGBM/analytic_signal/matlabout
         end
         function     set.out_dir(this, s)
             assert(istext(s))
@@ -186,8 +186,15 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
     end
 
     methods
-        function this = GBMCiftifyData2(varargin)            
-            this = this@mlraut.CohortData(varargin{:});
+        function this = GBMCiftifyData2(ihcp, out_dir)
+            arguments
+                ihcp mlraut.HCP
+                out_dir {mustBeTextScalar} = ""
+            end
+
+            this = this@mlraut.CohortData(ihcp);
+
+            this.out_dir_ = out_dir;
 
             if ~isfile(this.json_fqfn)
                 this.build_gbm_json();
@@ -831,12 +838,10 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
 
     properties (Access = protected)
         map_rt_i3cr_   % containers.Map supports text -> char, rt -> i3cr, i3cr -> i3cr
+        out_dir_
         table_excluded_  % chars
         table_gbm_  % strings
         table_rt_i3cr_  % chars
-    end
-
-    methods (Access = protected)
     end
     
     %  Created with mlsystem.Newcl, inspired by Frank Gonzalez-Morphy's newfcn.
