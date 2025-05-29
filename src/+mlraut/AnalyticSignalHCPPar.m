@@ -6,7 +6,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
     %  Developed on Matlab 9.14.0.2206163 (R2023a) for MACI64.  Copyright 2023 John J. Lee.
     
     methods (Static)
-        function ihcp = mean_bold()
+        function ihcp = mean_bold_ryans_way()
             out_dir = "/Volumes/PrecunealSSD2/AnalyticSignalHCP";
             mat = fullfile(out_dir, ...
                 "sub-996782_ses-rfMRI-REST1-RL_proc-RV-gsr1-butter2-lp0p05-hp0p01-scaleiqr-Test-AnalyticSignalHCP-setupAnalyticSignalHCP.mat");            
@@ -27,7 +27,6 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % average bold by phase bins
             for b = 2:num_bins+1
                 net_sigs2 = ihcp.bold_signal;  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
-                net_sigs2 = real(net_sigs2);
                 not_selected = wrap_pupils < bin_lims(b-1) | wrap_pupils > bin_lims(b);
                 net_sigs2(not_selected, :) = nan;
                 bins_(b-1,:) = mean(net_sigs2, 1, "omitnan");
@@ -41,6 +40,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 bins3(i-num_bins, :) = nanmean(bins2(i-smooth_width:i+smooth_width, :), 1);
             end
 
+            bins3 = real(bins3);
             ihcp.write_cifti(bins3, stackstr() + ".dtseries.nii");
 
             popd(pwd0);
@@ -112,7 +112,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 do_save_dynamic=false);
         end
 
-        function parcall(cores, opts)
+        %% running call on single server
+        
+        function server_call(cores, opts)
             %% 33 GiB memory needed per instance of this running on a single process
 
             arguments

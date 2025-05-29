@@ -329,8 +329,8 @@ classdef Lee2024 < handle
                 this mlraut.Lee2024 %#ok<INUSA>
                 asobj mlraut.AnalyticSignalHCP  % minimally must understand cifti
                 opts.out_dir {mustBeFolder} = pwd
-                opts.do_save_bias_to_rsns logical = true
                 opts.do_save_dynamic logical = false
+                opts.do_save_regularized logical = true
                 opts.template_cifti {mustBeFile} = cifti_read( ...
                     fullfile( ...
                     getenv("SINGULARITY_HOME"), ...
@@ -343,9 +343,9 @@ classdef Lee2024 < handle
             
             asobj.out_dir = opts.out_dir;
             asobj.do_save = false;
-            asobj.do_save_bias_to_rsns = opts.do_save_bias_to_rsns;
             asobj.do_save_ciftis = true;
             asobj.do_save_dynamic = opts.do_save_dynamic;
+            asobj.do_save_regularized = opts.do_save_regularized;
             meta_save(asobj);
         end
 

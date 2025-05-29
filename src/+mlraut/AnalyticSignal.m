@@ -16,11 +16,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
         do_plot_radar
         do_plot_wavelets
         do_save
-        do_save_bias_to_rsns  % see also meta_save()
-        do_save_ciftis_mad  % see also meta_save()
         do_save_ciftis
+        do_save_ciftis_alt  % see also meta_save()
         do_save_ciftis_of_diffs
         do_save_dynamic
+        do_save_regularized  % see also meta_save()
         do_save_subset
 
         filter_order  % >= 2
@@ -557,7 +557,15 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             % Optional: Fit a power law
             % Select a range for fitting (adjust as needed)
-            fit_range = f > this.hp_thresh & f < this.lp_thresh;
+            if ~isempty(this.hp_thresh) && ~isempty(this.lp_thresh)
+                fit_range = f > this.hp_thresh & f < this.lp_thresh;
+            end
+            if ~isempty(this.lp_thresh)
+                fit_range = f < this.lp_thresh;
+            end
+            if ~isempty(this.hp_thresh)
+                fit_range = f > this.hp_thresh;
+            end
 
             % Perform linear regression on log-log data
             p = polyfit(log10(f(fit_range)), log10(P(fit_range)), 1);
@@ -882,8 +890,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if ~isemptytext(this.tags_user) 
                 t = t + "-" + this.tags_user;
             end
-            if ~isemptytext(more_tags) 
-                t = t + "-" + more_tags;
+            if ~isemptytext(more_tags)
+                t = t + "-" + regexprep(more_tags, "^[-_]+", "");
             end
         end
 
@@ -902,15 +910,15 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_plot_radar logical = false
             %      opts.do_plot_wavelets logical = false
             %      opts.do_save logical = true : save fully populated this to mlraut_AnalyticSignal.mat
-            %      opts.do_save_bias_to_rsns logical = true
-            %      opts.do_save_ciftis logical = false: save ciftis of {abs,angle} of analytic_signal.
-            %      opts.do_save_ciftis_mad logical = true
-            %      opts.do_save_ciftis_of_diffs logical = false: save ciftis of {abs,angle} of analytic_signal, diff from bold.
-            %      opts.do_save_dynamic logical = false; save large dynamic dtseries
+            %      opts.do_save_ciftis logical = false : save ciftis of {abs,angle} of analytic_signal.
+            %      opts.do_save_ciftis_alt logical = true : alternative averaging of dynamics
+            %      opts.do_save_ciftis_of_diffs logical = false : save ciftis of {abs,angle} of analytic_signal, diff from bold.
+            %      opts.do_save_dynamic logical = false : save large dynamic dtseries
+            %      opts.do_save_regularized logical = true
             %      opts.do_save_subset logical = false : save only subset of this to decrease storage
             %      opts.filter_order double = 8
-            %      opts.force_band logical = false: force bandpass to Nyquist limits of available data
-            %      opts.force_legacy_butter logical = false: 
+            %      opts.force_band logical = false : force bandpass to Nyquist limits of available data
+            %      opts.force_legacy_butter logical = false
             %      opts.frac_ext_physio double = 0.5 : fraction of external physio signal power
             %      opts.hp_thresh {mustBeScalarOrEmpty} : default := 0.009*0.72, Dworetsky; support ~ 2/this.num_frames ~ 0.0019, compared to Ryan's 0.01.
             %                                             nan =: 2/(this.num_frames - this.num_frames_to_trim).
@@ -937,17 +945,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_plot_radar logical = false
                 opts.do_plot_wavelets logical = false
                 opts.do_save logical = false
-                opts.do_save_bias_to_rsns logical = false
                 opts.do_save_ciftis logical = false
-                opts.do_save_ciftis_mad logical = false
+                opts.do_save_ciftis_alt logical = false
                 opts.do_save_ciftis_of_diffs logical = false
                 opts.do_save_dynamic logical = false
+                opts.do_save_regularized logical = false
                 opts.do_save_subset logical = false
                 opts.filter_order double = 8
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
                 opts.frac_ext_physio double = 1
-                opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
+                opts.hp_thresh {mustBeScalarOrEmpty} = []
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
@@ -984,11 +992,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.do_plot_radar = opts.do_plot_radar;
             this.do_plot_wavelets = opts.do_plot_wavelets;
             this.do_save = opts.do_save;
-            this.do_save_bias_to_rsns = opts.do_save_bias_to_rsns;
             this.do_save_ciftis = opts.do_save_ciftis;
-            this.do_save_ciftis_mad = opts.do_save_ciftis_mad;
+            this.do_save_ciftis_alt = opts.do_save_ciftis_alt;
             this.do_save_ciftis_of_diffs = opts.do_save_ciftis_of_diffs;
             this.do_save_dynamic = opts.do_save_dynamic;
+            this.do_save_regularized = opts.do_save_regularized;
             this.do_save_subset = opts.do_save_subset;
 
             this.filter_order = opts.filter_order;
@@ -1021,7 +1029,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
         lp_thresh_
         plotting_
         rescaling_
-        scale_to_hcp_
         tags_user_
 
         bold_signal_  % double

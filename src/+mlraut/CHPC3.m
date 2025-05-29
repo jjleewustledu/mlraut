@@ -35,8 +35,8 @@ classdef CHPC3
             arguments
                 account_name = 'joshua_shimony'  % 'aristeidis_sotiras' 'joshua_shimony' 'manu_goyal' 'john_lee'
                 opts.partition = 'tier1_cpu'  % 'tier2_cpu' 'tier1_cpu'
-                opts.mempercpu {mustBeTextScalar} = '128gb'
-                opts.walltime {mustBeTextScalar} = '02:00:00'
+                opts.mempercpu {mustBeTextScalar} = '64gb'
+                opts.walltime {mustBeTextScalar} = '00:30:00'
             end
             if ~strcmp(account_name, 'aristeidis_sotiras')
                 opts.partition = 'tier1_cpu';
