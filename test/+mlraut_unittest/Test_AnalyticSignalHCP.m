@@ -23,6 +23,26 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             this.assertEqual(1,1);
         end
 
+        function test_bin_by_physio_angle(this)
+            out_dir = "/Volumes/PrecunealSSD2/AnalyticSignalHCP";
+            mat = fullfile(out_dir, ...
+                "sub-996782_ses-rfMRI-REST1-RL_proc-RV-gsr1-butter2-lp0p05-hp0p01-scaleiqr-Test-AnalyticSignalHCP-setupAnalyticSignalHCP.mat");            
+            pwd0 = pushd(out_dir);
+
+            ld = load(mat);
+            ihcp = ld.this;
+            phi = ihcp.physio_signal;
+            psi = ihcp.bold_signal;
+            c = mlraut.Cifti(ihcp);
+            binned = c.bin_by_physio_angle(psi, phi);
+            rbinned = single(real(binned));
+
+            prev_cii = cifti_read("AnalyticSignalHCPPar_mean_bold_complexavg.dtseries.nii");
+            this.verifyEqual(rbinned, prev_cii.cdata', RelTol=1e-6);
+
+            popd(pwd0);
+        end
+
         function test_call(this)
             tic
             as = this.testObj;

@@ -52,12 +52,62 @@ classdef Cifti < handle & mlsystem.IHandle
             fn = fullfile(pth, fn);
             cii = cifti_read(fn);
         end
+
+        function binned = bin_by_physio_angle(this, psi, phi, opts)
+            %% Average psi(t) into bins of angles alpha <- angle(phi), whereby {alpha_i, i \in \mathbb{N}} 
+            %  span [-pi, pi].  This allows generation of figures such as Ryans' Science Adv. (2021) Fig. 4.
+            %
+            %  Args:
+            %      this mlraut.Cifti
+            %      psi {mustBeMatrix}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
+            %      phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
+            %      opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
+            %      opts.Nbins {mustBeScalarOrEmpty} = 40
+            %  Returns:
+            %      binned numeric ~ Nbins x Ngo
+
+            arguments
+                this mlraut.Cifti
+                psi {mustBeMatrix}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
+                phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
+                opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
+                opts.Nbins {mustBeScalarOrEmpty} = 40
+            end
+            Nbins = opts.Nbins;
+            binlim = asrow(linspace(-pi, pi, Nbins + 1));
+
+            % init
+            binned = zeros(Nbins, this.ihcp_.num_nodes);
+
+            % wrapped physio (is not unwrapped)
+            if ismatrix(phi)
+                phi = mean(phi, 2);
+            end
+            wrapped_phi = angle(phi);  
+
+            % average bold by phase bins
+            for b = 2:Nbins+1
+                selected = binlim(b-1) < wrapped_phi & wrapped_phi < binlim(b);
+                binned(b-1,:) = mean(psi(selected, :), 1, "omitnan");
+            end
+
+            if ~isempty(opts.smoothing)
+                width = opts.smoothing;
+                bins3 = binned;
+                bins2 = repmat(binned, width, 1);
+                for i = Nbins+1:2*Nbins
+                    bins3(i-Nbins, :) = mean(bins2(i-width:i+width, :), 1, "omitnan");
+                end
+                binned = bins3;
+            end
+        end
         
         function fqfn = average_times(~, fqfn0)
             cii = cifti_read(fqfn0);
             cii.cdata = mean(cii.cdata, 2);  % cifti ~ Ngo x Nt
             cii.diminfo{2} = cifti_diminfo_make_scalars(1);
-            fqfn = strrep(fqfn0, ".dscalar.nii", "_avgt.dscalar.nii");
+            fqfn = strrep(fqfn0, ".dtseries.nii", "_avgt.dscalar.nii");
+            assert(contains(fqfn, "_avgt.dscalar.nii"), stackstr())
             cifti_write(cii, convertStringsToChars(fqfn));
         end
         
@@ -96,16 +146,26 @@ classdef Cifti < handle & mlsystem.IHandle
                 cii.diminfo{2} = cifti_diminfo_make_scalars(1);
             end
             cifti_write(cii, convertStringsToChars(fn));
-        end 
+        end
         
         function [cdata,cdata1] = write_ciftis(this, cdata, fp, opts)
+            %% Args:
+            %      this mlraut.Cifti
+            %      cdata {mustBeNumericOrLogical}
+            %      fp {mustBeTextScalar}
+            %      opts.averaging_method function_handle = @mean
+            %      opts.averaging_tag {mustBeTextScalar} = "_meant"
+            %      opts.partitions logical = []  % for spacetime ~ Nt x Ngo
+            %      opts.do_save_dynamic logical = false
+
             arguments
                 this mlraut.Cifti
                 cdata {mustBeNumericOrLogical}
                 fp {mustBeTextScalar}
-                opts.partitions logical = []
+                opts.averaging_method function_handle = @this.bin_by_physio_angle
+                opts.averaging_tag {mustBeTextScalar} = "_binangle"
+                opts.partitions logical = []  % for spacetime ~ Nt x Ngo
                 opts.do_save_dynamic logical = false
-                opts.averaging_method function_handle = @mean
             end
 
             try
@@ -113,14 +173,35 @@ classdef Cifti < handle & mlsystem.IHandle
                     this.write_cifti(cdata, fp); % mlraut.HCP
                 end
 
+                if isequal(opts.averaging_method, @this.bin_by_physio_angle)
+                    cdata1 = opts.averaging_method(cdata, this.ihcp_.physio_signal);  % average over t
+                    fp1 = strcat(fp, opts.averaging_tag);
+                    this.write_cifti(cdata1, fp1);
+                    return
+                end
+
+                if isequal(opts.averaging_method, @max) || isequal(opts.averaging_method, @min)
+                    if ~isempty(opts.partitions)
+                        cdata1 = cdata .* opts.partitions;  % select spacetime
+                        cdata1 = opts.averaging_method(cdata1, [], 1);  % average over t
+                        fp1 = strcat(fp, opts.averaging_tag);
+                        this.write_cifti(cdata1, fp1);
+                    else
+                        cdata1 = opts.averaging_method(cdata, [], 1);  % average over t
+                        fp1 = strcat(fp, opts.averaging_tag);
+                        this.write_cifti(cdata1, fp1);
+                    end
+                    return
+                end
+
                 if ~isempty(opts.partitions)
-                    cdata1 = cdata(opts.partitions, :);  % select times of interest
+                    cdata1 = cdata .* opts.partitions;  % select spacetime
                     cdata1 = opts.averaging_method(cdata1, 1);  % average over t
-                    fp1 = strcat(fp, '_avgt');
+                    fp1 = strcat(fp, opts.averaging_tag);
                     this.write_cifti(cdata1, fp1); 
                 else
                     cdata1 = opts.averaging_method(cdata, 1);  % average over t
-                    fp1 = strcat(fp, '_avgt');   
+                    fp1 = strcat(fp, opts.averaging_tag);   
                     this.write_cifti(cdata1, fp1);  
                 end
             catch ME
