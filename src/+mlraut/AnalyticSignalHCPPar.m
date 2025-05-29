@@ -6,6 +6,46 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
     %  Developed on Matlab 9.14.0.2206163 (R2023a) for MACI64.  Copyright 2023 John J. Lee.
     
     methods (Static)
+        function ihcp = mean_bold()
+            out_dir = "/Volumes/PrecunealSSD2/AnalyticSignalHCP";
+            mat = fullfile(out_dir, ...
+                "sub-996782_ses-rfMRI-REST1-RL_proc-RV-gsr1-butter2-lp0p05-hp0p01-scaleiqr-Test-AnalyticSignalHCP-setupAnalyticSignalHCP.mat");            
+            pwd0 = pushd(out_dir);
+
+            ld = load(mat);
+            ihcp = ld.this;
+
+            % init
+            num_bins = 40;
+            bin_lims = asrow(linspace(-pi, pi, num_bins + 1));
+            %midpoints = conv(bin_lims,[.5,.5],'valid'); 
+            bins_ = zeros(num_bins, ihcp.num_nodes);
+
+            % wrapped physio
+            wrap_pupils = angle(ihcp.physio_signal);  % already entered, filtered, rescaled, analytic; Nt x 1
+
+            % average bold by phase bins
+            for b = 2:num_bins+1
+                net_sigs2 = ihcp.bold_signal;  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
+                net_sigs2 = real(net_sigs2);
+                not_selected = wrap_pupils < bin_lims(b-1) | wrap_pupils > bin_lims(b);
+                net_sigs2(not_selected, :) = nan;
+                bins_(b-1,:) = mean(net_sigs2, 1, "omitnan");
+            end
+
+            % smooth bins
+            smooth_width = 3;
+            bins3 = bins_;
+            bins2 = repmat(bins_, smooth_width, 1);
+            for i = num_bins+1:2*num_bins
+                bins3(i-num_bins, :) = nanmean(bins2(i-smooth_width:i+smooth_width, :), 1);
+            end
+
+            ihcp.write_cifti(bins3, stackstr() + ".dtseries.nii");
+
+            popd(pwd0);
+        end
+
         function this = mean_twistor()
             this = mlraut.AnalyticSignalHCPPar( ...
                 subjects={'995174'}, ...
