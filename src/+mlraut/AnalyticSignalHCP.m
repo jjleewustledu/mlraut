@@ -419,6 +419,8 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.wmparc_fqfn = this.wmparc_fqfn;
             this_subset.workbench_dir = this.workbench_dir;
 
+            this_subset.class = class(this);
+
             try
                 save(this.mat_fqfn(), 'this_subset', '-v7.3');
             catch ME
@@ -428,6 +430,141 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
 
         function this = AnalyticSignalHCP(varargin)
             this = this@mlraut.AnalyticSignal(varargin{:});
+        end
+    end
+
+    methods (Static)
+        function this = load(fqfn, opts)
+            %% Loads fqfn containing this or this_subset, rebuilding mlraut.AnalyticSignalHCP for the latter.
+
+            arguments
+                fqfn {mustBeFile}
+                opts.tag {mustBeTextScalar} = string(datetime("now", Format="yyyyMMddHHmmss"))
+            end
+
+            ld = load(fqfn);
+            if isfield(ld, "this") && isa(ld.this, "mlraut.AnalyticSignalHCP")
+                this = ld.this;
+                return
+            end
+
+            if isfield(ld, "this_subset") && isstruct(ld.this_subset)
+                this_subset = ld.this_subset;
+
+                if isfield(this_subset, "class")
+                    if contains(this_subset.class, "AnalyticSignalGBM")
+                        this = mlraut.AnalyticSignalGBM( ...
+                            max_frames=this_subset.max_frames, subjects=this_subset.subjects, tasks=this_subset.tasks);
+                    elseif contains(this_subset.class, "AnalyticSignalHCPAging")
+                        this = mlraut.AnalyticSignalHCPAging( ...
+                            max_frames=this_subset.max_frames, subjects=this_subset.subjects, tasks=this_subset.tasks);
+                    elseif contains(this_subset.class, "AnalyticSignalHCP")
+                        this = mlraut.AnalyticSignalHCP( ...
+                            max_frames=this_subset.max_frames, subjects=this_subset.subjects, tasks=this_subset.tasks);
+                    else
+                        error("mlraut:RuntimeError", stackstr())
+                    end
+                else
+                    if contains(this_subset.out_dir, "AnalyticSignalGBM")
+                        this = mlraut.AnalyticSignalGBM( ...
+                            max_frames=this_subset.max_frames, subjects=this_subset.subjects, tasks=this_subset.tasks);
+                    elseif contains(this_subset.out_dir, "AnalyticSignalHCPAging")
+                        this = mlraut.AnalyticSignalHCPAging( ...
+                            max_frames=this_subset.max_frames, subjects=this_subset.subjects, tasks=this_subset.tasks);
+                    elseif contains(this_subset.out_dir, "AnalyticSignalHCP")
+                        this = mlraut.AnalyticSignalHCP( ...
+                            max_frames=this_subset.max_frames, subjects=this_subset.subjects, tasks=this_subset.tasks);
+                    else
+                        error("mlraut:RuntimeError", stackstr())
+                    end
+                end
+                 
+                % this_subset.num_nets;  % dependent prop
+                % this_subset.num_sub;  % dependent prop
+                % this.num_tasks_ = this_subset.num_tasks;  % dependent prop
+                this.comparator_ = this_subset.comparator;
+                this.HCP_signals_ = this_subset.HCP_signals;
+                this.do_global_signal_regression = this_subset.do_global_signal_regression;
+                this.do_plot_emd = this_subset.do_plot_emd;
+                this.do_plot_global_physio = this_subset.do_plot_global_physio;
+                this.do_plot_networks = this_subset.do_plot_networks;
+                this.do_plot_radar = this_subset.do_plot_radar;
+                this.do_plot_wavelets = this_subset.do_plot_wavelets;
+                this.do_save = this_subset.do_save;
+                this.do_save_ciftis = this_subset.do_save_ciftis;
+                this.do_save_ciftis_alt = this_subset.do_save_ciftis_alt; 
+                % this.do_save_ciftis_alt = false;  % this_subset.do_save_ciftis_alt;  % bug from 4/17/2025: missing in save_subset()
+                this.do_save_ciftis_of_diffs = this_subset.do_save_ciftis_of_diffs;
+                this.do_save_dynamic = this_subset.do_save_dynamic;
+                this.do_save_regularized = this_subset.do_save_regularized;
+                this.do_save_subset = this_subset.do_save_subset;
+                this.filter_order = this_subset.filter_order;
+                this.force_band = this_subset.force_band;
+                this.force_legacy_butter = this_subset.force_legacy_butter;
+                this.frac_ext_physio = this_subset.frac_ext_physio;
+                this.norm = this_subset.norm;
+                this.source_physio = this_subset.source_physio;
+                this.source_physio_supplementary = this_subset.source_physio_supplementary;
+                this.v_physio = this_subset.v_physio;
+                this.anatomy_list_ = this_subset.anatomy_list;
+                this.digital_filter_ = this_subset.digital_filter;
+                this.global_signal_ = this_subset.global_signal;
+                this.hp_thresh_ = this_subset.hp_thresh;
+                this.lp_thresh_ = this_subset.lp_thresh;
+                % this.hp_thresh_ = [];  % this_subset.hp_thresh;  % bug from 4/17/2025: hp_thresh <- lp_thresh 
+                % this.lp_thresh_ = 0.1;  % this_subset.lp_thresh;
+                this.rescaling_ = this_subset.rescaling;
+                % this.rsn_list_ = this_subset.rsn_list;  % dependent prop
+                this.tags_user_ = this_subset.tags_user + "-" + opts.tag;
+                this.bold_signal_ = this_subset.bold_signal;
+                this.physio_angle_ = this_subset.physio_angle;
+                this.physio_signal_ = this_subset.physio_signal;
+                this.physio_supplementary_ = this_subset.physio_supplementary;
+                this.roi_ = this_subset.roi;
+                % this.v_physio_is_inf_ = this_subset.v_physio_is_inf;  % dependent prop
+                this.do_7T = this_subset.do_7T;
+                this.do_resting = this_subset.do_resting;
+                this.do_task = this_subset.do_task;
+                % this.max_frames = this_subset.max_frames;  % passed to ctor
+                this.current_subject_ = this_subset.current_subject;
+                this.current_task_ = this_subset.current_task;
+                % this.subjects_ = this_subset.subjects;  % passed to ctor
+                % this.tasks_ = this_subset.tasks;  % passed to ctor
+                % this.extended_task_dir_ = this_subset.extended_task_dir;  % dependent prop
+                % this.Fs = this_subset.Fs;  % dependent prop
+                % this.num_frames_ = this_subset.num_frames;  % dependent prop
+                % this.num_frames_ori_ = this_subset.num_frames_ori;  % dependent prop
+                % this.num_frames_to_trim_ = this_subset.num_frames_to_trim;  % dependent prop
+                % this.num_nodes_ = this_subset.num_nodes;  % dependent prop
+                % this.out_dir_ = this_subset.out_dir;  % dependent prop
+                % this.root_dir_ = this_subset.root_dir;  % dependent prop
+                % this.stats_fqfn_ = this_subset.stats_fqfn;  % dependent prop
+                % this.task_dir_ = this_subset.task_dir;  % dependent prop
+                % this.task_dtseries_fqfn_ = this_subset.task_dtseries_fqfn;  % dependent prop
+                % this.task_niigz_fqfn_ = this_subset.task_niigz_fqfn;  % dependent prop
+                % this.task_ref_niigz_fqfn_ = this_subset.task_ref_niigz_fqfn;  % dependent prop
+                % this.task_ref_dscalar_fqfn_ = this_subset.task_ref_dscalar_fqfn;  % dependent prop
+                % this.thickness_dscalar_fqfn_ = this_subset.thickness_dscalar_fqfn;  % dependent prop
+                % this.t1w_fqfn_ = this_subset.t1w_fqfn;  % dependent prop
+                % this.tr_ = this_subset.tr;  % dependent prop
+                % this.waves_dir_ = this_subset.waves_dir;  % dependent prop
+                % this.wmparc_fqfn_ = this_subset.wmparc_fqfn;  % dependent prop
+                % this.workbench_dir_ = this_subset.workbench_dir;  % dependent prop
+
+                % HCP.malloc()
+                this.bold_data_ = mlraut.BOLDData(this);
+                this.cifti_ = mlraut.Cifti(this);
+                this.cohort_data_ = mlraut.CohortData.create(this);
+                this.cohort_data_.out_dir = this_subset.out_dir;
+                this.twistors_ = mlraut.Twistors(this);
+
+                % AnalyticSignal.malloc()
+                plot_range_ = 1:round(200/this.tr);
+                this.plotting_ = mlraut.Plotting.create(this, plot_range=plot_range_);
+                return
+            end
+
+            error("mlraut:ValueError", stackstr())
         end
     end
 
