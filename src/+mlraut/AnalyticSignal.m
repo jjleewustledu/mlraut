@@ -484,6 +484,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             p = (1 - f)*g_0*n_1*p_0 + f*g_1*n_0*p_1;  % mat -> mat
         end
 
+        function psi = phase_locked_values(this, varargin)
+            psi = this.twistors_.phase_locked_values(varargin{:});
+        end
+
         function psi = T(this, varargin)
             psi = this.twistors_.T(varargin{:});
         end

@@ -245,6 +245,10 @@ classdef HCP < handle & mlsystem.IHandle
     end
 
     methods
+        function binned = bin_by_physio_angle(this, varargin)
+            binned = this.cifti_.bin_by_physio_angle(varargin{:});
+        end
+
         function this = malloc(this)
             %% reset for new tasks or new subjects
 

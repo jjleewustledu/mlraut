@@ -46,80 +46,101 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             popd(pwd0);
         end
 
-        function this = mean_twistor()
-            this = mlraut.AnalyticSignalHCPPar( ...
-                subjects={'995174'}, ...
-                do_7T=false, ...
-                do_resting=true, ...
-                do_task=false, ...
-                do_global_signal_regression=true, ...
-                do_save=false, ...
-                do_save_dynamic=false, ...
-                do_save_ciftis=false, ...
-                hp_thresh=0.01, ...
-                lp_thresh=0.1, ...
-                tags="AnalyticSignalHCPPar-mean-twistor");
-
-            mats = asrow(glob(fullfile(this.out_dir, '*/sub-*_ses-*AnalyticSignalHCP*.mat')));
-            n = length(mats);
-            nx = this.num_nodes;
-
-            X_ = zeros(1, nx);
-            Y_ = zeros(1, nx);
-            Z_ = zeros(1, nx);
-            T_ = zeros(1, nx);
-
-            for mat = mats
-                % tic
-                ld = load(mat{1});
-                this_subset = ld.this_subset;
-                try
-                    psi = this_subset.bold_signal;
-                catch ME
-                    if strcmp(ME.identifier, 'MATLAB:nonExistentField')
-                        psi = this_subset.analytic_signal.*this_subset.physio_signal;  % overly normalized in this_subset
-                    else
-                        rethrow(ME)
-                    end
-                end
-                phi = this_subset.physio_signal;
-                X = mean((psi.*conj(phi) + phi.*conj(psi))/sqrt(2), 1);
-                Y = mean((psi.*conj(phi) - phi.*conj(psi))/sqrt(2i), 1);
-                Z = mean((psi.*conj(psi) - phi.*conj(phi))/sqrt(2), 1);
-                T = mean((psi.*conj(psi) + phi.*conj(phi))/sqrt(2), 1);
-
-                X_ = X_ + X/n;
-                Y_ = Y_ + Y/n;
-                Z_ = Z_ + Z/n;
-                T_ = T_ + T/n;
-                % toc
+        function this = mean_twistor(nmats)
+            arguments
+                nmats {mustBeNumeric} = inf  % use finite for validity checks
             end
 
-            this.write_ciftis( ...
-                X_, sprintf('X_as_sub-all_ses-all_%s', this.tags), ...
-                do_save_dynamic=false);
-            this.write_ciftis( ...
-                Y_, sprintf('Y_as_sub-all_ses-all_%s', this.tags), ...
-                do_save_dynamic=false);
-            this.write_ciftis( ...
-                Z_, sprintf('Z_as_sub-all_ses-all_%s', this.tags), ...
-                do_save_dynamic=false);
-            this.write_ciftis( ...
-                T_, sprintf('T_as_sub-all_ses-all_%s', this.tags), ...
-                do_save_dynamic=false);
-            this.write_ciftis( ...
-                T_+Z_, sprintf('T+Z_as_sub-all_ses-all_%s', this.tags), ...
-                do_save_dynamic=false);
+            % \emph{this} supplies utilities
+            out_dir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP");
+            this = mlraut.AnalyticSignalHCPPar( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                out_dir=out_dir, ...
+                source_physio="iFV-brightest", ...
+                tags="ASHCPPar-mean-twistor");
+            call(this);  % malloc & construct delegates
+            this.out_dir = out_dir;  % for group averages
+
+            % init
+            mats = asrow(glob(fullfile(out_dir, '*/sub-*_ses-*ASHCPPar*.mat')));
+            if nmats > length(mats)
+                nmats = length(mats);
+            end
+            mats = mats(1:nmats);
+            nbin = this.cifti.Nbins;
+            ngo = this.num_nodes;
+            X_ = zeros(nbin, ngo);
+            Y_ = zeros(nbin, ngo);
+            Z_ = zeros(nbin, ngo);
+            T_ = zeros(nbin, ngo);
+            r_ = zeros(nbin, ngo);
+            bold_ = zeros(nbin, ngo);
+            plvs_ = zeros(nbin, ngo);
+            errs = 0;
+
+            % abbrev.
+            bin = @this.bin_by_physio_angle;
+
+            for mat = mats
+                tic
+                ld = load(mat{1});
+                psi = ld.this_subset.bold_signal;
+                phi = ld.this_subset.physio_signal;
+                try
+                    X = bin(this.X(psi, phi), phi);
+                    Y = bin(this.Y(psi, phi), phi);
+                    Z = bin(this.Z(psi, phi), phi);
+                    T = bin(this.T(psi, phi), phi);
+                    r = bin(this.connectivity(psi, phi), phi);
+                    bold = bin(psi, phi);
+                    plvs = bin(this.phase_locked_values(psi, phi), phi);
+
+                    X_ = X_ + real(X/nmats);
+                    Y_ = Y_ + real(Y/nmats);
+                    Z_ = Z_ + real(Z/nmats);
+                    T_ = T_ + real(T/nmats);
+                    r_ = r_ + real(r/nmats);
+                    bold_ = bold_ + real(bold/nmats);
+                    plvs_ = plvs_ + real(plvs/nmats);
+                catch ME
+                    fprintf("while working with %s: ", mat{1});
+                    handwarning(ME)
+                    errs = errs + 1;
+                end
+                fprintf("time working with %s: ", mat{1});
+                toc
+            end
+            fprintf("errs->%g\n", errs)
+
+            dt = 2*pi/this.cifti_.Nbins;
+            units_t = "RADIAN";
+            this.cifti.write_cifti( ...
+                X_, sprintf('X_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                Y_, sprintf('Y_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                Z_, sprintf('Z_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                T_, sprintf('T_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                r_, sprintf('comparator_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                bold_, sprintf('bold_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                plvs_, sprintf('plvs_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
         end
 
         %% running call on single server
-        
+
         function server_call(cores, opts)
             %% 33 GiB memory needed per instance of this running on a single process
 
             arguments
                 cores {mustBeScalarOrEmpty} = 8
-                opts.N_sub {mustBeScalarOrEmpty} = 1113
+                opts.N_sub {mustBeScalarOrEmpty} = 100
                 opts.flip_globbed logical = true
             end
 
@@ -134,7 +155,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
             g = cellfun(@(x) basename(x), g, UniformOutput=false);
             g = g(~contains(g, 'manifests'));
-            g = g(1:opts.N_sub);
+            g = g(101:100+opts.N_sub);
             leng = length(g);
             %for idxg = 1:1
             %parfor (idxg = 1:2, 2)
@@ -143,26 +164,123 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     % if isfolder(fullfile(out_dir, g{idxg}))
                     %     continue
                     % end
-                    this = mlraut.AnalyticSignalHCPPar( ...
+                    as = mlraut.AnalyticSignalHCPPar( ...
                         subjects=g(idxg), ...  
-                        do_7T=false, ...
-                        do_resting=true, ...
-                        do_task=false, ...
-                        do_global_signal_regression=true, ...
+                        tasks={'rfMRI_REST1_LR', 'rfMRI_REST1_RL', 'rfMRI_REST2_LR', 'rfMRI_REST2_RL'}, ...
                         do_save=true, ...
-                        do_save_dynamic=false, ...
-                        do_save_ciftis=false, ...
+                        do_save_subset=true, ...
                         hp_thresh=0.01, ...
                         lp_thresh=0.1, ...
-                        v_physio=50, ...
-                        plot_range=1:250, ...
-                        tags="AnalyticSignalHCPPar-parcall");
-                    call(this);
+                        out_dir=out_dir, ...
+                        source_physio=[ ...
+                        "iFV-brightest", "iFV", "iFV-quantile", "sFV", "3rdV", "latV", "centrumsemiovale", "ctx", "RV", "HRV"], ...
+                        tags="ASHCPPar-server-call");
+                    call(as);
                 catch ME
                     handwarning(ME)
                 end
             end
         end
+    
+        %% running call on cluster
+
+        function [j,c,msg,id] = cluster_construct_and_call(globbing_mat, opts)
+            %% for clusters running Matlab parallel server
+
+            arguments
+                globbing_mat {mustBeFile} = ...
+                    fullfile( ...
+                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
+                opts.sub_indices double = 1:916  % total ~ 1:1113
+                opts.globbing_var = "globbed"
+            end
+            ld = load(globbing_mat);
+            globbed = convertStringsToChars(ld.(opts.globbing_var));
+            globbed = asrow(globbed);
+            if ~isempty(opts.sub_indices)
+                globbed = globbed(opts.sub_indices);
+            end
+
+            % pad and reshape globbed
+            Ncol = 8;
+            Nrow = ceil(numel(globbed)/Ncol);
+            padding = repmat("", [1, Ncol*Nrow - numel(globbed)]);
+            globbed = [globbed, padding];
+            globbed = reshape(globbed, Nrow, Ncol);
+            globbed = convertStringsToChars(globbed);
+            fprintf("%s:globbed:\n", stackstr())
+            disp(size(globbed))
+            disp(ascol(globbed))
+
+            % contact cluster slurm
+
+            warning('off', 'MATLAB:legacy:batchSyntax');
+            warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
+            warning('off', 'MATLAB:TooManyInputs');
+
+            c = mlraut.CHPC3.propcluster(mempercpu='40gb', walltime='00:30:00');
+            disp(c.AdditionalProperties)
+            for irow = 1:Nrow
+                try
+                    j = c.batch( ...
+                        @mlraut.AnalyticSignalHCPPar.construct_and_call, ...
+                        1, ...
+                        {globbed(irow, :)}, ...
+                        'Pool', Ncol, ...
+                        'CurrentFolder', '/scratch/jjlee/Singularity/AnalyticSignalHCP', ...
+                        'AutoAddClientPath', false);
+                catch ME
+                    handwarning(ME)
+                end
+            end
+
+            [msg,id] = lastwarn();
+
+            % j = c.batch(@mlraut.AnalyticSignalHCPPar.construct_and_call, 1, {}, 'CurrentFolder', '.', 'AutoAddClientPath', false);
+        end
+
+        function durations = construct_and_call(subjects, opts)
+            arguments
+                subjects cell = {'996782'}
+                opts.tasks cell = {'rfMRI_REST1_LR', 'rfMRI_REST1_RL', 'rfMRI_REST2_LR', 'rfMRI_REST2_RL'}
+                opts.tags {mustBeTextScalar} = "ASHCPPar"
+                opts.out_dir {mustBeFolder} = "/scratch/jjlee/Singularity/AnalyticSignalHCP"
+            end
+            
+            subjects = subjects(~cellfun(@isempty, subjects));  % Remove empty cells
+            durations = nan(1, length(subjects));
+
+            parfor sidx = 1:length(subjects)
+
+                tic;
+            
+                % setup
+                mlraut.CHPC3.setenvs();
+                ensuredir(opts.out_dir); %#ok<*PFBNS>
+                ensuredir(fullfile(opts.out_dir, subjects{sidx}));
+
+                try
+                    % construct & call
+                    as = mlraut.AnalyticSignalHCPPar( ...
+                        subjects=subjects{sidx}, ...
+                        tasks=opts.tasks, ...
+                        do_save=true, ...
+                        do_save_subset=true, ...
+                        hp_thresh=0.01, ...
+                        lp_thresh=0.1, ...
+                        out_dir=opts.out_dir, ...
+                        source_physio=[ ...
+                        "iFV-brightest", "iFV", "iFV-quantile", "sFV", "3rdV", "latV", "centrumsemiovale", "ctx", "RV", "HRV"], ...
+                        tags=opts.tags);
+                    call(as);
+                catch ME
+                    handwarning(ME)
+                end
+
+                durations(sidx) = toc;
+            end
+        end
+    
     end
 
     methods

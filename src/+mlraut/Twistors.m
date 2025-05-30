@@ -25,6 +25,10 @@ classdef Twistors < handle & mlsystem.IHandle
 
     methods
 
+        function binned = bin_by_physio_angle(this, varargin)
+            binned = this.ihcp_.cifti.bin_by_physio_angle(varargin{:});
+        end
+
         function [pos,v] = center_of_mass_position(this, roi)
             %% pos ~ 3 x 1, in mm
             %  v ~ 3 x 1, indices of imaging img
@@ -65,6 +69,10 @@ classdef Twistors < handle & mlsystem.IHandle
 
             v = [x_cm; y_cm; z_cm];
             pos = this.voxel_indices_to_position(v, roi);
+        end
+
+        function psi = connectivity(this, varargin)
+            psi = this.ihcp_.connectivity(varargin{:});
         end
 
         function pos = grayordinate_positions(this)
@@ -179,7 +187,16 @@ classdef Twistors < handle & mlsystem.IHandle
         end
 
         function theta = angle(~, psi, phi)
-            theta = angle(psi./phi);            
+            theta = angle(psi.*phi);            
+        end
+
+        function plvs = phase_locked_values(~, psi, phi)
+            %% equivalent to Ryan's expression
+            %  plvs(:,s,t) = nanmean(exp(1i*(bsxfun(@minus,unwrap(angle(h1)),unwrap(angle(h2))))));
+            %  in physio_phase_mapping.m
+            
+            as = psi .* conj(phi);
+            plvs = conj(as) ./ abs(as);
         end
 
         function theta = unwrap(this, psi, phi)
