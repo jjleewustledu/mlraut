@@ -76,7 +76,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             Y_ = zeros(nbin, ngo);
             Z_ = zeros(nbin, ngo);
             T_ = zeros(nbin, ngo);
-            r_ = zeros(nbin, ngo);
+            r_ = zeros(1, ngo);
             bold_ = zeros(nbin, ngo);
             plvs_ = zeros(nbin, ngo);
             errs = 0;
@@ -94,7 +94,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     Y = bin(this.Y(psi, phi), phi);
                     Z = bin(this.Z(psi, phi), phi);
                     T = bin(this.T(psi, phi), phi);
-                    r = bin(this.connectivity(psi, phi), phi);
+                    r = asrow(this.connectivity(psi, phi));
                     bold = bin(psi, phi);
                     plvs = bin(this.phase_locked_values(psi, phi), phi);
 
