@@ -117,20 +117,21 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             dt = 2*pi/this.cifti_.Nbins;
             units_t = "RADIAN";
+            ntag = sprintf('n%g', nmats);
             this.cifti.write_cifti( ...
-                X_, sprintf('X_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+                X_, sprintf('X_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                Y_, sprintf('Y_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+                Y_, sprintf('Y_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                Z_, sprintf('Z_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+                Z_, sprintf('Z_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                T_, sprintf('T_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+                T_, sprintf('T_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                r_, sprintf('comparator_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+                r_, sprintf('comparator_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                bold_, sprintf('bold_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+                bold_, sprintf('bold_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                plvs_, sprintf('plvs_as_sub-all_ses-all_%s', this.tags), dt=dt, units_t=units_t);
+                plvs_, sprintf('plvs_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
         end
 
         %% running call on single server
