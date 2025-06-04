@@ -62,7 +62,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             for s = 1:this.num_sub
                 try
                     this.current_subject = this.subjects{s};
-                    this.update_out_dir();
                     this.call_subject();
                 catch ME
                     handwarning(ME)
@@ -87,6 +86,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             %% Hilbert transform is applied after most other operations
             
             this.malloc();  % resets caches for each task
+            this.update_out_dir();
 
             % BOLD
             try
