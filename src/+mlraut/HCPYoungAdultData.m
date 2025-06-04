@@ -12,6 +12,8 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
     end
 
     properties (Dependent)
+        extended_task
+        extended_task_dir
         json_fqfn
         out_dir
         root_dir
@@ -26,6 +28,12 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
     end
 
     methods %% GET, SET
+        function g = get.extended_task(this)
+            g = this.task;
+        end
+        function g = get.extended_task_dir(this)
+            g = this.task_dir;
+        end
         function g = get.json_fqfn(this)
             g = fullfile(this.out_dir, this.sub + ".json");  % mm voxels
             %ensuredir(myfileparts(g))

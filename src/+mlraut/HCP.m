@@ -419,6 +419,8 @@ classdef HCP < handle & mlsystem.IHandle
                 opts.subjects {mustBeText} = {}
                 opts.tasks {mustBeText} = {}
             end
+            assert(~isemptytext(opts.subjects))
+            assert(~isemptytext(opts.tasks))
             opts.subjects = strrep(opts.subjects, filesep, "");
             opts.subjects = convertStringsToChars(opts.subjects);
             opts.subjects = ensureCell(opts.subjects);
