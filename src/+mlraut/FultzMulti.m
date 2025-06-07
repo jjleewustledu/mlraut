@@ -8,6 +8,7 @@ classdef FultzMulti < handle
     properties
         anat_weights
         asobj
+        fqfileprefix
         phi_multi  % may be iFV-brightest, other ventricles, brainstem, CE_on_T1w
         psi_multi
         regions = ["ctx", "cbm", "str", "thal"];  % regions to plot separately
@@ -104,7 +105,7 @@ classdef FultzMulti < handle
                 for ir = 1:Nr
                     region = this.regions(ir);
                     signal = this.asobj.HCP_signals.(region);
-                    this.phi_multi(:, ig, ir) = this.build_weighted(signal.phi, region);
+                    this.phi_multi(:, ig, ir) = signal.phi;
                     this.psi_multi(:, ig, ir) = this.build_weighted(signal.psi, region);
                 end
             catch ME
@@ -138,34 +139,33 @@ classdef FultzMulti < handle
             Nr = numel(this.regions);
             this.phi_multi = zeros(Nt, Nsub, Nr);
             this.psi_multi = zeros(Nt, Nsub, Nr);
+            failures = false(1, Nsub);
 
-            % load and assign phi, psi
-            failures = 0;
-            ig = 1;
-            for g = asrow(globbed)
-                ld = load(g);
+            % load and assign phi, psi            
+            for ig = 1:Nsub
                 try
+                    ld = load(globbed(ig));
                     for ir = 1:Nr
                         region = this.regions(ir);
-                        signal = ld.this.HCP_signals.(region);
-                        this.phi_multi(:, ig, ir) = this.build_weighted(signal.phi, region);
+                        signal = ld.this_subset.HCP_signals.(region);
+                        this.phi_multi(:, ig, ir) = signal.phi;
                         this.psi_multi(:, ig, ir) = this.build_weighted(signal.psi, region);
                     end
-                    ig = ig + 1;
                 catch ME
-                    fprintf("%s: fault in %s\n", ME.identifier, g);
-                    failures = failures + 1;
+                    fprintf("%s: fault in %s\n", ME.identifier, globbed(ig));
+                    failures(ig) = true;
                 end
             end
 
-            this.phi_multi = this.phi_multi(:,end-failures,:);
-            this.psi_multi = this.psi_multi(:,end-failures,:);
+            this.phi_multi(:,failures,:) = [];
+            this.psi_multi(:,failures,:) = [];
 
             % save to filesystem
+            this.fqfileprefix = fullfile(this.out_dir, sprintf("%s=%g_%s", stackstr(), Nsub, opts.tag));
             phi = this.phi_multi;
-            save(fullfile(this.out_dir, stackstr() + opts.tag + "_phi.mat"), "phi", "-v7.3");
+            save(this.fqfileprefix + "_phi.mat", "phi", "-v7.3");
             psi = this.psi_multi;
-            save(fullfile(this.out_dir, stackstr() + opts.tag + "_psi.mat"), "psi", "-v7.3");
+            save(this.fqfileprefix + "_psi.mat", "psi", "-v7.3");
 
             popd(pwd0);
         end
@@ -198,6 +198,27 @@ classdef FultzMulti < handle
         end
 
         function h = plot_coherencyc(this, opts)
+            %% Ryan's approach:
+            %
+            %  yeo_cmap = [120,18,134;70,130,180;0,118,14;196,58,250;220,248,164;230,148,34;205,62,78]/255; % Color map for Yeo 7-network parcellation
+            %
+            %  figure;hold
+            %  set(gca,'fontsize',20,'fontweight','bold')
+            %  ax = gca;
+            %  ax.LineWidth = 2;
+            %  for n = [2,4,6,7] % Yeo 7: Motor,CON,FPC,DMN (networks well-represented across all structures)
+            %     tic
+            %     net_sigs = importdata([root_dir '/ctx_sigs_all.mat']);net_sigs=reshape(net_sigs(:,n,:,:),1191,[]);
+            %     net_sigs = net_sigs(:,~nanmask);
+            %     d = round(7/tr);
+            %     net_sigs = [net_sigs(d+1:end,:);zeros(d,size(net_sigs,2));]; % 7 sec time shift
+            %     [C,phi,S12,S1,S2,f] = coherencyc(net_sigs,physios,struct);
+            %     plot(f,C,'color',yeo_cmap(n,:),'linewidth',3) % for coherence plot
+            %     %plot(f,unwrap(phi-phi_global),'color',yeo_cmap(n,:),'linewidth',3) % for phase plot
+            %
+            %     toc
+            %  end
+
             arguments
                 this mlraut.FultzMulti
                 opts.tseries {mustBeTextScalar} = "-dbold/dt"
@@ -215,14 +236,48 @@ classdef FultzMulti < handle
                 case '-dbold/dt'
                     tseries_phi = real(tseries_phi(1:end-1, :, :));
                     bold = real(tseries_psi);
-                    tseries_psi = -diff(bold, 1, 1);  % 1st deriv. of time
+                    tseries_psi = -diff(bold, 1, 1)/this.tr;  % 1st deriv. of time
                     tseries_psi(tseries_psi < 0) = 0;  % see Fultz et al. 2019
                 case 'X'
-                    tseries_psi = this.asobj.X(tseries_psi, tseries_phi);
-                case 'Y'
-                    tseries_psi = this.asobj.Y(tseries_psi, tseries_phi);
+                    perm_psi = permute(tseries_psi, [1, 3, 2]);
+                    perm_phi = permute(tseries_phi, [1, 3, 2]);
+                    perm_psi = this.asobj.X(perm_psi, perm_phi);
+                    tseries_psi = permute(perm_psi, [1, 3, 2]);
+                    tseries_phi = permute(perm_phi, [1, 3, 2]);
+
+                    tseries_phi = real(tseries_phi(1:end-1, :, :));
+                case {'Y', 'reY'}
+                    perm_psi = permute(tseries_psi, [1, 3, 2]);
+                    perm_phi = permute(tseries_phi, [1, 3, 2]);
+                    perm_psi = real(this.asobj.Y(perm_psi, perm_phi));
+                    tseries_psi = permute(perm_psi, [1, 3, 2]);
+                    tseries_phi = permute(perm_phi, [1, 3, 2]);
+
+                    tseries_phi = real(tseries_phi(1:end-1, :, :));
+                case 'imY'
+                    perm_psi = permute(tseries_psi, [1, 3, 2]);
+                    perm_phi = permute(tseries_phi, [1, 3, 2]);
+                    perm_psi = imag(this.asobj.Y(perm_psi, perm_phi));
+                    tseries_psi = permute(perm_psi, [1, 3, 2]);
+                    tseries_phi = permute(perm_phi, [1, 3, 2]);
+
+                    tseries_phi = real(tseries_phi(1:end-1, :, :));
                 case 'Z'
-                    tseries_psi = this.asobj.Z(tseries_psi, tseries_phi);
+                    perm_psi = permute(tseries_psi, [1, 3, 2]);
+                    perm_phi = permute(tseries_phi, [1, 3, 2]);
+                    perm_psi = this.asobj.Z(perm_psi, perm_phi);
+                    tseries_psi = permute(perm_psi, [1, 3, 2]);
+                    tseries_phi = permute(perm_phi, [1, 3, 2]);
+
+                    tseries_phi = real(tseries_phi(1:end-1, :, :));
+                case 'T'
+                    perm_psi = permute(tseries_psi, [1, 3, 2]);
+                    perm_phi = permute(tseries_phi, [1, 3, 2]);
+                    perm_psi = this.asobj.T(perm_psi, perm_phi);
+                    tseries_psi = permute(perm_psi, [1, 3, 2]);
+                    tseries_phi = permute(perm_phi, [1, 3, 2]);
+
+                    tseries_phi = real(tseries_phi(1:end-1, :, :));
             end
 
             % prepare chronux params
@@ -234,7 +289,7 @@ classdef FultzMulti < handle
             pval = 0.05;
             % ...
             params.Fs = this.Fs;
-            params.fpass = [0, W];
+            params.fpass = [this.asobj.hp_thresh, W];
             params.trialave = 1;  % T/F
             params.tapers = [W, T, p];
             params.err = [2, pval];  % jack-knife resampling

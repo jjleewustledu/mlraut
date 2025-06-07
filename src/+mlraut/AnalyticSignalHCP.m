@@ -247,6 +247,15 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             end
         end
 
+        function h = plot_coherencyc(this, varargin)
+            warning("off", "MATLAB:plot:IgnoreImaginaryXYPart")
+            fultz = mlraut.FultzMulti(this);
+            fultz.add_phi_psi_from_aso();
+            h = figure;
+            fultz.plot_coherencyc(varargin{:});
+            warning("on", "MATLAB:plot:IgnoreImaginaryXYPart")
+        end
+
         function write_ciftis(this, opts)
             %% Args:
             %      this mlraut.AnalyticSignalHCP
@@ -355,15 +364,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 do_save_dynamic=opts.dyn, ...
                 dt=opts.dt, ...
                 units_t=opts.units_t);
-        end
-
-        function h = plot_coherencyc(this, varargin)
-            warning("off", "MATLAB:plot:IgnoreImaginaryXYPart")
-            fultz = mlraut.FultzMulti(this);
-            fultz.add_phi_psi_from_aso();
-            h = figure;
-            fultz.plot_coherencyc(varargin{:});
-            warning("on", "MATLAB:plot:IgnoreImaginaryXYPart")
         end
 
         function save(this)

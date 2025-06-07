@@ -218,12 +218,35 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
 
 
 
-        function test_fultz_iFV(this)
-            as = this.testObj;
-            as.source_physio = "iFV";
+        function test_fultz_iFV_brightest(this)
+            as = mlraut.AnalyticSignalHCP( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                filter_order=8, ...
+                source_physio="iFV-brightest", ...
+                tags=stackstr(use_dashes=true));
             call_subject(as);
             
-            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            tseries = "X";  % ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
+            end
+        end
+
+        function test_fultz_iFV(this)
+            as = mlraut.AnalyticSignalHCP( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                filter_order=8, ...
+                source_physio="iFV", ...
+                tags=stackstr(use_dashes=true));
+            call_subject(as);
+            
+            tseries = ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
             for t = tseries
                 as.plot_coherencyc(tseries=t);
             end
@@ -234,7 +257,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.source_physio = "sFV";
             call_subject(as);
             
-            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            tseries = ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
             for t = tseries
                 as.plot_coherencyc(tseries=t);
             end
@@ -245,7 +268,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.source_physio = "latV";
             call_subject(as);
             
-            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            tseries = ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
             for t = tseries
                 as.plot_coherencyc(tseries=t);
             end
@@ -256,9 +279,70 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             as.source_physio = "csf";
             call_subject(as);
             
-            tseries = ["bold", "-dbold/dt", "X", "Y", "Z"];
+            tseries = ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
             for t = tseries
                 as.plot_coherencyc(tseries=t);
+            end
+        end
+
+        function test_fultz_HRV(this)
+            as = mlraut.AnalyticSignalHCP( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                filter_order=8, ...
+                source_physio="HRV", ...
+                tags=stackstr(use_dashes=true));
+            call_subject(as);
+                        
+            tseries = ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
+            end
+        end
+
+        function test_fultz_RV(this)
+            as = mlraut.AnalyticSignalHCP( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                filter_order=8, ...
+                source_physio="RV", ...
+                tags=stackstr(use_dashes=true));
+            call_subject(as);
+            
+            tseries = ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
+            for t = tseries
+                as.plot_coherencyc(tseries=t);
+            end
+        end
+
+        function test_plot_coherency_par(this)
+            as = mlraut.AnalyticSignalHCPPar( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                filter_order=8, ...
+                source_physio="iFV-brightest", ...
+                tags=stackstr(use_dashes=true));
+            call_subject(as);
+
+            psi_ld = load("/Volumes/PrecunealSSD2/AnalyticSignalHCP/FultzMulti_build_tseries_phi_psi_from_mat159_iFV-brightest_psi.mat");
+            phi_ld = load("/Volumes/PrecunealSSD2/AnalyticSignalHCP/FultzMulti_build_tseries_phi_psi_from_mat159_iFV-brightest_phi.mat");
+            psi = psi_ld.psi;
+            phi = phi_ld.phi;
+            % psi = [];
+            % phi = [];
+            
+            tseries = "X";  % ["bold", "-dbold/dt", "X", "reY", "imY", "Z"];
+            for t = tseries
+                as.plot_coherencyc( ...
+                    psi, ...
+                    phi, ...
+                    tseries=t);
             end
         end
 
@@ -315,7 +399,7 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
     methods (TestClassSetup)
         function setupAnalyticSignalHCP(this)
             import mlraut.*
-            cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
+            % cd('/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200');
             this.testObj_ = AnalyticSignalHCP( ...
                 subjects={'996782'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
