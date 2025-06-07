@@ -27,7 +27,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
         force_band  % force bandpass to [0.01 0.1] Hz
         force_legacy_butter  
         frac_ext_physio  % fraction of external physio power
-        norm  % see also this.rescaling for kind of norm
+        scale_of_rescaling  % see also this.rescaling for kind of norm
         source_physio  % isscalartext
         source_physio_supplementary  % string
         v_physio  % velocity of putative physio signal, m/s
@@ -130,6 +130,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function g = get.rescaling(this)
             g = this.rescaling_;
+        end
+
+        function     set.rescaling(this, s)
+            assert(istext(s))
+            this.rescaling_ = s;
         end
 
         function g = get.rsn_list(~)
@@ -380,24 +385,43 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi - this.global_signal;
         end
 
-        function n = build_norm(this, psi, opts)
+        function n = build_scale(this, psi, opts)
+            % n = mad(psi, 0, opts.dim);  % mean abs. dev., doesn't scale psi and phi comparably
+            % n = mad(psi, 1, opts.dim);  % median abs. dev., doesn't scale psi and phi comparably
+            % n = norm(psi);  % 2-norm seems more consistent with 2-spinors, but discrepancy of psi, phi ~ 1e6
+            % n = max(psi, [], opts.dim);  % discrepancy of psi, phi ~ 1e3
+
             arguments
                 this mlraut.AnalyticSignal
                 psi {mustBeNumeric}
                 opts.dim = "all" 
             end
-            % n = mad(abs(psi), 0, opts.dim);  % mean abs. dev., doesn't scale psi and phi comparably
-            % n = mad(abs(psi), 1, opts.dim);  % median abs. dev., doesn't scale psi and phi comparably
-            % n = norm(psi);  % 2-norm seems more consistent with 2-spinors, but discrepancy of psi, phi ~ 1e6
-            % n = max(psi, [], opts.dim);  % discrepancy of psi, phi ~ 1e3
+            assert(ismatrix(psi))
+            psi = real(psi);
 
             switch convertStringsToChars(this.rescaling)
-                case {'none'}
+                case {'none', 'unity'}
                     n = 1;
+                case '1-norm'
+                    n = norm(psi, 1);
+                case '2-norm'
+                    n = norm(psi, 2);
+                case 'fro'
+                    n = norm(psi, "fro");
+                case 'inf-norm'
+                    n = norm(psi, inf);
+                case 'iqr'
+                    n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
+                case {'mean_ad', 'mad'}
+                    n = mad(psi, 0, opts.dim);
+                case 'median_ad'
+                    n = mad(psi, 1, opts.dim);
+                case 'std'
+                    n = std(psi, 0, opts.dim);
                 otherwise
                     n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
             end
-            this.norm = n;
+            this.scale_of_rescaling = n;
         end
 
         function psi = build_rescaled(this, psi, opts)
@@ -406,13 +430,37 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 psi {mustBeNumeric,mustBeNonempty}
                 opts.reference {mustBeNumeric} = psi
             end
+            assert(all(size(psi) == size(opts.reference)))
 
             if all(psi == 0)
                 return
             end
             
-            d = this.build_norm(opts.reference);
+            if ismatrix(opts.reference)
+                d = this.build_scale(opts.reference);
             psi = psi./d;
+                return
+            end
+
+            % Get original size
+            sz_ori = size(psi);
+            N1 = sz_ori(1);
+            N2 = sz_ori(2);
+
+            % Reshape psi to [N1, N2, prod(remaining dimensions)]
+            psi_reshaped = reshape(psi, N1, N2, []);
+            ref_reshaped = reshape(opts.reference, N1, N2, []);
+            Nstar = size(psi_reshaped, 3);
+
+            % Extract subarray using meta-index idx
+            for idx = 1:Nstar
+                psi_subarray = psi_reshaped(:, :, idx);
+                ref_subarray = ref_reshaped(:, :, idx);
+                psi_reshaped(:, :, idx) = this.build_rescaled(psi_subarray, reference=ref_subarray);
+            end
+
+            % Reshape to original size
+            psi = reshape(psi_reshaped, sz_ori);
         end
 
         function concat_frames(this, that)
@@ -475,13 +523,17 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 return
             end
 
-            n_0 = this.build_norm(p_0);  % scalars
-            n_1 = this.build_norm(p_1);
+            n_0 = this.build_scale(p_0);  % scalars
+            n_1 = this.build_scale(p_1);
 
             g_0 = 1/n_1 + 2*(1 - 1/n_1)*f;  % scalars
             g_1 = 2 - 1/n_0 - 2*(1 - 1/n_0)*f;
 
             p = (1 - f)*g_0*n_1*p_0 + f*g_1*n_0*p_1;  % mat -> mat
+        end
+
+        function psi = neg_dbold_dt(this, varargin)
+            psi = this.twistors_.neg_dbold_dt(varargin{:});
         end
 
         function psi = phase_locked_values(this, varargin)

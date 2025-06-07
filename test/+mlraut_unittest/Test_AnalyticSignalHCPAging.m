@@ -49,7 +49,7 @@ classdef Test_AnalyticSignalHCPAging < matlab.unittest.TestCase
             this.verifyEqual(that_subset.force_band, that.force_band);
             this.verifyEqual(that_subset.force_legacy_butter, that.force_legacy_butter);
             this.verifyEqual(that_subset.frac_ext_physio, that.frac_ext_physio);
-            this.verifyEqual(that_subset.norm, that.norm, RelTol=1e-5);
+            this.verifyEqual(that_subset.scale_of_rescaling, that.scale_of_rescaling, RelTol=1e-5);
             this.verifyEqual(that_subset.source_physio, that.source_physio);
             this.verifyEqual(that_subset.source_physio_supplementary, that.source_physio_supplementary);
             this.verifyEqual(that_subset.v_physio, that.v_physio);

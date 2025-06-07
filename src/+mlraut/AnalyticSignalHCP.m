@@ -406,7 +406,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.force_band = this.force_band;
             this_subset.force_legacy_butter = this.force_legacy_butter;
             this_subset.frac_ext_physio = this.frac_ext_physio;
-            this_subset.norm = this.norm;
+            this_subset.scale_of_rescaling = this.scale_of_rescaling;
             this_subset.source_physio = this.source_physio;
             this_subset.source_physio_supplementary = this.source_physio_supplementary;
             this_subset.v_physio = this.v_physio;
