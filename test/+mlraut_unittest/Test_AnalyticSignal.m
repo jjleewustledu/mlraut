@@ -22,11 +22,11 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             this.verifyEqual(as.current_subject, '995174')
             this.verifyEqual(as.current_task, 'rfMRI_REST1_RL')
-            this.verifyEqual(as.source_physio, "iFV")
+            this.verifyEqual(as.source_physio, "iFV-brightest")
             this.verifyEqual(as.v_physio, 50)
             this.verifyEqual(as.anatomy_list, {'ctx', 'str', 'thal', 'cbm'})
             this.verifyEqual(dipmax(as.global_signal), 10369.6112020772, AbsTol=1e-3)
-            this.verifyEqual(as.hp_thresh, 0.01)
+            this.verifyEqual(as.hp_thresh, [])
             this.verifyEqual(as.lp_thresh, 0.1)
             this.verifyEqual(size(as.bold_signal), [1196, 91282])
             this.verifyEqual(size(as.physio_signal), [1196, 91282])
@@ -76,8 +76,6 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
         end
 
         function test_build_band_passed(this)
-            return
-
             as = this.testObj;
             as.force_legacy_butter = false;
             gs = as.build_centered_and_rescaled(as.global_signal);
@@ -95,7 +93,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
         function test_mat_fqfn(this)
             this.verifyEqual(mybasename(this.testObj.mat_fqfn), ...
-                "sub-995174_ses-rfMRI-REST1-RL_proc-v50-iFV-scaleiqr-Test-AnalyticSignal-setupAnalyticSignal")
+                "sub-995174_ses-rfMRI-REST1-RL_proc-v50-iFV-brightest-scaleiqr-Test-AnalyticSignal-setupAnalyticSignal")
         end
 
         function test_PhysioHRV(this)
@@ -355,7 +353,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
 
             physio_ = as.build_band_passed(physio_gsr);
             figure; plot(t, physio_(1:num_frames))
-            ylabel("real(arousal iFV)")
+            ylabel("real(arousal iFV-brightest)")
             xlabel("time / s")
 
             physio_signal_ = ...
@@ -363,7 +361,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             physio_signal__ = ...
                 physio_signal_(1:num_frames, :);
             as.plot3(num_frames=num_frames, t=t, z=physio_signal__, title="")
-            as.fit_power_law(t=t, x=physio_signal__, title="power law:  Arousal iFV")
+            as.fit_power_law(t=t, x=physio_signal__, title="power law:  Arousal iFV-brightest")
 
             analytic_signal_ = conj(physio_signal_).*bold_signal_;
 
@@ -400,11 +398,9 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.testObj_ = AnalyticSignal( ...
                 subjects={'995174'}, ...
                 tasks={'rfMRI_REST1_RL'}, ...
-                do_resting=true, ...
-                do_global_signal_regression=true, ...
-                hp_thresh=0.01, ...
+                hp_thresh=[], ...
                 lp_thresh=0.1, ...
-                source_physio="iFV", ...
+                source_physio="iFV-brightest", ...
                 tags=stackstr(use_dashes=true));
         end
     end

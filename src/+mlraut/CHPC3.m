@@ -34,7 +34,7 @@ classdef CHPC3
         function c = propcluster(account_name, opts)
             arguments
                 account_name = 'joshua_shimony'  % 'aristeidis_sotiras' 'joshua_shimony' 'manu_goyal' 'john_lee'
-                opts.partition = 'tier1_cpu'  % 'tier2_cpu' 'tier1_cpu'
+                opts.partition = 'tier2_cpu'  % 'tier2_cpu' 'tier1_cpu'
                 opts.mempercpu {mustBeTextScalar} = '64gb'
                 opts.walltime {mustBeTextScalar} = '00:30:00'
             end
@@ -137,10 +137,10 @@ classdef CHPC3
         end
 
         function setenvs()
-            [~,r] = system('hostname');
-            % if ~contains(r, 'cluster')
-            %     return
-            % end
+            [~,r] = system('hostname -f');
+            if ~contains(r, 'cluster')
+                return
+            end
 
             setenv('TMPDIR', '/scratch/jjlee/tmp') % worker nodesk
 
