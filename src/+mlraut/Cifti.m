@@ -77,11 +77,12 @@ classdef Cifti < handle & mlsystem.IHandle
                 opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
                 opts.Nbins {mustBeScalarOrEmpty} = this.Nbins
             end
+            phi = phi(1:size(psi, 1), :);
             Nbins_ = opts.Nbins;
             binlim = asrow(linspace(-pi, pi, Nbins_ + 1));
 
             % init
-            binned = zeros(Nbins_, this.ihcp_.num_nodes);
+            binned = zeros(Nbins_, size(psi, 2));
 
             % wrapped physio (is not unwrapped)
             if size(phi, 2) > 1
