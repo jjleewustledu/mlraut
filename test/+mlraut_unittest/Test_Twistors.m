@@ -66,6 +66,17 @@ classdef Test_Twistors < matlab.unittest.TestCase
             axis equal; grid on;
         end
 
+        function test_neg_ddt(this)
+            t = ascol(0:200); 
+            omega = 2*pi/100; 
+            phi = ones(size(t)); 
+            psi = sin(omega*t);
+            
+            plot(t, psi); hold on            
+            psi1 = mlraut.Twistors.neg_ddt(psi, phi, scale=1/omega);
+            plot(0:199, psi1); hold off          
+        end
+
         function test_propagate_physio_gbm(this)
 
             SUB = {'sub-I3CR1488'};

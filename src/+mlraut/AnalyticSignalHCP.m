@@ -449,6 +449,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.thickness_dscalar_fqfn = this.thickness_dscalar_fqfn;
             this_subset.t1w_fqfn = this.t1w_fqfn;
             this_subset.tr = this.tr;
+            this_subset.use_neg_ddt = this.use_neg_ddt;
             this_subset.waves_dir = this.waves_dir;
             this_subset.wmparc_fqfn = this.wmparc_fqfn;
             this_subset.workbench_dir = this.workbench_dir;
@@ -581,6 +582,12 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 % this.thickness_dscalar_fqfn_ = this_subset.thickness_dscalar_fqfn;  % dependent prop
                 % this.t1w_fqfn_ = this_subset.t1w_fqfn;  % dependent prop
                 % this.tr_ = this_subset.tr;  % dependent prop
+            try
+                this.use_neg_ddt = this_subset.use_neg_ddt;
+            catch
+                this.use_neg_ddt = true;
+            end
+
                 % this.waves_dir_ = this_subset.waves_dir;  % dependent prop
                 % this.wmparc_fqfn_ = this_subset.wmparc_fqfn;  % dependent prop
                 % this.workbench_dir_ = this_subset.workbench_dir;  % dependent prop

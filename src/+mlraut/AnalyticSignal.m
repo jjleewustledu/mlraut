@@ -361,7 +361,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             end
 
             if ismatrix(opts.reference)
-            psi = psi - mean(opts.reference, 'all', 'omitnan');
+                psi = psi - mean(opts.reference, 'all', 'omitnan');
                 return
             end
 
@@ -462,7 +462,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             
             if ismatrix(opts.reference)
                 d = this.build_scale(opts.reference);
-            psi = psi./d;
+                psi = psi./d;
                 return
             end
 
@@ -1011,6 +1011,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tags {mustBeTextScalar} = ""
             %      opts.tasks cell {mustBeText} = {}
+            %      opts.use_neg_ddt logical = true
             %      opts.v_physio double = 50
             
             arguments
@@ -1045,10 +1046,12 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}
+                opts.use_neg_ddt logical = true
                 opts.v_physio double = 50
             end
 
-            this = this@mlraut.HCP(max_frames=opts.max_frames, subjects=opts.subjects, tasks=opts.tasks)
+            this = this@mlraut.HCP( ...
+                max_frames=opts.max_frames, subjects=opts.subjects, tasks=opts.tasks, use_neg_ddt=opts.use_neg_ddt)
 
             % char|string management
             opts.anatomy_list = convertStringsToChars(opts.anatomy_list);

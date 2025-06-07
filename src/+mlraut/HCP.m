@@ -12,6 +12,7 @@ classdef HCP < handle & mlsystem.IHandle
         do_resting
         do_task       
         max_frames  % max(num_frames) to impose
+        use_neg_ddt
     end
 
     properties (Dependent)
@@ -412,12 +413,13 @@ classdef HCP < handle & mlsystem.IHandle
             %      opts.max_frames double = Inf
             %      opts.subjects cell {mustBeText} = {}
             %      opts.tasks cell {mustBeText} = {}
-            %      opts.network {mustBeText} = ""
+            %      opts.use_neg_ddt logical = true
 
             arguments
                 opts.max_frames double = Inf
                 opts.subjects {mustBeText} = {}
                 opts.tasks {mustBeText} = {}
+                opts.use_neg_ddt logical = true
             end
             assert(~isemptytext(opts.subjects))
             assert(~isemptytext(opts.tasks))
@@ -435,6 +437,7 @@ classdef HCP < handle & mlsystem.IHandle
             this.max_frames = opts.max_frames;
             this.subjects_ = opts.subjects;
             this.tasks_ = opts.tasks;
+            this.use_neg_ddt = opts.use_neg_ddt;
 
             if ischar(this.subjects_)
                 this.subjects_ = {this.subjects_};

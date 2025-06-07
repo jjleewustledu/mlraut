@@ -5,9 +5,14 @@ classdef Twistors < handle & mlsystem.IHandle
     %  Created 11-Dec-2024 22:23:24 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 24.2.0.2773142 (R2024b) Update 2 for MACA64.  Copyright 2024 John J. Lee.
     
+    properties        
+    end
+
     properties (Dependent)
         bold_signal  % hilbert(bold) ~ Nt x Nx
         physio_signal  % hilbert(physio) ~ Nt x 1
+        tr
+        use_neg_ddt
         v_physio_is_inf % v_physio reaches head diameter in time << tr
     end
 
@@ -18,13 +23,18 @@ classdef Twistors < handle & mlsystem.IHandle
         function g = get.physio_signal(this)
             g = this.ihcp_.physio_signal;
         end
+        function g = get.tr(this)
+            g = this.ihcp_.tr;
+        end
+        function g = get.use_neg_ddt(this)
+            g = this.ihcp_.use_neg_ddt;
+        end
         function g = get.v_physio_is_inf(this)
             g = this.ihcp_.v_physio_is_inf;
         end
     end
 
     methods
-
         function binned = bin_by_physio_angle(this, varargin)
             binned = this.ihcp_.cifti.bin_by_physio_angle(varargin{:});
         end
@@ -162,32 +172,61 @@ classdef Twistors < handle & mlsystem.IHandle
             end
         end
 
-        function psi = X(~, psi, phi)
+        %% Twistor elements & related
+
+        function psi = X(this, psi, phi)
             %% of twistor
 
+            if this.use_neg_ddt
+                [psi,phi] = this.neg_ddt(psi, phi);
+                psi = this.ihcp_.build_centered_and_rescaled(psi);
+            end
             psi = (psi.*conj(phi) + phi.*conj(psi))/sqrt(2);
         end
 
-        function psi = Y(~, psi, phi)
+        function psi = Y(this, psi, phi)
             %% of twistor
 
+            if this.use_neg_ddt
+                [psi,phi] = this.neg_ddt(psi, phi);
+                psi = this.ihcp_.build_centered_and_rescaled(psi);
+            end
             psi = (psi.*conj(phi) - phi.*conj(psi))/sqrt(2i);
         end
 
-        function psi = Z(~, psi, phi)
+        function psi = Z(this, psi, phi)
             %% of twistor
 
+            if this.use_neg_ddt
+                [psi,phi] = this.neg_ddt(psi, phi);
+                psi = this.ihcp_.build_centered_and_rescaled(psi);
+            end
             psi = (psi.*conj(psi) - phi.*conj(phi))/sqrt(2);
         end
 
-        function psi = T(~, psi, phi)
+        function psi = T(this, psi, phi)
             %% of twistor
 
+            if this.use_neg_ddt
+                [psi,phi] = this.neg_ddt(psi, phi);
+                psi = this.ihcp_.build_centered_and_rescaled(psi);
+            end
             psi = (psi.*conj(psi) + phi.*conj(phi))/sqrt(2);
         end
 
-        function theta = angle(~, psi, phi)
+        function theta = angle(this, psi, phi)
+            if this.use_neg_ddt
+                [psi,phi] = this.neg_ddt(psi, phi);
+                psi = this.ihcp_.build_centered_and_rescaled(psi);
+            end
             theta = angle(psi.*phi);            
+        end
+
+        function psi = neg_dbold_dt(this, psi, phi)
+            %% of twistor
+
+            psi = this.neg_ddt(psi, phi);
+            psi = this.ihcp_.build_centered_and_rescaled(psi);
         end
 
         function plvs = phase_locked_values(~, psi, phi)
@@ -205,6 +244,8 @@ classdef Twistors < handle & mlsystem.IHandle
 
             theta = unwrap(this.angle(psi, phi));
         end
+
+        %% ctor
 
         function this = Twistors(ihcp)
             arguments
@@ -234,6 +275,24 @@ classdef Twistors < handle & mlsystem.IHandle
             for idx = 1:Nx
                 signal1(:,idx) = interp1(times, signal, times-opts.dt(idx), "linear", boundary);
             end
+        end
+
+        function [psi,phi] = neg_ddt(psi, phi, opts)
+            %% scale should be the approximate period of an oscillatory signal; 
+            %  see also Test_Twistors.test_neg_dtt().
+
+            arguments
+                psi {mustBeNumeric}
+                phi {mustBeNumeric}
+                opts.scale {mustBeScalarOrEmpty} = 1
+            end
+
+            Nt = size(phi, 1);
+            rep = repmat({':'}, 1, ndims(phi) - 1);
+            phi = phi(1:Nt-1, rep{:});
+
+            psi = -opts.scale*diff(psi, 1);  % 1st deriv. of time
+            psi(psi < 0) = 0;  % see Fultz et al. 2019
         end
 
         function psi = selective_X(mat, opts)
