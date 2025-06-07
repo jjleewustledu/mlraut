@@ -15,7 +15,8 @@ classdef PhysioRV < handle & mlraut.PhysioData
             data_ = this.physio_log();
             time_vec_bold = this.ihcp_.tr*(1:size(this.bold_,4))';
             time_vec_phys = (0:size(data_, 1)-1)'/this.physFs;
-            physio = zeros(size(time_vec_bold));
+            physio = zeros(size(time_vec_bold));       
+            data_(:,2) = zscore(data_(:,2)); % of pulse ox tracing
 
             for idx = 1:length(physio)                
                 % For RV, get 6 sec windows
