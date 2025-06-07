@@ -350,16 +350,40 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
         function psi = build_centered(this, psi, opts)
             arguments
-                this mlraut.AnalyticSignal %#ok<INUSA>
+                this mlraut.AnalyticSignal
                 psi {mustBeNumeric,mustBeNonempty}
                 opts.reference {mustBeNumeric} = psi                
             end
+            assert(all(size(psi) == size(opts.reference)))
 
             if all(psi == 0)
                 return
             end
 
+            if ismatrix(opts.reference)
             psi = psi - mean(opts.reference, 'all', 'omitnan');
+                return
+            end
+
+            % Get original size
+            sz_ori = size(psi);
+            N1 = sz_ori(1);
+            N2 = sz_ori(2);
+
+            % Reshape psi to [N1, N2, prod(remaining dimensions)]
+            psi_reshaped = reshape(psi, N1, N2, []);
+            ref_reshaped = reshape(opts.reference, N1, N2, []);
+            Nstar = size(psi_reshaped, 3);
+
+            % Extract subarray using meta-index idx
+            for idx = 1:Nstar
+                psi_subarray = psi_reshaped(:, :, idx);
+                ref_subarray = ref_reshaped(:, :, idx);
+                psi_reshaped(:, :, idx) = this.build_centered(psi_subarray, reference=ref_subarray);
+            end
+
+            % Reshape to original size
+            psi = reshape(psi_reshaped, sz_ori);
         end
 
         function psi = build_centered_and_rescaled(this, psi, varargin)

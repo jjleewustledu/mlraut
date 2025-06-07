@@ -154,7 +154,64 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
                 end
             end
         end
-        
+
+        function test_rescaled(this)
+            hcp_ = mlraut.AnalyticSignalHCP( ...
+                subjects={'996782'}, ...
+                tasks={'rfMRI_REST1_RL'}, ...
+                hp_thresh=0.01, ...
+                lp_thresh=0.1, ...
+                filter_order=8, ...
+                source_physio="RV", ...
+                tags=stackstr(use_dashes=true));
+            malloc(hcp_);
+
+            rescalings = ["none", "1-norm", "2-norm", "fro", "inf-norm", "iqr", "mean_ad", "median_ad", "std"];
+            N = length(rescalings);
+            colors = lines(N);  % or use other colormaps like hsv(N), parula(N), etc.
+            ridx = 0;
+            Nt = hcp_.num_frames;
+            times = linspace(0, (Nt-1)*hcp_.tr, Nt);
+
+            figure;
+            hold on;
+            for rescaling = rescalings
+
+                ridx = ridx + 1;
+
+                tic
+                hcp_.rescaling = rescaling;
+                bold_gsr_ = ...
+                    hcp_.build_global_signal_regressed(hcp_.task_dtseries());
+                bold_ = ...
+                    hcp_.build_rescaled( ...
+                    hcp_.build_band_passed( ...
+                    hcp_.build_centered(bold_gsr_)));
+                bold_ = mean(bold_, 2);
+                bold_ = log10(abs(bold_));
+                physio_ = hcp_.task_physio();
+                physio_ = log10(abs(physio_));
+                fprintf("rescaling %s: ", rescaling); toc
+
+                % Plot physio (dashed line)
+                plot(times, physio_, '--', 'Color', colors(ridx,:), 'LineWidth', 1.5);
+
+                % Plot bold (solid line)
+                plot(times, bold_, '-', 'Color', colors(ridx,:), 'LineWidth', 1.5);
+
+            end
+            hold off;
+
+            % Create labels, legend entries
+            ylabel("log_{10} physio, log_{10} bold")
+            xlabel("time (s)")
+            legend_entries = cell(1, 2*N);
+            for i = 1:N
+                legend_entries{2*i-1} = sprintf('%s (physio)', rescalings(i));
+                legend_entries{2*i} = sprintf('%s (bold)', rescalings(i));
+            end
+            legend(legend_entries);
+        end
 
 
 
