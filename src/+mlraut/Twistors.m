@@ -292,7 +292,7 @@ classdef Twistors < handle & mlsystem.IHandle
             phi = phi(1:Nt-1, rep{:});
 
             psi = -opts.scale*diff(psi, 1);  % 1st deriv. of time
-            psi(psi < 0) = 0;  % see Fultz et al. 2019
+            % psi(psi < 0) = 0;  % see Fultz et al. 2019
         end
 
         function psi = selective_X(mat, opts)
