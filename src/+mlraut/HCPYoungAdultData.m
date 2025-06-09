@@ -6,15 +6,11 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
 
-    properties
-        num_frames_to_trim = 4
-        tr = 0.72
-    end
-
     properties (Dependent)
         extended_task
         extended_task_dir
         json_fqfn
+        num_frames_to_trim 
         out_dir
         root_dir
         stats_fqfn
@@ -23,6 +19,7 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         task_ref_niigz_fqfn
         task_ref_dscalar_fqfn
         thickness_dscalar_fqfn
+        tr
         t1w_fqfn
         wmparc_fqfn
     end
@@ -37,6 +34,13 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         function g = get.json_fqfn(this)
             g = fullfile(this.out_dir, this.sub + ".json");  % mm voxels
             %ensuredir(myfileparts(g))
+        end
+        function g = get.num_frames_to_trim(this)
+            if this.is_7T
+                g = 10;
+                return
+            end
+            g = 4;
         end
         function g = get.out_dir(this)
             if ~isemptytext(this.out_dir_)
@@ -143,6 +147,13 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         function g = get.thickness_dscalar_fqfn(this)
             g = fullfile(this.mninonlinear_dir, "fsaverage_LR32k", this.sub + ".thickness_MSMAll.32k_fs_LR.dscalar.nii");
             assert(isfile(g), stackstr())
+        end
+        function g = get.tr(this)
+            if this.is_7T
+                g = 1;
+                return
+            end
+            g = 0.72;
         end
         function g = get.t1w_fqfn(this)
             if this.is_7T
