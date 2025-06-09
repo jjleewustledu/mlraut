@@ -8,6 +8,7 @@ classdef PhysioData < handle & mlsystem.IHandle
 
     properties
         min_physN = 860  % min physio samples to accept
+        options
         physFs = 400  % Physio sampling rate, Hz
     end
 
@@ -78,14 +79,16 @@ classdef PhysioData < handle & mlsystem.IHandle
             assert(length(data)/this.physFs >= this.min_physN, stackstr(2))
         end
 
-        function this = PhysioData(ihcp, bold)
+        function this = PhysioData(ihcp, bold, opts)
             arguments
                 ihcp mlraut.HCP {mustBeNonempty}
                 bold {mustBeValidBold}
+                opts.options = [];
             end
 
             this.bold_ = bold;
             this.ihcp_ = ihcp;
+            this.options = opts.options;
         end
     end
 

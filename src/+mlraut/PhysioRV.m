@@ -22,11 +22,14 @@ classdef PhysioRV < handle & mlraut.PhysioData
                 % For RV, get 6 sec windows
                 [~,phys_start] = min(abs(time_vec_phys - (time_vec_bold(idx) - 3)));
                 [~,phys_end] = min(abs(time_vec_phys - (time_vec_bold(idx) + 3)));
-                physio(idx) = std(data_(phys_start:phys_end,2)); % of resp. belt tracing
+                physio(idx) = this.options.statistic(data_(phys_start:phys_end,2)); % of resp. belt tracing
             end
         end
         function this = PhysioRV(varargin)
             this = this@mlraut.PhysioData(varargin{:});
+            if isempty(this.options)
+                this.options.statistic = @std;  % Ryan's measure in Sci. Adv. 2021
+            end
         end
     end
     

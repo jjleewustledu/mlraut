@@ -32,14 +32,14 @@ classdef PhysioHRV < handle & mlraut.PhysioData
                     %,'minpeakwidth',400/(1/(200/60)));
                     % max heart rate = 180 bpm; at 400 Hz, minimum of 100 samples apart
                     locs = locs(pks > prctile(data_(phys_start:phys_end,3), 60));
-                    physio(idx) = mean(diff(locs), 'omitnan') / this.physFs;
+                    physio(idx) = this.options.statistic(diff(locs), 'omitnan') / this.physFs;
                     path(path_0)
                 else
                     try
                         [pks,locs] = findpeaks(data_(phys_start:phys_end,3), ...
                             'MinPeakDistance', round(this.physFs/(180/60)));
                         locs = locs(pks > prctile(data_(phys_start:phys_end,3), 60));
-                        physio(idx) = mean(diff(locs), 'omitnan') / this.physFs;
+                        physio(idx) = this.options.statistic(diff(locs), 'omitnan') / this.physFs;
                     catch ME
                         handwarning(ME)
                     end
@@ -49,6 +49,9 @@ classdef PhysioHRV < handle & mlraut.PhysioData
 
         function this = PhysioHRV(varargin)
             this = this@mlraut.PhysioData(varargin{:});
+            if isempty(this.options)
+                this.options.statistic = @mean;  % Ryan's measure in Sci. Adv. 2021
+            end
         end
     end
     

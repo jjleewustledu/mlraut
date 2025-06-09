@@ -791,7 +791,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             bold_niigz = this.task_niigz();
             switch convertStringsToChars(opts.source_physio)
-                case 'HRV'
+                case {'HRV', 'HRV-mean'}
                     pROI = [];
                     HRV = mlraut.PhysioHRV(this, bold_niigz);
                     physio_vec_ = HRV.call();
@@ -800,10 +800,32 @@ classdef AnalyticSignal < handle & mlraut.HCP
                         this.build_band_passed( ...
                         this.build_centered(physio_vec_)));
                     physio = physio_vec;
+                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")
+                case 'HRV-std'
+                    pROI = [];
+                    options.statistic = @std;
+                    HRV = mlraut.PhysioHRV(this, bold_niigz, options=options);
+                    physio_vec_ = HRV.call();
+                    physio_vec = ...
+                        this.build_rescaled( ...
+                        this.build_band_passed( ...
+                        this.build_centered(physio_vec_)));
+                    physio = physio_vec;
                     assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")  
-                case 'RV'
+                case {'RV', 'RV-std'}
                     pROI = [];
                     RV = mlraut.PhysioRV(this, bold_niigz);
+                    physio_vec_ = RV.call();
+                    physio_vec = ...
+                        this.build_rescaled( ...
+                        this.build_band_passed( ...
+                        this.build_centered(physio_vec_)));
+                    physio = physio_vec;
+                    assert(all(isfinite(physio), "all"), "likely that opts.reference is faulty")
+                case 'RV-mean'
+                    pROI = [];
+                    options.statistic = @mean;
+                    RV = mlraut.PhysioRV(this, bold_niigz, options=options);
                     physio_vec_ = RV.call();
                     physio_vec = ...
                         this.build_rescaled( ...
