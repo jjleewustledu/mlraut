@@ -256,6 +256,121 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             warning("on", "MATLAB:plot:IgnoreImaginaryXYPart")
         end
 
+        function save(this)
+            %% save this fully or a reduced subset
+
+            if this.do_save_subset
+                this.save_subset();
+                return
+            end
+            
+            try
+                save(this.mat_fqfn(), 'this', '-v7.3');
+            catch ME
+                handwarning(ME)
+            end
+        end
+
+        function save_subset(this)
+            %% reduce size of saved
+
+            this_subset.num_nets = this.num_nets;
+            this_subset.num_sub = this.num_sub;
+            this_subset.num_tasks = this.num_tasks;
+            this_subset.comparator = this.comparator;
+            this_subset.HCP_signals = this.HCP_signals;
+            this_subset.do_global_signal_regression = this.do_global_signal_regression;
+            this_subset.do_plot_emd = this.do_plot_emd;
+            this_subset.do_plot_global_physio = this.do_plot_global_physio;
+            this_subset.do_plot_networks = this.do_plot_networks;
+            this_subset.do_plot_radar = this.do_plot_radar;
+            this_subset.do_plot_wavelets = this.do_plot_wavelets;
+            this_subset.do_save = this.do_save;
+            this_subset.do_save_ciftis = this.do_save_ciftis;
+            this_subset.do_save_ciftis_alt = this.do_save_ciftis_alt;
+            this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
+            this_subset.do_save_dynamic = this.do_save_dynamic;
+            this_subset.do_save_regularized = this.do_save_regularized;
+            this_subset.do_save_subset = this.do_save_subset;
+            this_subset.filter_order = this.filter_order;
+            this_subset.force_band = this.force_band;
+            this_subset.force_legacy_butter = this.force_legacy_butter;
+            this_subset.frac_ext_physio = this.frac_ext_physio;
+            this_subset.scale_of_rescaling = this.scale_of_rescaling;
+            this_subset.source_physio = this.source_physio;
+            this_subset.source_physio_supplementary = this.source_physio_supplementary;
+            this_subset.v_physio = this.v_physio;
+            this_subset.anatomy_list = this.anatomy_list;
+            this_subset.digital_filter = this.digital_filter;
+            this_subset.global_signal = this.global_signal;
+            this_subset.hp_thresh = this.hp_thresh;
+            this_subset.lp_thresh = this.lp_thresh;
+            this_subset.rescaling = this.rescaling;
+            this_subset.rsn_list = this.rsn_list;
+            this_subset.tags_user = this.tags_user;
+            this_subset.bold_signal = this.bold_signal;
+            this_subset.physio_angle = this.physio_angle;
+            this_subset.physio_signal = this.physio_signal;
+            this_subset.physio_supplementary = this.physio_supplementary;
+            this_subset.roi = this.roi;
+            this_subset.v_physio_is_inf = this.v_physio_is_inf;
+            this_subset.do_7T = this.do_7T;
+            this_subset.do_resting = this.do_resting;
+            this_subset.do_task = this.do_task;
+            this_subset.max_frames = this.max_frames;
+            this_subset.current_subject = this.current_subject;
+            this_subset.current_task = this.current_task;
+            this_subset.subjects = this.subjects;
+            this_subset.tasks = this.tasks;
+            this_subset.extended_task_dir = this.extended_task_dir;
+            this_subset.Fs = this.Fs;
+            this_subset.num_frames = this.num_frames;
+            this_subset.num_frames_ori = this.num_frames_ori;
+            this_subset.num_frames_to_trim = this.num_frames_to_trim;
+            this_subset.num_nodes = this.num_nodes;
+            this_subset.out_dir = this.out_dir;
+            this_subset.root_dir = this.root_dir;
+            this_subset.stats_fqfn = this.stats_fqfn;
+            this_subset.task_dir = this.task_dir;
+            this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
+            this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
+            this_subset.task_ref_niigz_fqfn = this.task_ref_niigz_fqfn;
+            this_subset.task_ref_dscalar_fqfn = this.task_ref_dscalar_fqfn;
+            this_subset.thickness_dscalar_fqfn = this.thickness_dscalar_fqfn;
+            this_subset.t1w_fqfn = this.t1w_fqfn;
+            this_subset.tr = this.tr;
+            this_subset.use_neg_ddt = this.use_neg_ddt;
+            this_subset.waves_dir = this.waves_dir;
+            this_subset.wmparc_fqfn = this.wmparc_fqfn;
+            this_subset.workbench_dir = this.workbench_dir;
+
+            this_subset.class = class(this);
+
+            try
+                save(this.mat_fqfn(), 'this_subset', '-v7.3');
+            catch ME
+                handwarning(ME)
+            end
+        end
+
+        function switch_physio(this, new_physio)
+            arguments
+                this mlraut.AnalyticSignalHCP
+                new_physio {mustBeTextScalar}
+            end
+            assert(any(contains(this.physio_supplementary.keys, new_physio)), stackstr())
+
+            % archive active source_physio
+            if ~any(contains(this.physio_supplementary.keys, this.source_physio))
+                this.physio_supplementary_(this.source_physio) = real(this.physio_signal);
+            end
+
+            this.source_physio = new_physio;
+            this.physio_signal_ = hilbert(this.physio_supplementary(new_physio));
+            this.average_network_signals();
+            this.comparator_ = this.connectivity(bold_, physio_);
+        end
+
         function write_ciftis(this, opts)
             %% Args:
             %      this mlraut.AnalyticSignalHCP
@@ -364,103 +479,6 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 do_save_dynamic=opts.dyn, ...
                 dt=opts.dt, ...
                 units_t=opts.units_t);
-        end
-
-        function save(this)
-            %% save this fully or a reduced subset
-
-            if this.do_save_subset
-                this.save_subset();
-                return
-            end
-            
-            try
-                save(this.mat_fqfn(), 'this', '-v7.3');
-            catch ME
-                handwarning(ME)
-            end
-        end
-
-        function save_subset(this)
-            %% reduce size of saved
-
-            this_subset.num_nets = this.num_nets;
-            this_subset.num_sub = this.num_sub;
-            this_subset.num_tasks = this.num_tasks;
-            this_subset.comparator = this.comparator;
-            this_subset.HCP_signals = this.HCP_signals;
-            this_subset.do_global_signal_regression = this.do_global_signal_regression;
-            this_subset.do_plot_emd = this.do_plot_emd;
-            this_subset.do_plot_global_physio = this.do_plot_global_physio;
-            this_subset.do_plot_networks = this.do_plot_networks;
-            this_subset.do_plot_radar = this.do_plot_radar;
-            this_subset.do_plot_wavelets = this.do_plot_wavelets;
-            this_subset.do_save = this.do_save;
-            this_subset.do_save_ciftis = this.do_save_ciftis;
-            this_subset.do_save_ciftis_alt = this.do_save_ciftis_alt;
-            this_subset.do_save_ciftis_of_diffs = this.do_save_ciftis_of_diffs;
-            this_subset.do_save_dynamic = this.do_save_dynamic;
-            this_subset.do_save_regularized = this.do_save_regularized;
-            this_subset.do_save_subset = this.do_save_subset;
-            this_subset.filter_order = this.filter_order;
-            this_subset.force_band = this.force_band;
-            this_subset.force_legacy_butter = this.force_legacy_butter;
-            this_subset.frac_ext_physio = this.frac_ext_physio;
-            this_subset.scale_of_rescaling = this.scale_of_rescaling;
-            this_subset.source_physio = this.source_physio;
-            this_subset.source_physio_supplementary = this.source_physio_supplementary;
-            this_subset.v_physio = this.v_physio;
-            this_subset.anatomy_list = this.anatomy_list;
-            this_subset.digital_filter = this.digital_filter;
-            this_subset.global_signal = this.global_signal;
-            this_subset.hp_thresh = this.hp_thresh;
-            this_subset.lp_thresh = this.lp_thresh;
-            this_subset.rescaling = this.rescaling;
-            this_subset.rsn_list = this.rsn_list;
-            this_subset.tags_user = this.tags_user;
-            this_subset.bold_signal = this.bold_signal;
-            this_subset.physio_angle = this.physio_angle;
-            this_subset.physio_signal = this.physio_signal;
-            this_subset.physio_supplementary = this.physio_supplementary;
-            this_subset.roi = this.roi;
-            this_subset.v_physio_is_inf = this.v_physio_is_inf;
-            this_subset.do_7T = this.do_7T;
-            this_subset.do_resting = this.do_resting;
-            this_subset.do_task = this.do_task;
-            this_subset.max_frames = this.max_frames;
-            this_subset.current_subject = this.current_subject;
-            this_subset.current_task = this.current_task;
-            this_subset.subjects = this.subjects;
-            this_subset.tasks = this.tasks;
-            this_subset.extended_task_dir = this.extended_task_dir;
-            this_subset.Fs = this.Fs;
-            this_subset.num_frames = this.num_frames;
-            this_subset.num_frames_ori = this.num_frames_ori;
-            this_subset.num_frames_to_trim = this.num_frames_to_trim;
-            this_subset.num_nodes = this.num_nodes;
-            this_subset.out_dir = this.out_dir;
-            this_subset.root_dir = this.root_dir;
-            this_subset.stats_fqfn = this.stats_fqfn;
-            this_subset.task_dir = this.task_dir;
-            this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
-            this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
-            this_subset.task_ref_niigz_fqfn = this.task_ref_niigz_fqfn;
-            this_subset.task_ref_dscalar_fqfn = this.task_ref_dscalar_fqfn;
-            this_subset.thickness_dscalar_fqfn = this.thickness_dscalar_fqfn;
-            this_subset.t1w_fqfn = this.t1w_fqfn;
-            this_subset.tr = this.tr;
-            this_subset.use_neg_ddt = this.use_neg_ddt;
-            this_subset.waves_dir = this.waves_dir;
-            this_subset.wmparc_fqfn = this.wmparc_fqfn;
-            this_subset.workbench_dir = this.workbench_dir;
-
-            this_subset.class = class(this);
-
-            try
-                save(this.mat_fqfn(), 'this_subset', '-v7.3');
-            catch ME
-                handwarning(ME)
-            end
         end
 
         function this = AnalyticSignalHCP(varargin)
