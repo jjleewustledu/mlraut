@@ -943,6 +943,8 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             t = t + "-gsr" + double(this.do_global_signal_regression);
 
+            t = t + "-ddt" + double(this.use_neg_ddt);
+
             if ~this.force_legacy_butter
                 t = t + "-butter" + this.filter_order;
             else
