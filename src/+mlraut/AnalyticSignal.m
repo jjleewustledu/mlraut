@@ -939,7 +939,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
             keys = opts.source_physio_supplementary;
             values = cell(1, length(keys));
             for vidx = 1:length(keys)
-                values{vidx} = this.task_physio(flipLR=opts.flipLR, source_physio=keys(vidx));
+                try
+                    values{vidx} = this.task_physio(flipLR=opts.flipLR, source_physio=keys(vidx));
+                catch ME
+                    handwarning(ME)
+                end
             end
             cmap = containers.Map(keys, values);
         end
