@@ -68,6 +68,19 @@ classdef Test_AnalyticSignalHCP < matlab.unittest.TestCase
             %% real memory max < 34 GB; Elapsed time is 120 seconds; 1.69 GB mat file
         end
 
+        function test_construct_means(this)
+            cd("/Volumes/PrecunealSSD2/AnalyticSignalHCP");
+            mlraut.AnalyticSignalHCPPar.construct_means(out_dir=pwd, col_idx=0, transform_tag="fft");
+
+            cii_im = cifti_read("imZ_as_sub-n4_ses-n4_proc-iFV-gsr1-ddt1-butter8-lp0p1-hp0p01-scaleiqr-subset-fft-ASHCPPar-20250617212550_par0.dtseries.nii");
+            figure; imagesc(cii_im.cdata'); clim([-200,200]); colorbar;
+            cii_re = cifti_read("reZ_as_sub-n4_ses-n4_proc-iFV-gsr1-ddt1-butter8-lp0p1-hp0p01-scaleiqr-subset-fft-ASHCPPar-20250617212550_par0.dtseries.nii");
+            figure; imagesc(cii_re.cdata'); clim([-200,200]); colorbar;
+
+            figure; imagesc(ifft(cii_re.cdata' + 1i * cii_im.cdata')); clim([-5, 5]); colorbar;
+            
+        end
+
         function test_ctor(this)
             as = this.testObj;
             this.verifyEqual(as.num_nets, 9);

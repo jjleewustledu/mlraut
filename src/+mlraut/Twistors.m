@@ -280,6 +280,10 @@ classdef Twistors < handle & mlsystem.IHandle
         function [psi,phi] = neg_ddt(psi, phi, opts)
             %% scale should be the approximate period of an oscillatory signal; 
             %  see also Test_Twistors.test_neg_dtt().
+            %
+            %  Returns:
+            %      psi <- -dpsi/dt
+            %      phi <- phi(1:end-1) to match new size of psi
 
             arguments
                 psi {mustBeNumeric}
