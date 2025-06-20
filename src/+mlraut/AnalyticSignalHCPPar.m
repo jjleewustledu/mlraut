@@ -324,6 +324,69 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             [msg,id] = lastwarn();
         end
 
+        function [j,c,msg,id] = cluster_construct_models(globbing_mat, opts)
+            %% for clusters running Matlab parallel server
+
+            arguments
+                globbing_mat {mustBeFile} = ...
+                    fullfile( ...
+                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
+                opts.globbing_var = "globbed"
+                opts.sub_range = []  % total ~ 1:1113
+                opts.new_physio {mustBeText} = "iFV"
+                opts.transform_tag {mustBeText} = ""
+                opts.test_range = []  % 1:2
+                opts.Ncol {mustBeInteger} = 32
+                opts.account_name char = 'joshua_shimony'
+            end
+            ld = load(globbing_mat);
+            globbed = convertStringsToChars(ld.(opts.globbing_var));
+            globbed = asrow(globbed);
+            if ~isempty(opts.sub_range)
+                globbed = globbed(opts.sub_range);
+            end
+
+            % pad and reshape globbed
+            Nrow = ceil(numel(globbed)/opts.Ncol);
+            padding = repmat("", [1, opts.Ncol*Nrow - numel(globbed)]);
+            globbed = [globbed, padding];
+            globbed = reshape(globbed, Nrow, opts.Ncol);
+            globbed = convertStringsToChars(globbed);
+            fprintf("%s:globbed:\n", stackstr())
+            disp(size(globbed))
+            disp(ascol(globbed))
+
+            % contact cluster slurm
+
+            warning('off', 'MATLAB:legacy:batchSyntax');
+            warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
+            warning('off', 'MATLAB:TooManyInputs');
+
+            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='40gb', walltime='24:00:00');
+            disp(c.AdditionalProperties)
+
+            for col_idx = 1:opts.Ncol
+                try
+                    j = c.batch( ...
+                        @mlraut.AnalyticSignalHCPPar.construct_models, ...
+                        1, ...
+                        {globbed(:, col_idx), ...
+                            'col_idx', col_idx, 'new_physio', opts.new_physio, 'test_range', opts.test_range, ...
+                            'transform_tag', opts.transform_tag}, ...
+                        'CurrentFolder', '/scratch/jjlee/Singularity/AnalyticSignalHCP', ...
+                        'AutoAddClientPath', false);
+                catch ME
+                    handwarning(ME)
+                end
+            end
+
+            warning('on', 'MATLAB:legacy:batchSyntax');
+            warning('on', 'parallel:convenience:BatchFunctionNestedCellArray');
+            warning('on', 'MATLAB:TooManyInputs');
+
+            [msg,id] = lastwarn();
+        end
+
         function durations = construct_and_call(subjects, opts)
             arguments
                 subjects cell = {'996782'}
@@ -398,6 +461,69 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             as.mean_twistor_instance( ...
                 subjects, col_idx=opts.col_idx, new_physio=opts.new_physio, test_range=opts.test_range, ...
                 transform_tag=opts.transform_tag);
+
+            durations = toc;
+        end
+    
+        function durations = construct_models(subjects, opts)
+            arguments
+                subjects cell = {'996782'}
+                opts.tasks cell = {'rfMRI_REST1_LR', 'rfMRI_REST1_RL', 'rfMRI_REST2_LR', 'rfMRI_REST2_RL'}
+                opts.tags {mustBeTextScalar} = "ASHCPPar-construct-models"
+                opts.out_dir {mustBeFolder} = "/scratch/jjlee/Singularity/AnalyticSignalHCP"
+                opts.col_idx {mustBeInteger}
+                opts.new_physio {mustBeText} = "iFV"
+                opts.test_range = []
+                opts.transform_tag {mustBeText} = ""
+            end
+            subjects = convertCharsToStrings(subjects);
+
+            tic;
+
+            % setup
+            mlraut.CHPC3.setenvs();
+            ensuredir(opts.out_dir); %#ok<*PFBNS>
+
+            for sub = asrow(subjects)
+                mat_fqfns = mglob(fullfile( ...
+                    opts.out_dir, sub, sprintf("sub-%s_ses-*_proc-*ASHCPPar*.mat", sub)));
+                for mat = asrow(mat_fqfns)
+                    ld = load(mat);
+                    this_subset = ld.this_subset;
+                    psi = this_subset.bold_signal;
+                    phi = hilbert(this_subset.physio_supplementary(opts.new_physio));
+
+                    %% generative model
+                    [mdl.ksi,mdl.alpha_est,mdl.residual_err,mdl.mse] = mlraut.AnalyticSignalHCPPar.generative_model( ...
+                        psi, phi, Niter=20);
+                    mdl.residual = psi - mdl.ksi;
+
+                    %% greyordinate MSE
+                    mdl.mesh.mse_go = mean(abs(mdl.residual).^2, 1);
+
+                    %% greyordinate R^2
+
+                    % Calculate means for each greyordinate
+                    psi_mean = mean(psi, 1); % [1 x N_greyords]
+
+                    % Total sum of squares for each greyordinate
+                    TSS = sum((psi - psi_mean).^2, 1); % [1 x N_greyords]
+
+                    % Residual sum of squares for each greyordinate
+                    RSS = sum((mdl.residual).^2, 1); % [1 x N_greyords]
+
+                    % R-squared for each greyordinate
+                    R_squared = 1 - (RSS ./ TSS); % [1 x N_greyords]
+
+                    % Handle edge case where TSS = 0 (constant signal)
+                    R_squared(TSS == 0) = NaN;
+                    mdl.mesh.R2_go = R_squared;
+
+                    %% save
+                    mdl_fqfn = strrep(mat, "-ASHCPPar", "-mdl-ASHCPPar");
+                    save(mdl_fqfn, "mdl", "-v7.3");
+                end
+            end
 
             durations = toc;
         end
@@ -572,23 +698,93 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
     
         %% mean-field methods
 
-        function psi_mu = neg_dbold_dt_signal_from_model(phi_mu, opts)
+        function alpha_est = em_alpha_estimation(M1, M2, max_iter, unit_modulus)
+            if nargin < 3, max_iter = 20; end
+            if nargin < 4, unit_modulus = true; end
+
+            m1_vec = M1(:);
+            m2_vec = M2(:);
+
+            % Initialize
+            alpha_init = (m1_vec' * m2_vec) / (m1_vec' * m1_vec);
+            if unit_modulus
+                alpha_est = alpha_init / abs(alpha_init);
+            else
+                alpha_est = alpha_init;
+            end
+
+            sigma2 = var(abs(m2_vec - alpha_est * m1_vec));
+
+            for iter = 1:max_iter
+                % E-step: compute responsibilities
+                residuals = m2_vec - alpha_est * m1_vec;
+                likelihood = exp(-abs(residuals).^2 / (2*sigma2));
+                weights = likelihood / sum(likelihood);
+
+                % M-step: update parameters
+                alpha_old = alpha_est;
+
+                if unit_modulus
+                    % Enhanced phase estimation using circular statistics
+                    % Compute element-wise phase ratios where M1 is significant
+                    magnitude_threshold = 0.1 * max(abs(m1_vec));
+                    valid_mask = abs(m1_vec) > magnitude_threshold;
+
+                    if sum(valid_mask & weights > 1e-6) > 0
+                        % Use weighted circular mean for robust phase estimation
+                        phase_ratios = m2_vec(valid_mask) ./ m1_vec(valid_mask);
+                        valid_weights = weights(valid_mask);
+
+                        % Weighted circular mean
+                        weighted_sum = sum(valid_weights .* phase_ratios);
+                        alpha_est = weighted_sum / abs(weighted_sum);
+                    else
+                        % Fallback to correlation-based method
+                        weighted_correlation = sum(weights .* conj(m1_vec) .* m2_vec);
+                        alpha_est = weighted_correlation / abs(weighted_correlation);
+                    end
+                else
+                    % Unconstrained update
+                    alpha_est = sum(weights .* conj(m1_vec) .* m2_vec) / ...
+                        sum(weights .* abs(m1_vec).^2);
+                end
+
+                % Update noise variance
+                sigma2 = sum(weights .* abs(m2_vec - alpha_est * m1_vec).^2) / sum(weights);
+
+                % Convergence check
+                if abs(alpha_est - alpha_old) < 1e-6
+                    break;
+                end
+            end
+        end
+
+        function [ksi_mu,alpha_est,residual_err,mse] = generative_model(psi_mu, phi_mu, opts)
             %% Generates complex BOLD timeseries from X, Y, Z, T that have refinements for the phase of 
             %  the complex physio timeseries.
             %
             %  Args:
-            %      this mlraut.AnalyticSignalHCPPar
-            %      phi_mu {mustBeVector} : ~ Nt x 1
+            %      psi_mu {mustBeMatrix} : ~ complex Nt x Ngo
+            %      phi_mu {mustBeVector} : ~ complex Nt x 1
             %      opts.model struct = struct( ...
             %          "physio", "iFV", "gsr", true, "ddt", true, "butter", 8, "lp_thresh", 0.1, "hp_thresh", 0.01)
+            %      opts.Niter {mustBeScalarOrEmpty} = 20 : iterative if Niter < 20 else EM; no alpha_est if Niter empty
+            %      opts.t_range = 200:896  % time frames
+            %      opts.g_range = 1:2*32492  % cortical vertices
             %
             %  Returns:
-            %      psi_mu ~ Nt x Ngo
+            %      ksi_mu ~ Nt x Ngo
+            %      alpha_est ~ 1
+            %      residual_err ~ 1
             
             arguments
+                psi_mu {mustBeMatrix}
                 phi_mu {mustBeVector}
                 opts.model struct = struct( ...
                     "physio", "iFV", "gsr", true, "ddt", true, "butter", 8, "lp_thresh", 0.1, "hp_thresh", 0.01)
+                opts.Niter {mustBeScalarOrEmpty} = []
+                opts.t_range = 200:896  % time frames
+                opts.g_range = 1:2*32492  % cortical vertices
             end
             mdl = opts.model;  % abbrev
 
@@ -605,7 +801,134 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 mlraut.AnalyticSignalHCPPar.overbar_A_nu(mdl, measure="Z");
             overbar_T_minus_Z = ifft(overbar_T_minus_Z);
 
-            psi_mu = phi_mu .* overbar_X_plus_iY ./ overbar_T_minus_Z;
+            neg_dksi_mu_dt = phi_mu .* overbar_X_plus_iY ./ overbar_T_minus_Z;
+            ksi_mu = mlraut.AnalyticSignalHCPPar.reconstruct_ksi(neg_dksi_mu_dt, psi_mu);
+            if isempty(opts.Niter)
+                alpha_est = 1;
+                ksi_ = ksi_mu(opts.t_range, opts.g_range);
+                psi_ = psi_mu(opts.t_range, opts.g_range);
+                residual = psi_ - ksi_;
+                residual_err = norm(residual, 'fro') / norm(psi_, 'fro');
+                mse = mean(abs(residual(:)).^2);
+                return
+            end
+            [ksi_mu,alpha_est,residual_err,mse] = mlraut.AnalyticSignalHCPPar.optimize_phase_factor( ...
+                ksi_mu, psi_mu, Niter=opts.Niter, t_range=opts.t_range, g_range=opts.g_range);
+        end
+
+        function [neg_dksi_mu_dt,alpha_est,residual_err,mse] = generative_model_momentum(neg_dpsi_mu_dt, phi_mu, opts)
+            %% Generates complex BOLD timeseries from X, Y, Z, T that have refinements for the phase of 
+            %  the complex physio timeseries.
+            %
+            %  Args:
+            %      neg_dpsi_mu_dt {mustBeMatrix} : ~ complex Nt x Ngo
+            %      phi_mu {mustBeVector} : ~ complex Nt x 1
+            %      opts.model struct = struct( ...
+            %          "physio", "iFV", "gsr", true, "ddt", true, "butter", 8, "lp_thresh", 0.1, "hp_thresh", 0.01)
+            %      opts.Niter {mustBeScalarOrEmpty} = 20 : iterative if Niter < 20 else EM; no alpha_est if Niter empty
+            %      opts.t_range = 200:896  % time frames
+            %      opts.g_range = 1:2*32492  % cortical vertices
+            %
+            %  Returns:
+            %      neg_dksi_mu_dt ~ Nt x Ngo
+            %      alpha_est ~ 1
+            %      residual_err ~ 1
+            
+            arguments
+                neg_dpsi_mu_dt {mustBeMatrix}
+                phi_mu {mustBeVector}
+                opts.model struct = struct( ...
+                    "physio", "iFV", "gsr", true, "ddt", true, "butter", 8, "lp_thresh", 0.1, "hp_thresh", 0.01)
+                opts.Niter {mustBeScalarOrEmpty} = []
+                opts.t_range = 200:896  % time frames
+                opts.g_range = 1:2*32492  % cortical vertices
+            end
+            mdl = opts.model;  % abbrev
+
+            % models generate from -dpsi/dt which have one less time sample
+            Nt = size(phi_mu, 1) - 1;
+            phi_mu = phi_mu(1:Nt, :);
+
+            % mean field in Euclidean coords <- averaged spectra
+            overbar_X_plus_iY = mlraut.AnalyticSignalHCPPar.overbar_A_nu(mdl, measure="X") + ...
+                1i * mlraut.AnalyticSignalHCPPar.overbar_A_nu(mdl, measure="Y");
+            overbar_X_plus_iY = ifft(overbar_X_plus_iY);
+
+            overbar_T_minus_Z = mlraut.AnalyticSignalHCPPar.overbar_A_nu(mdl, measure="T") - ...
+                mlraut.AnalyticSignalHCPPar.overbar_A_nu(mdl, measure="Z");
+            overbar_T_minus_Z = ifft(overbar_T_minus_Z);
+
+            neg_dksi_mu_dt = phi_mu .* overbar_X_plus_iY ./ overbar_T_minus_Z;
+            scaling = iqr(abs(neg_dpsi_mu_dt(opts.t_range, opts.g_range)), "all") / ...
+                iqr(abs(neg_dksi_mu_dt(opts.t_range, opts.g_range)), "all");
+            neg_dksi_mu_dt = scaling * neg_dksi_mu_dt;
+            if isempty(opts.Niter)
+                alpha_est = 1;
+                modelled_ = neg_dksi_mu_dt(opts.t_range, opts.g_range);
+                measured_ = neg_dpsi_mu_dt(opts.t_range, opts.g_range);
+                residual = measured_ - modelled_;
+                residual_err = norm(residual, 'fro') / norm(measured_, 'fro');
+                mse = mean(abs(residual(:)).^2);
+                return
+            end
+            [neg_dksi_mu_dt,alpha_est,residual_err,mse] = mlraut.AnalyticSignalHCPPar.optimize_phase_factor( ...
+                neg_dksi_mu_dt, neg_dpsi_mu_dt, Niter=opts.Niter, t_range=opts.t_range, g_range=opts.g_range);
+        end
+
+        function phase_factor = iterative_alpha_estimation(M1, M2, max_iter)
+
+            % Start with inner-product estimate
+            alpha_est = (M2(:)' * M1(:)) / (M1(:)' * M1(:));
+            phase_factor = alpha_est / abs(alpha_est);
+
+            % Refine by removing outliers
+            for iter = 1:max_iter
+                residual = M2 - phase_factor * M1;
+                weights = 1 ./ (1 + abs(residual).^2 / median(abs(residual(:))).^2);
+
+                % Weighted least squares update
+                w_vec = weights(:);
+                m1_vec = M1(:);
+                m2_vec = M2(:);
+
+                alpha_est = sum(w_vec .* conj(m1_vec) .* m2_vec) / sum(w_vec .* abs(m1_vec).^2);
+                phase_factor = alpha_est / abs(alpha_est);
+            end
+        end
+
+        function [ksi1,alpha_est,residual_err,mse] = optimize_phase_factor(ksi, psi, opts)
+            %% Adjust complex matrix ksi to match complex matrix psi, estimating a scalar phase factor between them, 
+            %  such that psi ≈ α·ksi + noise, and α is complex.
+            %  EM if Niter >=20 else iterative.
+
+            arguments
+                ksi {mustBeMatrix}
+                psi {mustBeMatrix}
+                opts.Niter {mustBeScalarOrEmpty} = 20
+                opts.t_range = 200:896  % time frames
+                opts.g_range = 1:2*32492  % cortical vertices
+            end
+
+            % Limit optimizations to cortical vertices
+            ksi_ = ksi(opts.t_range, opts.g_range);
+            psi_ = psi(opts.t_range, opts.g_range);
+
+            % expectation maximization
+            if opts.Niter < 20
+                alpha_est = mlraut.AnalyticSignalHCPPar.iterative_alpha_estimation(ksi_, psi_, opts.Niter);
+            else
+                alpha_est = mlraut.AnalyticSignalHCPPar.em_alpha_estimation(ksi_, psi_, opts.Niter);
+            end
+            ksi1 = ksi * alpha_est;
+
+            % Assess estimation quality
+            residual = psi_ - ksi_ * alpha_est;
+            residual_err = norm(residual, 'fro') / norm(psi_, 'fro');
+            mse = mean(abs(residual(:)).^2);
+
+            % Diagnostics
+            % fprintf("%s mse: %g\n", stackstr(), mse);
+            % figure; histogram(abs(residual(:))); title('Residual Magnitudes');
         end
 
         function A_nu = overbar_A_nu(mdl, opts)
@@ -624,6 +947,30 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             assert(~isemptytext(g2))
             cii2 = cifti_read(g2(1));
             A_nu = cii1.cdata' + 1i * cii2.cdata';
+        end       
+
+        function ksi = reconstruct_ksi(neg_dksi_dt, psi, opts)
+            %% reconstructs complex bold signal ksi from -dksi/dt, 
+            %  matching initial time and dynamic range of bold signal psi
+
+            arguments
+                neg_dksi_dt {mustBeNumeric}
+                psi {mustBeNumeric}
+                opts.t_range = 200:896  % time frames
+                opts.g_range = 1:2*32492  % cortical vertices
+            end
+
+            lambda_dksi_dt = iqr(abs(neg_dksi_dt(opts.t_range, opts.g_range)), "all");
+            lambda_psi = iqr(abs(psi(opts.t_range, opts.g_range)), "all");
+            lambda_dpsi_dt = iqr(abs(-diff(psi(opts.t_range, opts.g_range))), "all");
+
+            psi1 = psi(1, :) / lambda_psi;
+            neg_dksi_dt = neg_dksi_dt * lambda_dpsi_dt / lambda_dksi_dt;
+            ksi_ = -cumsum([psi1; neg_dksi_dt]);
+            
+            % final matching of ranges
+            lambda_ksi = iqr(abs(ksi_(opts.t_range, opts.g_range)), "all");
+            ksi = ksi_ * lambda_psi / lambda_ksi;
         end
     end
 
