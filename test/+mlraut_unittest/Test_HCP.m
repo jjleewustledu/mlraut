@@ -6,6 +6,7 @@ classdef Test_HCP < matlab.unittest.TestCase
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
     properties
+        num_frames = 1196
         testObj
     end
     
@@ -29,7 +30,7 @@ classdef Test_HCP < matlab.unittest.TestCase
             this.verifyEqual(hcp.current_subject, '995174')
             this.verifyEqual(hcp.current_task, 'rfMRI_REST1_RL')
             this.verifyEqual(hcp.Fs, 1.389, AbsTol=1e-3);
-            this.verifyEqual(hcp.num_frames, 1196);
+            this.verifyEqual(hcp.num_frames, this.num_frames);
             this.verifyEqual(hcp.num_frames_ori, 1200);
             this.verifyEqual(hcp.num_frames_to_trim, 4);
             this.verifyEqual(hcp.num_nodes, 91282);
@@ -94,7 +95,7 @@ classdef Test_HCP < matlab.unittest.TestCase
         function test_task_dtseries(this)
             hcp = this.testObj;
             dtseries = hcp.task_dtseries();
-            this.verifyEqual(size(dtseries), [1196, 91282])
+            this.verifyEqual(size(dtseries), [this.num_frames, 91282])
         end
 
         function test_task_niigz(this)
@@ -102,7 +103,7 @@ classdef Test_HCP < matlab.unittest.TestCase
             ic = hcp.task_niigz();            
             this.verifyEqual(ic.filename, "rfMRI_REST1_RL_hp2000_clean.nii.gz")
             this.verifyEqual(ic.qfac, -1)
-            this.verifyEqual(size(ic), [91, 109, 91, 1196])
+            this.verifyEqual(size(ic), [91, 109, 91, this.num_frames])
             this.verifyInstanceOf(ic.imagingFormat.img, "single")
         end
 

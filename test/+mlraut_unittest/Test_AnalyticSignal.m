@@ -6,6 +6,7 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
     %  Developed on Matlab 9.13.0.2105380 (R2022b) Update 2 for MACI64.  Copyright 2022 John J. Lee.
     
     properties
+        num_frames = 1196
         testObj
     end
     
@@ -28,8 +29,8 @@ classdef Test_AnalyticSignal < matlab.unittest.TestCase
             this.verifyEqual(dipmax(as.global_signal), 10369.6112020772, AbsTol=1e-3)
             this.verifyEqual(as.hp_thresh, [])
             this.verifyEqual(as.lp_thresh, 0.1)
-            this.verifyEqual(size(as.bold_signal), [1196, 91282])
-            this.verifyEqual(size(as.physio_signal), [1196, 91282])
+            this.verifyEqual(size(as.bold_signal), [this.num_frames, 91282])
+            this.verifyEqual(size(as.physio_signal), [this.num_frames, 91282])
             this.verifyEqual(as.roi, [])
         end
 

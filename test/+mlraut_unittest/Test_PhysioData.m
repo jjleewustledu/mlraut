@@ -7,6 +7,7 @@ classdef Test_PhysioData < matlab.unittest.TestCase
     
     properties
         ashcp
+        num_frames = 1196
         testObj
     end
     
@@ -23,10 +24,10 @@ classdef Test_PhysioData < matlab.unittest.TestCase
 
             this.verifyEqual(this.ashcp.num_frames_ori, 1200)
             this.verifyEqual(this.ashcp.num_frames_to_trim, 4)
-            this.verifyEqual(this.ashcp.num_frames, 1196)
-            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, 1196])
-            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, 1196])
-            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, 1196])
+            this.verifyEqual(this.ashcp.num_frames, this.num_frames)
+            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, this.num_frames])
+            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, this.num_frames])
+            this.verifyEqual(size(this.ashcp.task_niigz()), [91, 109, 91, this.num_frames])
         end
 
         function test_iFV(this)
