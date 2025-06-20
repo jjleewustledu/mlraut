@@ -1012,7 +1012,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             %      opts.do_7T logical = false
             %      opts.do_resting logical = true
             %      opts.do_task logical = false
-            %      opts.do_global_signal_regression logical = true
+            %      opts.do_global_signal_regression logical = false
             %      opts.do_plot_global_physio logical = false
             %      opts.do_plot_networks logical = false
             %      opts.do_plot_radar logical = false
@@ -1047,7 +1047,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.do_7T logical = false
                 opts.do_resting logical = true
                 opts.do_task logical = false
-                opts.do_global_signal_regression logical = true
+                opts.do_global_signal_regression logical = false
                 opts.do_plot_emd logical = false
                 opts.do_plot_global_physio logical = false
                 opts.do_plot_networks logical = false
@@ -1064,13 +1064,13 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.force_band logical = false
                 opts.force_legacy_butter logical = false
                 opts.frac_ext_physio double = 1
-                opts.hp_thresh {mustBeScalarOrEmpty} = []
+                opts.hp_thresh {mustBeScalarOrEmpty} = 0.01
                 opts.lp_thresh {mustBeScalarOrEmpty} = 0.1
                 opts.max_frames double = Inf
                 opts.out_dir {mustBeTextScalar} = ""
                 opts.plot_range double = []
                 opts.rescaling {mustBeTextScalar} = "iqr"
-                opts.source_physio {mustBeText} = "iFV-brightest"
+                opts.source_physio {mustBeText} = "iFV"
                 opts.subjects = {}
                 opts.tags {mustBeTextScalar} = ""
                 opts.tasks = {}

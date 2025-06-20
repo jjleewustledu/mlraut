@@ -40,7 +40,7 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 g = 10;
                 return
             end
-            g = 4;
+            g = 14;
         end
         function g = get.out_dir(this)
             if ~isemptytext(this.out_dir_)
