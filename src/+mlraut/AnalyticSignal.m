@@ -421,7 +421,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
                 opts.dim = "all" 
             end
             assert(ismatrix(psi))
-            psi = real(psi);
+            psi = abs(psi);
 
             switch convertStringsToChars(this.rescaling)
                 case {'none', 'unity'}
