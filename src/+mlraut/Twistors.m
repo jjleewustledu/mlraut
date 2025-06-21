@@ -214,6 +214,25 @@ classdef Twistors < handle & mlsystem.IHandle
             psi = (psi.*conj(psi) + phi.*conj(phi))/sqrt(2);
         end
 
+        function z = zeta(this, xi, eta)
+            %% of twistor
+
+            arguments
+                this mlraut.Twistors
+                xi {mustBeNumeric}
+                eta {mustBeNumeric}
+            end
+            assert(~isempty(eta))
+            assert(size(xi, 1) == size(eta, 1))
+
+            if this.use_neg_ddt
+                [xi,eta] = this.neg_ddt(xi, eta);
+                xi = this.ihcp_.build_centered_and_rescaled(xi);
+            end
+
+            z = xi ./ eta;
+        end
+
         function theta = angle(this, psi, phi)
             if this.use_neg_ddt
                 [psi,phi] = this.neg_ddt(psi, phi);
@@ -224,6 +243,12 @@ classdef Twistors < handle & mlsystem.IHandle
 
         function psi = neg_dbold_dt(this, psi, phi)
             %% of twistor
+
+            arguments
+                this mlraut.Twistors
+                psi {mustBeNumeric}
+                phi {mustBeNumeric} = []
+            end
 
             psi = this.neg_ddt(psi, phi);
             psi = this.ihcp_.build_centered_and_rescaled(psi);
@@ -287,16 +312,18 @@ classdef Twistors < handle & mlsystem.IHandle
 
             arguments
                 psi {mustBeNumeric}
-                phi {mustBeNumeric}
+                phi {mustBeNumeric} = []
                 opts.scale {mustBeScalarOrEmpty} = 1
             end
 
-            Nt = size(phi, 1);
-            rep = repmat({':'}, 1, ndims(phi) - 1);
-            phi = phi(1:Nt-1, rep{:});
-
             psi = -opts.scale*diff(psi, 1);  % 1st deriv. of time
             % psi(psi < 0) = 0;  % see Fultz et al. 2019
+
+            if ~isempty(phi)
+                Nt = size(phi, 1);
+                rep = repmat({':'}, 1, ndims(phi) - 1);
+                phi = phi(1:Nt-1, rep{:});
+            end
         end
 
         function psi = selective_X(mat, opts)
