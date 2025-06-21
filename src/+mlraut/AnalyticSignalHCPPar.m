@@ -204,7 +204,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
         end
     
-        %% running call on cluster
+        %% running call, means, models on cluster
 
         function [j,c,msg,id] = cluster_construct_and_call(globbing_mat, opts)
             %% for clusters running Matlab parallel server
@@ -1289,6 +1289,180 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             this.cifti.write_cifti( ...
                 imT_, sprintf('imT_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=df, units_t=units_f);
 
+            warning("on", "MATLAB:class:LoadDefinitionUpdated");
+        end
+
+        function this = mean_transformed_zeta(this, subs, opts)
+            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
+
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                subs {mustBeText}
+                opts.col_idx {mustBeScalarOrEmpty} = []
+                opts.new_physio {mustBeText} = ""
+                opts.test_range = []
+                opts.transform_tag {mustBeText} = ""
+                opts.rsn {mustBeScalarOrEmpty} = []
+            end
+            subs = convertCharsToStrings(subs);
+            if isscalar(subs)
+                out_dir_ = fullfile(this.out_dir, subs);
+            else
+                out_dir_ = this.out_dir;
+            end
+
+            % DEBUG
+            disp(subs)
+
+            warning("off", "MATLAB:class:LoadDefinitionUpdated");
+
+            % \emph{this} supplies utilities
+
+            % abbrev.
+            switch char(opts.transform_tag)
+                case 'fft'
+                    transform = @(x) fft(x);
+                    nbin = this.num_frames - 1;
+                case 'ifft'
+                    transform = @(x) ifft(x);
+                    nbin = this.num_frames - 1;
+                case 'radon'
+                    % https://www.mathworks.com/help/releases/R2024b/images/radon-transform.html?searchHighlight=radon&s_tid=doc_srchtitle                    
+                    nbin = this.num_frames - 1;
+                    theta = 0:180/nbin; 
+                    transform = @(I_) radon(I_, theta);
+                otherwise                    
+                    transform = @(x) x;  % identity
+            end
+
+            % init
+            ngo = this.num_nodes;
+            zeta_ = zeros(nbin, ngo);
+            phi_residual_ = zeros(nbin, ngo);
+            nmats_corrected = 0;
+            if isempty(opts.rsn)
+                mask_rsn = [];
+            else
+                ld = load("~/MATLAB-Drive/arousal-waves-main/supporting_files/networks_HCP.mat");
+                mask_rsn = ld.assns2 == opts.rsn;
+            end
+
+            % find sub*.mat
+            if ~isempty(opts.test_range)
+                subs = subs(opts.test_range, :);
+            end
+            for sub = asrow(subs)
+                if isemptytext(sub)
+                    continue
+                end
+                mats = asrow(mglob( ...
+                    fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
+                if isemptytext(mats)
+                    continue
+                end
+                errs = 0;
+
+                for mat = mats
+                    tic
+                    try
+                        ld = load(mat);  % this provides methods, ld.this_subset provides data
+                        psi = ld.this_subset.bold_signal;
+
+                        if ~isempty(mask_rsn)
+                            psi = psi(:, mask_rsn);
+                        end
+
+                        % assign phi
+                        if isemptytext(opts.new_physio) || strcmp(opts.new_physio, ld.this_subset.source_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, 'vis')
+                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 1);
+                        elseif strcmpi(opts.new_physio, 'sms')
+                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 2);
+                        elseif strcmpi(opts.new_physio, 'dan')
+                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 3);
+                        elseif strcmpi(opts.new_physio, 'van')
+                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 4);
+                        elseif strcmpi(opts.new_physio, 'lim')
+                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 5);
+                        elseif strcmpi(opts.new_physio, 'fpn')
+                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 6);
+                        elseif strcmpi(opts.new_physio, 'dmn')
+                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 7);
+                        else
+                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
+                            assert(~isempty(re_phi))
+                            assert(all(isfinite(re_phi)))
+                            phi = hilbert(re_phi);
+                        end
+                        zeta_t = this.zeta(psi, phi);
+                        phi_residual = mean(zeta_t, 2);
+                        zeta_nu = transform(zeta_t ./ phi_residual);  % factor out residual arousal times series
+                        zeta_ = zeta_ + zeta_nu;  
+                        phi_residual_ = phi_residual_ + phi_residual;
+                    catch ME
+                        fprintf("while working with %s: ", mat);
+                        handwarning(ME)
+                        errs = errs + 1;
+                    end
+                    fprintf("time working with %s: ", mat);
+                    toc
+                end
+
+                % adjust for errs
+                nmats_corrected = nmats_corrected + numel(mats) - errs;
+            end
+
+            % complete averaging
+            zeta_ = zeta_/nmats_corrected;
+            phi_residual_ = phi_residual_/nmats_corrected;
+
+            % construct identifiers
+            n_tag = sprintf('n%g', nmats_corrected);
+            new_tags = this.tags;
+            if ~isemptytext(opts.new_physio)
+                new_tags = strrep(this.tags, this.source_physio, opts.new_physio);
+            end
+            if ~isempty(opts.rsn)
+                new_tags = strrep(new_tags, "-ASHCPPar", sprintf("-rsn%i-ASHCPPar", opts.rsn));
+            end
+            if ~isempty(opts.col_idx)
+                par_tag = "_par" + opts.col_idx;
+            else
+                par_tag = "";
+            end
+
+            % save mat
+            fqfn_zeta = fullfile(out_dir_, ...
+                sprintf('%szeta_as_sub-%s_ses-%s_%s%s.mat', opts.transform_tag, n_tag, n_tag, new_tags, par_tag));
+            save(fqfn_zeta, "zeta_", "-v7.3");
+            fqfn_phi_resid = fullfile(out_dir_, ...
+                sprintf('phiresidual_as_sub-%s_ses-%s_%s%s.mat', n_tag, n_tag, new_tags, par_tag));
+            save(fqfn_phi_resid, "phi_residual_", "-v7.3");
+
+            % save cifti
+            if isempty(mask_rsn)
+                if strcmp(opts.transform_tag, "fft")
+                    dt = this.Fs/(this.num_frames - 1);
+                    units_t = "HERTZ";
+                else
+                    dt = this.tr;
+                    units_t = "SECONDS";
+                end
+                this.cifti.write_cifti( ...
+                    real(zeta_), ...
+                    fullfile(out_dir_, ...
+                        sprintf('re%szeta_as_sub-%s_ses-%s_%s%s', ...
+                        opts.transform_tag, n_tag, n_tag, new_tags, par_tag)), ...
+                    dt=dt, units_t=units_t);
+                this.cifti.write_cifti( ...
+                    imag(zeta_), ...
+                    fullfile(out_dir_, ...
+                        sprintf('im%szeta_as_sub-%s_ses-%s_%s%s', ...
+                        opts.transform_tag, n_tag, n_tag, new_tags, par_tag)), ...
+                    dt=dt, units_t=units_t);
+            end
+            
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
         end
 
