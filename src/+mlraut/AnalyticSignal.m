@@ -409,45 +409,6 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = psi - this.global_signal;
         end
 
-        function n = build_scale(this, psi, opts)
-            % n = mad(psi, 0, opts.dim);  % mean abs. dev., doesn't scale psi and phi comparably
-            % n = mad(psi, 1, opts.dim);  % median abs. dev., doesn't scale psi and phi comparably
-            % n = norm(psi);  % 2-norm seems more consistent with 2-spinors, but discrepancy of psi, phi ~ 1e6
-            % n = max(psi, [], opts.dim);  % discrepancy of psi, phi ~ 1e3
-
-            arguments
-                this mlraut.AnalyticSignal
-                psi {mustBeNumeric}
-                opts.dim = "all" 
-            end
-            assert(ismatrix(psi))
-            psi = abs(psi);
-
-            switch convertStringsToChars(this.rescaling)
-                case {'none', 'unity'}
-                    n = 1;
-                case '1-norm'
-                    n = norm(psi, 1);
-                case '2-norm'
-                    n = norm(psi, 2);
-                case 'fro'
-                    n = norm(psi, "fro");
-                case 'inf-norm'
-                    n = norm(psi, inf);
-                case 'iqr'
-                    n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
-                case {'mean_ad', 'mad'}
-                    n = mad(psi, 0, opts.dim);
-                case 'median_ad'
-                    n = mad(psi, 1, opts.dim);
-                case 'std'
-                    n = std(psi, 0, opts.dim);
-                otherwise
-                    n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
-            end
-            this.scale_of_rescaling = n;
-        end
-
         function psi = build_rescaled(this, psi, opts)
             arguments
                 this mlraut.AnalyticSignal 
@@ -485,6 +446,45 @@ classdef AnalyticSignal < handle & mlraut.HCP
 
             % Reshape to original size
             psi = reshape(psi_reshaped, sz_ori);
+        end
+
+        function n = build_scale(this, psi, opts)
+            % n = mad(psi, 0, opts.dim);  % mean abs. dev., doesn't scale psi and phi comparably
+            % n = mad(psi, 1, opts.dim);  % median abs. dev., doesn't scale psi and phi comparably
+            % n = norm(psi);  % 2-norm seems more consistent with 2-spinors, but discrepancy of psi, phi ~ 1e6
+            % n = max(psi, [], opts.dim);  % discrepancy of psi, phi ~ 1e3
+
+            arguments
+                this mlraut.AnalyticSignal
+                psi {mustBeNumeric}
+                opts.dim = "all" 
+            end
+            assert(ismatrix(psi))
+            psi = abs(psi);
+
+            switch convertStringsToChars(this.rescaling)
+                case {'none', 'unity'}
+                    n = 1;
+                case '1-norm'
+                    n = norm(psi, 1);
+                case '2-norm'
+                    n = norm(psi, 2);
+                case 'fro'
+                    n = norm(psi, "fro");
+                case 'inf-norm'
+                    n = norm(psi, inf);
+                case 'iqr'
+                    n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
+                case {'mean_ad', 'mad'}
+                    n = mad(psi, 0, opts.dim);
+                case 'median_ad'
+                    n = mad(psi, 1, opts.dim);
+                case 'std'
+                    n = std(psi, 0, opts.dim);
+                otherwise
+                    n = iqr(psi, opts.dim);  % discrepancy of psi, phi ~ 3
+            end
+            this.scale_of_rescaling = n;
         end
 
         function concat_frames(this, that)
