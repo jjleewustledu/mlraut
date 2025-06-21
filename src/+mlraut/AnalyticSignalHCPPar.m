@@ -215,7 +215,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
                 opts.sub_indices double = []  % total ~ 1:1113
                 opts.globbing_var = "globbed"
-                opts.Ncol {mustBeInteger} = 16
+                opts.Ncol {mustBeInteger} = 8
+                opts.skip_existing logical = true
             end
             ld = load(globbing_mat);
             globbed = convertStringsToChars(ld.(opts.globbing_var));
@@ -240,14 +241,14 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
             warning('off', 'MATLAB:TooManyInputs');
 
-            c = mlraut.CHPC3.propcluster('joshua_shimony', mempercpu='40gb', walltime='24:00:00');
+            c = mlraut.CHPC3.propcluster('john_lee', mempercpu='48gb', walltime='3:00:00');
             disp(c.AdditionalProperties)
             for irow = 1:Nrow
                 try
                     j = c.batch( ...
                         @mlraut.AnalyticSignalHCPPar.construct_and_call, ...
                         1, ...
-                        {globbed(irow, :)}, ...
+                        {globbed(irow, :), 'skip_existing', opts.skip_existing}, ...
                         'Pool', opts.Ncol, ...
                         'CurrentFolder', '/scratch/jjlee/Singularity/AnalyticSignalHCP', ...
                         'AutoAddClientPath', false);
@@ -393,6 +394,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.tasks cell = {'rfMRI_REST1_LR', 'rfMRI_REST1_RL', 'rfMRI_REST2_LR', 'rfMRI_REST2_RL'}
                 opts.tags {mustBeTextScalar} = "ASHCPPar"
                 opts.out_dir {mustBeFolder} = "/scratch/jjlee/Singularity/AnalyticSignalHCP"
+                opts.skip_existing logical = true
             end
             
             subjects = subjects(~cellfun(@isempty, subjects));  % Remove empty cells
@@ -406,6 +408,13 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 mlraut.CHPC3.setenvs();
                 ensuredir(opts.out_dir); %#ok<*PFBNS>
                 ensuredir(fullfile(opts.out_dir, subjects{sidx}));
+
+                if opts.skip_existing
+                    g = mglob(fullfile(opts.out_dir, subjects{sidx}, "*.mat"));
+                    if length(g) > 1
+                        continue
+                    end
+                end
 
                 try
                     % construct & call
@@ -494,9 +503,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     phi = hilbert(this_subset.physio_supplementary(opts.new_physio));
 
                     %% generative model
-                    [mdl.ksi,mdl.alpha_est,mdl.residual_err,mdl.mse] = mlraut.AnalyticSignalHCPPar.generative_model( ...
+                    [mdl.xi,mdl.alpha_est,mdl.residual_err,mdl.mse] = mlraut.AnalyticSignalHCPPar.generative_model( ...
                         psi, phi, Niter=20);
-                    mdl.residual = psi - mdl.ksi;
+                    mdl.residual = psi - mdl.xi;
 
                     %% greyordinate MSE
                     mdl.mesh.mse_go = mean(abs(mdl.residual).^2, 1);
@@ -759,7 +768,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
         end
 
-        function [ksi_mu,alpha_est,residual_err,mse] = generative_model(psi_mu, phi_mu, opts)
+        function [xi_mu,alpha_est,residual_err,mse] = generative_model(psi_mu, phi_mu, opts)
             %% Generates complex BOLD timeseries from X, Y, Z, T that have refinements for the phase of 
             %  the complex physio timeseries.
             %
@@ -773,7 +782,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             %      opts.g_range = 1:2*32492  % cortical vertices
             %
             %  Returns:
-            %      ksi_mu ~ Nt x Ngo
+            %      xi_mu ~ Nt x Ngo
             %      alpha_est ~ 1
             %      residual_err ~ 1
             
@@ -801,22 +810,22 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 mlraut.AnalyticSignalHCPPar.overbar_A_nu(mdl, measure="Z");
             overbar_T_minus_Z = ifft(overbar_T_minus_Z);
 
-            neg_dksi_mu_dt = phi_mu .* overbar_X_plus_iY ./ overbar_T_minus_Z;
-            ksi_mu = mlraut.AnalyticSignalHCPPar.reconstruct_ksi(neg_dksi_mu_dt, psi_mu);
+            neg_dxi_mu_dt = phi_mu .* overbar_X_plus_iY ./ overbar_T_minus_Z;
+            xi_mu = mlraut.AnalyticSignalHCPPar.reconstruct_xi(neg_dxi_mu_dt, psi_mu);
             if isempty(opts.Niter)
                 alpha_est = 1;
-                ksi_ = ksi_mu(opts.t_range, opts.g_range);
+                xi_ = xi_mu(opts.t_range, opts.g_range);
                 psi_ = psi_mu(opts.t_range, opts.g_range);
-                residual = psi_ - ksi_;
+                residual = psi_ - xi_;
                 residual_err = norm(residual, 'fro') / norm(psi_, 'fro');
                 mse = mean(abs(residual(:)).^2);
                 return
             end
-            [ksi_mu,alpha_est,residual_err,mse] = mlraut.AnalyticSignalHCPPar.optimize_phase_factor( ...
-                ksi_mu, psi_mu, Niter=opts.Niter, t_range=opts.t_range, g_range=opts.g_range);
+            [xi_mu,alpha_est,residual_err,mse] = mlraut.AnalyticSignalHCPPar.optimize_phase_factor( ...
+                xi_mu, psi_mu, Niter=opts.Niter, t_range=opts.t_range, g_range=opts.g_range);
         end
 
-        function [neg_dksi_mu_dt,alpha_est,residual_err,mse] = generative_model_momentum(neg_dpsi_mu_dt, phi_mu, opts)
+        function [neg_dxi_mu_dt,alpha_est,residual_err,mse] = generative_model_momentum(neg_dpsi_mu_dt, phi_mu, opts)
             %% Generates complex BOLD timeseries from X, Y, Z, T that have refinements for the phase of 
             %  the complex physio timeseries.
             %
@@ -830,7 +839,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             %      opts.g_range = 1:2*32492  % cortical vertices
             %
             %  Returns:
-            %      neg_dksi_mu_dt ~ Nt x Ngo
+            %      neg_dxi_mu_dt ~ Nt x Ngo
             %      alpha_est ~ 1
             %      residual_err ~ 1
             
@@ -858,21 +867,21 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 mlraut.AnalyticSignalHCPPar.overbar_A_nu(mdl, measure="Z");
             overbar_T_minus_Z = ifft(overbar_T_minus_Z);
 
-            neg_dksi_mu_dt = phi_mu .* overbar_X_plus_iY ./ overbar_T_minus_Z;
+            neg_dxi_mu_dt = phi_mu .* overbar_X_plus_iY ./ overbar_T_minus_Z;
             scaling = iqr(abs(neg_dpsi_mu_dt(opts.t_range, opts.g_range)), "all") / ...
-                iqr(abs(neg_dksi_mu_dt(opts.t_range, opts.g_range)), "all");
-            neg_dksi_mu_dt = scaling * neg_dksi_mu_dt;
+                iqr(abs(neg_dxi_mu_dt(opts.t_range, opts.g_range)), "all");
+            neg_dxi_mu_dt = scaling * neg_dxi_mu_dt;
             if isempty(opts.Niter)
                 alpha_est = 1;
-                modelled_ = neg_dksi_mu_dt(opts.t_range, opts.g_range);
+                modelled_ = neg_dxi_mu_dt(opts.t_range, opts.g_range);
                 measured_ = neg_dpsi_mu_dt(opts.t_range, opts.g_range);
                 residual = measured_ - modelled_;
                 residual_err = norm(residual, 'fro') / norm(measured_, 'fro');
                 mse = mean(abs(residual(:)).^2);
                 return
             end
-            [neg_dksi_mu_dt,alpha_est,residual_err,mse] = mlraut.AnalyticSignalHCPPar.optimize_phase_factor( ...
-                neg_dksi_mu_dt, neg_dpsi_mu_dt, Niter=opts.Niter, t_range=opts.t_range, g_range=opts.g_range);
+            [neg_dxi_mu_dt,alpha_est,residual_err,mse] = mlraut.AnalyticSignalHCPPar.optimize_phase_factor( ...
+                neg_dxi_mu_dt, neg_dpsi_mu_dt, Niter=opts.Niter, t_range=opts.t_range, g_range=opts.g_range);
         end
 
         function phase_factor = iterative_alpha_estimation(M1, M2, max_iter)
@@ -896,13 +905,13 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
         end
 
-        function [ksi1,alpha_est,residual_err,mse] = optimize_phase_factor(ksi, psi, opts)
-            %% Adjust complex matrix ksi to match complex matrix psi, estimating a scalar phase factor between them, 
-            %  such that psi ≈ α·ksi + noise, and α is complex.
+        function [xi1,alpha_est,residual_err,mse] = optimize_phase_factor(xi, psi, opts)
+            %% Adjust complex matrix xi to match complex matrix psi, estimating a scalar phase factor between them, 
+            %  such that psi ≈ α·xi + noise, and α is complex.
             %  EM if Niter >=20 else iterative.
 
             arguments
-                ksi {mustBeMatrix}
+                xi {mustBeMatrix}
                 psi {mustBeMatrix}
                 opts.Niter {mustBeScalarOrEmpty} = 20
                 opts.t_range = 200:896  % time frames
@@ -910,19 +919,19 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
 
             % Limit optimizations to cortical vertices
-            ksi_ = ksi(opts.t_range, opts.g_range);
+            xi_ = xi(opts.t_range, opts.g_range);
             psi_ = psi(opts.t_range, opts.g_range);
 
             % expectation maximization
             if opts.Niter < 20
-                alpha_est = mlraut.AnalyticSignalHCPPar.iterative_alpha_estimation(ksi_, psi_, opts.Niter);
+                alpha_est = mlraut.AnalyticSignalHCPPar.iterative_alpha_estimation(xi_, psi_, opts.Niter);
             else
-                alpha_est = mlraut.AnalyticSignalHCPPar.em_alpha_estimation(ksi_, psi_, opts.Niter);
+                alpha_est = mlraut.AnalyticSignalHCPPar.em_alpha_estimation(xi_, psi_, opts.Niter);
             end
-            ksi1 = ksi * alpha_est;
+            xi1 = xi * alpha_est;
 
             % Assess estimation quality
-            residual = psi_ - ksi_ * alpha_est;
+            residual = psi_ - xi_ * alpha_est;
             residual_err = norm(residual, 'fro') / norm(psi_, 'fro');
             mse = mean(abs(residual(:)).^2);
 
@@ -949,28 +958,28 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             A_nu = cii1.cdata' + 1i * cii2.cdata';
         end       
 
-        function ksi = reconstruct_ksi(neg_dksi_dt, psi, opts)
-            %% reconstructs complex bold signal ksi from -dksi/dt, 
+        function xi = reconstruct_xi(neg_dxi_dt, psi, opts)
+            %% reconstructs complex bold signal xi from -dxi/dt, 
             %  matching initial time and dynamic range of bold signal psi
 
             arguments
-                neg_dksi_dt {mustBeNumeric}
+                neg_dxi_dt {mustBeNumeric}
                 psi {mustBeNumeric}
                 opts.t_range = 200:896  % time frames
                 opts.g_range = 1:2*32492  % cortical vertices
             end
 
-            lambda_dksi_dt = iqr(abs(neg_dksi_dt(opts.t_range, opts.g_range)), "all");
+            lambda_dxi_dt = iqr(abs(neg_dxi_dt(opts.t_range, opts.g_range)), "all");
             lambda_psi = iqr(abs(psi(opts.t_range, opts.g_range)), "all");
             lambda_dpsi_dt = iqr(abs(-diff(psi(opts.t_range, opts.g_range))), "all");
 
             psi1 = psi(1, :) / lambda_psi;
-            neg_dksi_dt = neg_dksi_dt * lambda_dpsi_dt / lambda_dksi_dt;
-            ksi_ = -cumsum([psi1; neg_dksi_dt]);
+            neg_dxi_dt = neg_dxi_dt * lambda_dpsi_dt / lambda_dxi_dt;
+            xi_ = -cumsum([psi1; neg_dxi_dt]);
             
             % final matching of ranges
-            lambda_ksi = iqr(abs(ksi_(opts.t_range, opts.g_range)), "all");
-            ksi = ksi_ * lambda_psi / lambda_ksi;
+            lambda_xi = iqr(abs(xi_(opts.t_range, opts.g_range)), "all");
+            xi = xi_ * lambda_psi / lambda_xi;
         end
     end
 
