@@ -1,4 +1,4 @@
-classdef TwistorAdvanced < mlraut.TwistorMaxwellField
+classdef TwistorAdvanced < mlraut.TwistorMaxwellFieldScaled & handle
     % TwistorAdvanced - Extended class for advanced twistor constructions
     % Includes beta-plane integration, Penrose transform, and more
     
@@ -11,7 +11,7 @@ classdef TwistorAdvanced < mlraut.TwistorMaxwellField
     methods
         function obj = TwistorAdvanced(varargin)
             % Call parent constructor
-            obj@mlraut.TwistorMaxwellField(varargin{:});
+            obj@mlraut.TwistorMaxwellFieldScaled(varargin{:});
             
             % Initialize advanced properties
             obj.beta_planes = [];
