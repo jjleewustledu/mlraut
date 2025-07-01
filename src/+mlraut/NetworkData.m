@@ -6,9 +6,9 @@ classdef NetworkData < handle & mlsystem.IHandle
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
 
-    properties (Abstract)
-        anat_mask  % e.g. cbm, ctx, str, thal
-    end
+    % properties (Abstract)
+    %     anat_mask  % e.g. cbm, ctx, str, thal
+    % end
 
     properties (Constant)
         NETWORKS_YEO_NAMES = ...
@@ -101,6 +101,54 @@ classdef NetworkData < handle & mlsystem.IHandle
             idx = contains(this.NETWORKS_YEO_NAMES, 'task-');
             msk = task_neg & this.anat_mask;
             signals(:,idx) = mean(psi(:,msk), 2, 'omitnan');
+        end
+
+        function [psi1,shapes] = reshape_by_anatomy(this, psi)
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_ctx_HCP.mat'));
+            mask_ctx = ld.mask_ctx;
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_cbm_HCP.mat'));
+            mask_cbm = ld.mask_cbm;
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_str_HCP.mat'));
+            mask_str = ld.mask_str;
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_thal_HCP.mat'));
+            mask_thal = ld.mask_thal;
+            indices_rsn = this.networks_Yeo;
+
+            % aufbau
+            psi1 = [];
+            shapes = struct();
+            accum = 0;
+            for rsn = 1:7
+                msk = logical(mask_ctx .* (indices_rsn == rsn));
+                psi1 = [psi1, psi(:, msk)]; %#ok<*AGROW>
+                shapes.ctx.("rsn"+rsn) = sum(msk);
+                accum = accum + sum(msk);
+            end
+            shapes.ctx.accum = accum;
+            accum = 0;
+            for rsn = 1:7
+                msk = logical(mask_cbm .* (indices_rsn == rsn));
+                psi1 = [psi1, psi(:, msk)]; %#ok<*AGROW>
+                shapes.cbm.("rsn"+rsn) = sum(msk);
+                accum = accum + sum(msk);
+            end
+            shapes.cbm.accum = accum;
+            accum = 0;
+            for rsn = 1:7
+                msk = logical(mask_str .* (indices_rsn == rsn));
+                psi1 = [psi1, psi(:, msk)]; %#ok<*AGROW>
+                shapes.str.("rsn"+rsn) = sum(msk);
+                accum = accum + sum(msk);
+            end
+            shapes.str.accum = accum;
+            accum = 0;
+            for rsn = 1:7
+                msk = logical(mask_thal .* (indices_rsn == rsn));
+                psi1 = [psi1, psi(:, msk)]; %#ok<*AGROW>
+                shapes.thal.("rsn"+rsn) = sum(msk);
+                accum = accum + sum(msk);
+            end
+            shapes.thal.accum = accum;
         end
 
         function this = NetworkData(ihcp, psi)

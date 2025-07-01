@@ -1337,8 +1337,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             % init
             ngo = this.num_nodes;
-            zeta_ = zeros(nbin, ngo);
-            phi_residual_ = zeros(nbin, ngo);
+            zeta_nu_ = zeros(nbin, ngo);
+            zeta_t_avggo_ = zeros(nbin, 1);
             nmats_corrected = 0;
             if isempty(opts.rsn)
                 mask_rsn = [];
@@ -1396,10 +1396,10 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                             phi = hilbert(re_phi);
                         end
                         zeta_t = this.zeta(psi, phi);
-                        phi_residual = mean(zeta_t, 2);
-                        zeta_nu = transform(zeta_t ./ phi_residual);  % factor out residual arousal times series
-                        zeta_ = zeta_ + zeta_nu;  
-                        phi_residual_ = phi_residual_ + phi_residual;
+                        zeta_t_avggo = mean(zeta_t, 2);
+                        zeta_t_avggo_ = zeta_t_avggo_ + zeta_t_avggo;
+                        zeta_nu = transform(zeta_t);
+                        zeta_nu_ = zeta_nu_ + zeta_nu;  
                     catch ME
                         fprintf("while working with %s: ", mat);
                         handwarning(ME)
@@ -1414,8 +1414,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
 
             % complete averaging
-            zeta_ = zeta_/nmats_corrected;
-            phi_residual_ = phi_residual_/nmats_corrected;
+            zeta_nu_ = zeta_nu_/nmats_corrected;
+            zeta_t_avggo_ = zeta_t_avggo_/nmats_corrected;
 
             % construct identifiers
             n_tag = sprintf('n%g', nmats_corrected);
@@ -1435,10 +1435,10 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % save mat
             fqfn_zeta = fullfile(out_dir_, ...
                 sprintf('%szeta_as_sub-%s_ses-%s_%s%s.mat', opts.transform_tag, n_tag, n_tag, new_tags, par_tag));
-            save(fqfn_zeta, "zeta_", "-v7.3");
-            fqfn_phi_resid = fullfile(out_dir_, ...
-                sprintf('phiresidual_as_sub-%s_ses-%s_%s%s.mat', n_tag, n_tag, new_tags, par_tag));
-            save(fqfn_phi_resid, "phi_residual_", "-v7.3");
+            save(fqfn_zeta, "zeta_nu_", "-v7.3");
+            fqfn_zetaavggo = fullfile(out_dir_, ...
+                sprintf('zetaavggo_as_sub-%s_ses-%s_%s%s.mat', n_tag, n_tag, new_tags, par_tag));
+            save(fqfn_zetaavggo, "zeta_t_avggo_", "-v7.3");
 
             % save cifti
             if isempty(mask_rsn)
@@ -1450,13 +1450,13 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     units_t = "SECONDS";
                 end
                 this.cifti.write_cifti( ...
-                    real(zeta_), ...
+                    real(zeta_nu_), ...
                     fullfile(out_dir_, ...
                         sprintf('re%szeta_as_sub-%s_ses-%s_%s%s', ...
                         opts.transform_tag, n_tag, n_tag, new_tags, par_tag)), ...
                     dt=dt, units_t=units_t);
                 this.cifti.write_cifti( ...
-                    imag(zeta_), ...
+                    imag(zeta_nu_), ...
                     fullfile(out_dir_, ...
                         sprintf('im%szeta_as_sub-%s_ses-%s_%s%s', ...
                         opts.transform_tag, n_tag, n_tag, new_tags, par_tag)), ...
@@ -1501,6 +1501,226 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             warning("on", "MATLAB:plot:IgnoreImaginaryXYPart")
         end
+
+        function h = rugplot(this, psi, opts)
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                psi {mustBeNumeric}
+                opts.fig_fileprefix {mustBeTextScalar} = ""
+                opts.is_spectral logical = false
+                opts.closeFigure logical = true
+                opts.title {mustBeTextScalar} = ""
+                opts.complex_representation function_handle = @real
+            end
+            repr = opts.complex_representation;  % abbrev.
+            [pth,fp,x] = fileparts(opts.fig_fileprefix);
+            if ~startsWith(fp, func2str(repr))
+                opts.fig_fileprefix = fullfile( ...
+                    pth, ...
+                    string(func2str(repr)) + string(fp) + string(x));
+            end
+
+            nd = mlraut.NetworkData(this, psi);
+            img = nd.reshape_by_anatomy(psi);
+            if opts.is_spectral
+                img = fftshift(img, 1);
+            end
+
+            % fig position
+            fig_width = 2056;
+            fig_height = 1329;
+            h = figure('Position', [1, 1, fig_width, fig_height]);
+            movegui(h, 'northwest');  % Moves to upper left
+
+            if opts.is_spectral
+                imagesc(repr(img));
+                colorbar;
+                if strcmp(func2str(repr), "abs")
+                    clim([0, 1000]);
+                else
+                    clim([-150, 150]);
+                end
+            else
+                imagesc(repr(img));
+                colorbar;
+                clim([-5, 5]);
+            end
+
+            hold on
+
+            % colors
+            if strcmp(func2str(repr), "abs")
+                color = [.8 .8 .8];
+            else
+                color = [.2 .2 .2];
+            end
+
+            % lines
+            xline(8788, 'Color', color, 'LineWidth', 1);  % VIS ctx
+            xline(20748, 'Color', color, 'LineWidth', 1);  % SMS
+            xline(27510, 'Color', color, 'LineWidth', 1);  % DAN
+            xline(34683, 'Color', color, 'LineWidth', 1);  % VAN
+            xline(39219, 'Color', color, 'LineWidth', 1);  % LIM
+            xline(46530, 'Color', color, 'LineWidth', 1);  % FPN
+            xline(58666, 'Color', color, 'LineWidth', 1);  % DMN            
+            xline(76498, 'Color', color, 'LineWidth', 1);  % cbm
+            xline(79855, 'Color', color, 'LineWidth', 1);  % str
+            % xline(82053, 'Color', color, 'LineWidth', 1);  % thal
+
+            % annotation
+            text(8788-1200, 1150, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(20748-1200, 1150, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(27510-1200, 1150, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(34683-1200, 1150, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(39219-1200, 1150, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(46530-1200, 1150, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(58666-1200, 1150, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(76498-1200, 1150, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(79855-1200, 1150, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(82053-1200, 1150, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+
+            hold off
+
+            if opts.is_spectral
+
+                % Calculate time values
+                Nomega = size(img, 1);
+                Omega = (-Nomega/2:Nomega/2-1) * 2 * pi * this.Fs / Nomega; % total freq. range in radian/s
+                % time_values = linspace(0, T, Nt);
+
+                n_ticks = 11; % Choose how many tick marks you want
+                tick_indices = linspace(1, Nomega, n_ticks);
+                tick_omega = linspace(Omega(1), Omega(end), n_ticks);
+
+                % indices -> times (s)
+                ax = gca;
+                ax.YTick = tick_indices;
+                % set(ax, ...
+                %     'YTickLabel', arrayfun(@(x) sprintf("%.1f", x), tick_omega/pi, 'UniformOutput', false) + "\pi", ...
+                %     'TickLabelInterpreter', 'latex');
+                ax.YTickLabel = arrayfun(@(x) sprintf('%.1f', x), tick_omega, 'UniformOutput', false);
+
+                % Add labels
+                switch func2str(repr)
+                    case 'real'
+                        atitle = "$$\Re \, \zeta(\mathbf{x}, \omega)$$";
+                    case 'imag'
+                        atitle = "$$\Im \, \zeta(\mathbf{x}, \omega)$$";
+                    case 'abs'
+                        atitle = "$$\left| \zeta(\mathbf{x}, \omega) \right|$$";
+                    otherwise
+                        atitle = "$$\zeta(\mathbf{x}, \omega)$$";
+                end
+
+                xlabel("$\mathbf{x}$ (greyordinates)", Interpreter="latex")
+                ylabel("$\omega$ (rad/s)", Interpreter="latex")
+                if isemptytext(opts.title)
+                    title(atitle, Interpreter="latex")
+                else
+                    title(opts.title, Interpreter="latex")
+                end
+
+                fontsize(scale=3)
+            else
+
+                % Calculate time values
+                Nt = size(img, 1);
+                T = Nt * this.tr; % total time in seconds
+                % time_values = linspace(0, T, Nt);
+
+                n_ticks = 11; % Choose how many tick marks you want
+                tick_indices = linspace(1, Nt, n_ticks);
+                tick_times = linspace(0, T, n_ticks);
+
+                % indices -> times (s)
+                ax = gca;
+                ax.YTick = tick_indices;
+                ax.YTickLabel = arrayfun(@(x) sprintf('%.0f', x), tick_times, 'UniformOutput', false);
+
+                % Add labels
+                switch func2str(repr)
+                    case 'real'
+                        atitle = "$$\Re \, \zeta(\mathbf{x}, t)$$";
+                    case 'imag'
+                        atitle = "$$\Im \, \zeta(\mathbf{x}, t)$$";
+                    case 'abs'
+                        atitle = "$$\left| \zeta(\mathbf{x}, t) \right|$$";
+                    otherwise
+                        atitle = "$$\zeta(\mathbf{x}, t)$$";
+                end
+
+                xlabel("$\mathbf{x}$ (greyordinates)", Interpreter="latex")
+                ylabel("time (s)", Interpreter="latex")
+                if isemptytext(opts.title)
+                    title(atitle, Interpreter="latex")
+                else
+                    title(opts.title, Interpreter="latex")
+                end
+
+                fontsize(scale=3)
+            end
+
+            % save figure
+            if ~isemptytext(opts.fig_fileprefix)
+                saveFigure2(h, opts.fig_fileprefix, ext={'.png'}, closeFigure=opts.closeFigure);
+            end
+        end
+
+        function h1 = rugplot_single_fft_zeta(this, opts)
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                opts.fig_fileprefix {mustBeTextScalar} = ""
+                opts.closeFigure logical = true
+                opts.mat_fqfn {mustBeFile} = this.mat_fqfn
+                opts.complex_representation function_handle = @real
+            end
+            if isemptytext(opts.fig_fileprefix)
+                [pth, fp] = fileparts(opts.mat_fqfn);
+                opts.fig_fileprefix = fullfile(pth, "fftzeta_as_" + fp);
+            end
+
+            ld = load(opts.mat_fqfn);
+            psi = ld.this_subset.bold_signal;
+            phi = ld.this_subset.physio_signal;
+            zeta_t = this.zeta(psi, phi);
+            zeta_nu = fft(zeta_t);
+
+            h1 = this.rugplot(zeta_nu, ...
+                is_spectral=true, fig_fileprefix=opts.fig_fileprefix, closeFigure=opts.closeFigure, ...                
+                complex_representation=opts.complex_representation);
+        end
+
+        function [h1,h2] = rugplot_single_zeta(this, opts)
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                opts.fig_fileprefix {mustBeTextScalar} = ""
+                opts.closeFigure logical = true
+                opts.mat_fqfn {mustBeFile} = this.mat_fqfn
+                opts.complex_representation function_handle = @real
+            end
+            if isemptytext(opts.fig_fileprefix)
+                [pth, fp] = fileparts(opts.mat_fqfn);
+                opts.fig_fileprefix = fullfile(pth, "zeta_as_" + fp);
+            end
+
+            ld = load(opts.mat_fqfn);
+            psi = ld.this_subset.bold_signal;
+            phi = ld.this_subset.physio_signal;
+            zeta_t = this.zeta(psi, phi);
+            % zeta_t_avggo = mean(zeta_t, 2);
+
+            h1 = this.rugplot(zeta_t, ...
+                is_spectral=false, fig_fileprefix=opts.fig_fileprefix, closeFigure=opts.closeFigure, ...                
+                complex_representation=opts.complex_representation);
+            h2 = [];
+            % h2 = figure;
+            % plot(real(zeta_t_avggo)); title("$\langle \zeta(t) \rangle_{go}$", Interpreter="latex");
+            % fontsize(scale=1.618)
+            % if opts.closeFigure
+            %     close(h2)
+            % end
+        end
+
 
         function this = AnalyticSignalHCPPar(varargin)
             this = this@mlraut.AnalyticSignalHCP(varargin{:});
@@ -1554,6 +1774,166 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             for b = 1:Nbins_
                 Nsamples = sum(opts.selected(:, b), 1);
                 psi_t(opts.selected(:, b), :) = repmat(psi_nu(b,:), [Nsamples, 1]);
+            end
+        end
+
+        function h = rugplot_fft_zeta(this, opts)
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                opts.fig_fileprefix {mustBeTextScalar} = ""
+                opts.closeFigure logical = true
+                opts.mat_fqfn {mustBeFile} = this.mat_fqfn
+            end
+            if isemptytext(opts.fig_fileprefix)
+                [pth, fp] = fileparts(opts.mat_fqfn);
+                opts.fig_fileprefix = fullfile(pth, fp);
+            end
+
+            ld = load(opts.mat_fqfn);
+            zeta_nu = ld.zeta_nu_; % average, N=2,4, of zeta_nu
+
+            nd = mlraut.NetworkData(this, zeta_nu);
+            img = nd.reshape_by_anatomy(zeta_nu);
+            img = fftshift(img, 1);
+
+            % fig position
+            fig_width = 2056;
+            fig_height = 1329;
+            h = figure('Position', [1, 1, fig_width, fig_height]);
+            movegui(h, 'northwest');  % Moves to upper left
+
+            imagesc(real(img));
+            colorbar;
+            clim([-500, 500])
+
+            hold on
+
+            % lines
+            xline(8788, 'k-', 'LineWidth', 1);  % VIS ctx
+            xline(20748, 'k-', 'LineWidth', 1);  % SMS
+            xline(27510, 'k-', 'LineWidth', 1);  % DAN
+            xline(34683, 'k-', 'LineWidth', 1);  % VAN
+            xline(39219, 'k-', 'LineWidth', 1);  % LIM
+            xline(46530, 'k-', 'LineWidth', 1);  % FPN
+            xline(58666, 'k-', 'LineWidth', 1);  % DMN            
+            xline(76498, 'k-', 'LineWidth', 1);  % cbm
+            xline(79855, 'k-', 'LineWidth', 1);  % str
+            % xline(82053, 'k-', 'LineWidth', 1);  % thal
+
+            % annotation
+            text(8788-1200, 1150, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(20748-1200, 1150, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(27510-1200, 1150, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(34683-1200, 1150, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(39219-1200, 1150, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(46530-1200, 1150, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(58666-1200, 1150, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(76498-1200, 1150, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(79855-1200, 1150, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(82053-1200, 1150, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+
+            hold off
+
+            % Calculate time values
+            Nomega = size(img, 1);
+            Omega = (-Nomega/2:Nomega/2-1) * 2 * pi * this.Fs / Nomega; % total freq. range in radian/s
+            % time_values = linspace(0, T, Nt);
+
+            n_ticks = 11; % Choose how many tick marks you want
+            tick_indices = linspace(1, Nomega, n_ticks);
+            tick_omega = linspace(Omega(1), Omega(end), n_ticks);
+
+            % indices -> times (s) 
+            ax = gca;
+            ax.YTick = tick_indices;
+            % set(ax, ...
+            %     'YTickLabel', arrayfun(@(x) sprintf("%.1f", x), tick_omega/pi, 'UniformOutput', false) + "\pi", ...
+            %     'TickLabelInterpreter', 'latex');
+             ax.YTickLabel = arrayfun(@(x) sprintf('%.1f', x), tick_omega, 'UniformOutput', false);
+
+            % Add labels
+            xlabel("$\mathbf{x}$ (greyordinates)", Interpreter="latex")
+            ylabel("$\omega$ (rad/s)", Interpreter="latex")
+            title("$$\Re \, \zeta(\mathbf{x}, \omega)$$", Interpreter="latex")
+
+            fontsize(scale=3)
+
+            % save figure
+            saveFigure2(h, opts.fig_fileprefix, ext={'.fig', '.png'}, closeFigure=true);
+        end
+
+        function h = rugplot_neg_dbold_dt(this, bold_signal, opts)
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                bold_signal {mustBeNumeric}
+                opts.fig_fileprefix {mustBeTextScalar} = ""
+            end
+
+            nd = mlraut.NetworkData(this, bold_signal);
+            img = nd.reshape_by_anatomy(this.neg_dbold_dt(bold_signal));
+
+            % fig position
+            fig_width = 2056;
+            fig_height = 1329;
+            h = figure('Position', [1, 1, fig_width, fig_height]);
+            movegui(h, 'northwest');  % Moves to upper left
+
+            imagesc(real(img ));
+            colorbar;
+            clim([-5, 5])
+
+            hold on
+
+            % lines
+            xline(8788, 'k-', 'LineWidth', 1);  % VIS ctx
+            xline(20748, 'k-', 'LineWidth', 1);  % SMS
+            xline(27510, 'k-', 'LineWidth', 1);  % DAN
+            xline(34683, 'k-', 'LineWidth', 1);  % VAN
+            xline(39219, 'k-', 'LineWidth', 1);  % LIM
+            xline(46530, 'k-', 'LineWidth', 1);  % FPN
+            xline(58666, 'k-', 'LineWidth', 1);  % DMN            
+            xline(76498, 'k-', 'LineWidth', 1);  % cbm
+            xline(79855, 'k-', 'LineWidth', 1);  % str
+            % xline(82053, 'k-', 'LineWidth', 1);  % thal
+
+            % annotation
+            text(8788-1200, 1150, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(20748-1200, 1150, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(27510-1200, 1150, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(34683-1200, 1150, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(39219-1200, 1150, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(46530-1200, 1150, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(58666-1200, 1150, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(76498-1200, 1150, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(79855-1200, 1150, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(82053-1200, 1150, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+
+            hold off
+
+            % Calculate time values
+            Nt = size(img, 1);
+            T = Nt * this.tr; % total time in seconds
+            % time_values = linspace(0, T, Nt);
+
+            n_ticks = 11; % Choose how many tick marks you want
+            tick_indices = linspace(1, Nt, n_ticks);
+            tick_times = linspace(0, T, n_ticks);
+
+            % indices -> times (s) 
+            ax = gca;
+            ax.YTick = tick_indices;
+            ax.YTickLabel = arrayfun(@(x) sprintf('%.0f', x), tick_times, 'UniformOutput', false);
+
+            % Add labels
+            xlabel("$\mathbf{x}$ (greyordinates)", Interpreter="latex")
+            ylabel("time (s)")
+            title("$$-\frac{d}{dt}BOLD(\mathbf{x}, t)$$", Interpreter="latex")
+
+            fontsize(scale=3)
+
+            % save figure
+            if ~isemptytext(opts.fig_fileprefix)
+                saveFigure2(h, opts.fig_fileprefix, ext={'.fig', '.png'}, closeFigure=true);
             end
         end
     end
