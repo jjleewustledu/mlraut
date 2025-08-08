@@ -6,8 +6,9 @@ classdef Cifti < handle & mlsystem.IHandle
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
 
-    properties
-        Nbins = 40
+    properties (Constant)
+        Nbins = 80  % 40
+        theta_berry = 4*pi  % 2*pi
     end
 
     properties (Dependent)
@@ -57,7 +58,7 @@ classdef Cifti < handle & mlsystem.IHandle
             cii = cifti_read(fn);
         end
 
-        function binned = bin_by_physio_angle(this, psi, phi, opts)
+        function binned = bin_by_physio_angle_0(this, psi, phi, opts)
             %% Average psi(t) into bins of angles alpha <- angle(phi), whereby {alpha_i, i \in \mathbb{N}} 
             %  span [-pi, pi].  This allows generation of figures such as Ryans' Science Adv. (2021) Fig. 4.
             %
@@ -106,6 +107,49 @@ classdef Cifti < handle & mlsystem.IHandle
                 binned = bins3;
             end
         end
+
+        function binned = bin_by_physio_angle(this, psi, phi, opts)
+            %% Average psi(t) into bins of angles alpha <- angle(phi), whereby {alpha_i, i \in \mathbb{N}} 
+            %  span [-2 pi, 2 pi], allowing assessment of Berry's phase.  This allows generation of figures 
+            %  similar to Ryans' Science Adv. (2021) Fig. 4.
+            %
+            %  Args:
+            %      this mlraut.Cifti
+            %      psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
+            %      phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
+            %      opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
+            %      opts.Nbins {mustBeScalarOrEmpty} = 40
+            %  Returns:
+            %      binned numeric ~ Nbins x Ngo; analytic
+
+            arguments
+                this mlraut.Cifti
+                psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
+                phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
+                opts.smoothing {mustBeInteger} = []  % unused, but option is in the API
+                opts.Nbins {mustBeScalarOrEmpty} = this.Nbins
+            end
+            phi = phi(1:size(psi, 1), :);
+            Nbins_ = opts.Nbins;
+            binlim = asrow(linspace(-this.theta_berry/2, this.theta_berry/2, Nbins_ + 1));
+
+            % init
+            binned = zeros(Nbins_, size(psi, 2));
+
+            % wrapped physio is not unwrapped
+            if size(phi, 2) > 1
+                phi = mean(phi, 2);
+            end
+            theta = unwrap(angle(phi));
+            Nberry = this.theta_berry/(2*pi);
+            wrapped_theta = Nberry*angle(exp(1i*theta/Nberry));  % in [-2 pi, 2 pi] for this.theta_berry = 4 pi
+
+            % average bold by phase bins
+            for b = 2:Nbins_+1
+                selected = binlim(b-1) < wrapped_theta & wrapped_theta < binlim(b);
+                binned(b-1,:) = mean(psi(selected, :), 1, "omitnan");
+            end
+        end
         
         function fqfn = average_times(~, fqfn0)
             cii = cifti_read(fqfn0);
@@ -124,6 +168,7 @@ classdef Cifti < handle & mlsystem.IHandle
                 opts.dt {mustBeScalarOrEmpty} = []
                 opts.units_t {mustBeTextScalar} = "SECOND"
             end
+            fn = convertStringsToChars(fn);
             if isempty(opts.dt)
                 opts.dt = this.ihcp_.tr;
             end

@@ -331,12 +331,12 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.out_dir = this.out_dir;
             this_subset.root_dir = this.root_dir;
             try
-            this_subset.stats_fqfn = this.stats_fqfn;
-            this_subset.task_dir = this.task_dir;
-            this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
-            this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
-            this_subset.task_ref_niigz_fqfn = this.task_ref_niigz_fqfn;
-            this_subset.task_ref_dscalar_fqfn = this.task_ref_dscalar_fqfn;
+                this_subset.stats_fqfn = this.stats_fqfn;
+                this_subset.task_dir = this.task_dir;
+                this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
+                this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
+                this_subset.task_ref_niigz_fqfn = this.task_ref_niigz_fqfn;
+                this_subset.task_ref_dscalar_fqfn = this.task_ref_dscalar_fqfn;
             catch ME
                 if ~contains(this.current_task, "-all")
                     handexcept(ME)
@@ -396,7 +396,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 opts.atag {mustBeTextScalar} = "_binangle"
                 opts.parts logical = [];
                 opts.dyn logical = false;
-                opts.dt {mustBeScalarOrEmpty} = 2*pi/this.cifti_.Nbins
+                opts.dt {mustBeScalarOrEmpty} = this.cifti_.theta_berry/this.cifti_.Nbins
                 opts.units_t {mustBeTextScalar} = "RADIAN"
             end
 

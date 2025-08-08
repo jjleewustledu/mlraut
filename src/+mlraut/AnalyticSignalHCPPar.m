@@ -130,7 +130,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             plvs_ = plvs_/nmats_corr;
 
 
-            dt = 2*pi/this.cifti_.Nbins;
+            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
             units_t = "RADIAN";
             ntag = sprintf('n%g', nmats_corr);
             this.cifti.write_cifti( ...
@@ -539,18 +539,18 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
         end
     
         function gather_means_dtseries(out_dir, opts)
-            %% generates only dtseries for phase variations
+            %% generates only dtseries, for viewing phase variations
 
             arguments
                 out_dir {mustBeFolder} = pwd
-                opts.measures {mustBeText} = [ ...
-                    "bold", "neg-dbold-dt", "plvs", "X", "reY", "imY", "Z", "T"]
+                opts.measures {mustBeText} = ["bold", "neg-dbold-dt"]
                 opts.physio {mustBeText} = "iFV"
-                opts.gsr logical = true
+                opts.gsr logical = false
                 opts.ddt logical = true
                 opts.tag {mustBeTextScalar} = "ASHCPPar*par*"
                 opts.new_tag {mustBeTextScalar} = "meanfield"
                 opts.Nphase_out {mustBeScalarOrEmpty} = 8
+                opts.theta_berry {mustBeScalarOrEmpty} = mlraut.Cifti.theta_berry
                 opts.Fs {mustBeScalarOrEmpty} = 1/0.72
             end
             if ~isemptytext(opts.new_tag) && ~startsWith(opts.new_tag, "-") && ~startsWith(opts.new_tag, "_")
@@ -572,6 +572,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     n = 0;
                     weights = [];
                     for g = globbed
+                        try
                         g_last = g;
                         cii = cifti_read(g);
                         if any(~isfinite(cii.cdata))
@@ -584,6 +585,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         assert(subn == sesn)
                         n = n + subn;
                         weights = [weights, subn];
+                        catch
+                            continue
+                        end
                     end
                     if isempty(mats)
                         continue
@@ -598,6 +602,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     Nnu = size(mat_avg, 1);
 
                     % filename
+                    re = regexp(g_last, "\S_sub-n(?<subn>\d+)_ses-n(?<sesn>\d+)_\S", "names");  % last cii may be defective & re is from `last - 1`
                     fqfn = strrep(g_last, re.subn, string(n));
                     fqfn = regexprep(fqfn, "_par\d+", "");  % remove par tag
                     fqfn = regexprep(fqfn, '-\d{14}(?=\W|$)', '');  % remove datetime tag
@@ -608,12 +613,14 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         fqfn = fullfile(pth, fp + x);
                     end
 
-                    % down-sample phase-ordered measure ~ 40 x Ngo -> 8 x Ngo
-                    if Nnu > 1 && ~isempty(opts.Nphase_out) && mod(Nnu, opts.Nphase_out) == 0
+                    if ~isempty(opts.Nphase_out) && opts.Nphase_out < Nnu
+                        % down-sample phase-ordered measure ~ 80 x Ngo -> 8 x Ngo
+                        if Nnu > 1 && mod(Nnu, opts.Nphase_out) == 0
                         Navg = Nnu / opts.Nphase_out;
                         mat_avg = squeeze(mean(reshape(mat_avg, Navg, opts.Nphase_out, []), 1));
                         cii.diminfo{2} = cifti_diminfo_make_series( ...
-                            opts.Nphase_out, 0, 2*pi/opts.Nphase_out, 'RADIAN');
+                                opts.Nphase_out, 0, opts.theta_berry/opts.Nphase_out, 'RADIAN');
+                        end
                     end
 
                     % update diminfo if mat_avg contains mean-field spectra ~ Nnu x Ngo
@@ -638,10 +645,10 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 out_dir {mustBeFolder} = pwd
                 opts.measures {mustBeText} = ["plvs", "X", "reY", "imY", "Z", "T", "comparator"]
                 opts.physio {mustBeText} = "iFV"
-                opts.gsr logical = true
+                opts.gsr logical = false
                 opts.ddt logical = true
                 opts.tag {mustBeTextScalar} = "ASHCPPar*par*"
-                opts.new_tag {mustBeTextScalar} = ""
+                opts.new_tag {mustBeTextScalar} = "meanfield"
             end
 
             for measure = opts.measures
@@ -659,6 +666,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     n = 0;
                     weights = [];
                     for g = globbed
+                        try
                         g_last = g;
                         cii = cifti_read(g);
                         if any(~isfinite(cii.cdata))
@@ -671,6 +679,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         assert(subn == sesn)
                         n = n + subn;
                         weights = [weights, subn];
+                        catch
+                            continue
+                        end
                     end
                     if isempty(mats)
                         continue
@@ -685,11 +696,13 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
                     % filename
                     fqfn = strrep(g_last, re.subn, string(n));
-                    fqfn = regexprep(fqfn, "_par\d+", "");
+                    fqfn = regexprep(fqfn, "_par\d+", "");  % remove par tag
+                    fqfn = regexprep(fqfn, '-\d{14}(?=\W|$)', '');  % remove datetime tag
                     if ~isemptytext(opts.new_tag)
                         fqfn = string(fqfn);
                         [pth,fp,x] = myfileparts(fqfn);
-                        fqfn = fullfile(pth, fp + opts.new_tag + x);
+                        fp = strrep(fp, "-ASCPPar", opts.new_tag + "-ASCPPar");
+                        fqfn = fullfile(pth, fp + x);
                     end
 
                     % take mean of all samples
@@ -1110,11 +1123,15 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             neg_dbold_dt_ = neg_dbold_dt_/nmats_corr;
             plvs_ = plvs_/nmats_corr;
 
-            dt = 2*pi/this.cifti_.Nbins;
+            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
             units_t = "RADIAN";
             ntag = sprintf('n%g', nmats_corr);
             if ~isemptytext(opts.new_physio)
+                if ~strcmp(opts.anatomy, "ctx")
+                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
+                else
                 ptags = strrep(this.tags, this.source_physio, opts.new_physio);
+            end
             end
             this.cifti.write_cifti( ...
                 X_, sprintf('X_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
