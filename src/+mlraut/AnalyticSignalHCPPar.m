@@ -214,9 +214,10 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 globbing_mat {mustBeFile} = ...
                     fullfile( ...
                     getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
-                opts.sub_indices double = []  % total ~ 1:1113
+                opts.sub_indices double = 1:2  % total ~ 1:1113
                 opts.globbing_var = "globbed"
-                opts.Ncol {mustBeInteger} = 8
+                opts.Ncol {mustBeInteger} = 2
+                opts.account_name char = 'john_lee'
                 opts.skip_existing logical = true
             end
             ld = load(globbing_mat);
@@ -395,14 +396,15 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 subjects cell = {'996782'}
                 opts.tasks cell = {'rfMRI_REST1_LR', 'rfMRI_REST1_RL', 'rfMRI_REST2_LR', 'rfMRI_REST2_RL'}
                 opts.tags {mustBeTextScalar} = "ASHCPPar"
-                opts.out_dir {mustBeFolder} = "/scratch/jjlee/Singularity/AnalyticSignalHCP"
+                opts.out_dir {mustBeFolder} = fullfile(getenv("HOME"), "Singularity", "AnalyticSignalHCP")
                 opts.skip_existing logical = true
             end
             
             subjects = subjects(~cellfun(@isempty, subjects));  % Remove empty cells
             durations = nan(1, length(subjects));
 
-            parfor sidx = 1:length(subjects)
+            %parfor sidx = 1:length(subjects)
+            for sidx = 1:length(subjects)
 
                 tic;
             
@@ -575,18 +577,18 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     weights = [];
                     for g = globbed
                         try
-                        g_last = g;
-                        cii = cifti_read(g);
-                        if any(~isfinite(cii.cdata))
-                            continue
-                        end
-                        mats = [mats, cii.cdata'];  %#ok<*AGROW> % {Nt x Ngo} x Nmats; Nt x Ngo is preferred for internal repr.
-                        re = regexp(g, "\S_sub-n(?<subn>\d+)_ses-n(?<sesn>\d+)_\S", "names");
-                        subn = str2double(re.subn);
-                        sesn = str2double(re.sesn);
-                        assert(subn == sesn)
-                        n = n + subn;
-                        weights = [weights, subn];
+                            g_last = g;
+                            cii = cifti_read(g);
+                            if any(~isfinite(cii.cdata))
+                                continue
+                            end
+                            mats = [mats, cii.cdata'];  %#ok<*AGROW> % {Nt x Ngo} x Nmats; Nt x Ngo is preferred for internal repr.
+                            re = regexp(g, "\S_sub-n(?<subn>\d+)_ses-n(?<sesn>\d+)_\S", "names");
+                            subn = str2double(re.subn);
+                            sesn = str2double(re.sesn);
+                            assert(subn == sesn)
+                            n = n + subn;
+                            weights = [weights, subn];
                         catch
                             continue
                         end
@@ -618,9 +620,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     if ~isempty(opts.Nphase_out) && opts.Nphase_out < Nnu
                         % down-sample phase-ordered measure ~ 80 x Ngo -> 8 x Ngo
                         if Nnu > 1 && mod(Nnu, opts.Nphase_out) == 0
-                        Navg = Nnu / opts.Nphase_out;
-                        mat_avg = squeeze(mean(reshape(mat_avg, Navg, opts.Nphase_out, []), 1));
-                        cii.diminfo{2} = cifti_diminfo_make_series( ...
+                            Navg = Nnu / opts.Nphase_out;
+                            mat_avg = squeeze(mean(reshape(mat_avg, Navg, opts.Nphase_out, []), 1));
+                            cii.diminfo{2} = cifti_diminfo_make_series( ...
                                 opts.Nphase_out, 0, opts.theta_berry/opts.Nphase_out, 'RADIAN');
                         end
                     end
@@ -669,18 +671,18 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     weights = [];
                     for g = globbed
                         try
-                        g_last = g;
-                        cii = cifti_read(g);
-                        if any(~isfinite(cii.cdata))
-                            continue
-                        end
-                        mats = [mats, cii.cdata'];  %#ok<*AGROW> % {Nt x Ngo} x Nmats; Nt x Ngo is preferred for internal repr.
-                        re = regexp(g, "\S_sub-n(?<subn>\d+)_ses-n(?<sesn>\d+)_\S", "names");
-                        subn = str2double(re.subn);
-                        sesn = str2double(re.sesn);
-                        assert(subn == sesn)
-                        n = n + subn;
-                        weights = [weights, subn];
+                            g_last = g;
+                            cii = cifti_read(g);
+                            if any(~isfinite(cii.cdata))
+                                continue
+                            end
+                            mats = [mats, cii.cdata'];  %#ok<*AGROW> % {Nt x Ngo} x Nmats; Nt x Ngo is preferred for internal repr.
+                            re = regexp(g, "\S_sub-n(?<subn>\d+)_ses-n(?<sesn>\d+)_\S", "names");
+                            subn = str2double(re.subn);
+                            sesn = str2double(re.sesn);
+                            assert(subn == sesn)
+                            n = n + subn;
+                            weights = [weights, subn];
                         catch
                             continue
                         end
@@ -1138,8 +1140,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 if ~strcmp(opts.anatomy, "ctx")
                     ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
                 else
-                ptags = strrep(this.tags, this.source_physio, opts.new_physio);
-            end
+                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
+                end
             end
             this.cifti.write_cifti( ...
                 X_, sprintf('X_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
@@ -1598,16 +1600,17 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % xline(82053, 'Color', color, 'LineWidth', 1);  % thal
 
             % annotation
-            text(8788-1200, 1150, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(20748-1200, 1150, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(27510-1200, 1150, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(34683-1200, 1150, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(39219-1200, 1150, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(46530-1200, 1150, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(58666-1200, 1150, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(76498-1200, 1150, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(79855-1200, 1150, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(82053-1200, 1150, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            apos = 0.95*this.num_frames;
+            text(8788-1200, apos, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(20748-1200, apos, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(27510-1200, apos, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(34683-1200, apos, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(39219-1200, apos, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(46530-1200, apos, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(58666-1200, apos, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(76498-1200, apos, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(79855-1200, apos, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(82053-1200, apos, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
 
             hold off
 
@@ -1851,16 +1854,17 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % xline(82053, 'k-', 'LineWidth', 1);  % thal
 
             % annotation
-            text(8788-1200, 1150, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(20748-1200, 1150, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(27510-1200, 1150, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(34683-1200, 1150, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(39219-1200, 1150, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(46530-1200, 1150, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(58666-1200, 1150, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(76498-1200, 1150, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(79855-1200, 1150, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(82053-1200, 1150, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            apos = 0.95*this.num_frames;
+            text(8788-1200, apos, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(20748-1200, apos, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(27510-1200, apos, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(34683-1200, apos, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(39219-1200, apos, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(46530-1200, apos, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(58666-1200, apos, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(76498-1200, apos, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(79855-1200, apos, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(82053-1200, apos, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
 
             hold off
 
@@ -1927,16 +1931,17 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % xline(82053, 'k-', 'LineWidth', 1);  % thal
 
             % annotation
-            text(8788-1200, 1150, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(20748-1200, 1150, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(27510-1200, 1150, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(34683-1200, 1150, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(39219-1200, 1150, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(46530-1200, 1150, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(58666-1200, 1150, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(76498-1200, 1150, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(79855-1200, 1150, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
-            text(82053-1200, 1150, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            apos = 0.95*this.num_frames;
+            text(8788-1200, apos, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(20748-1200, apos, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(27510-1200, apos, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(34683-1200, apos, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(39219-1200, apos, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(46530-1200, apos, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(58666-1200, apos, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(76498-1200, apos, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(79855-1200, apos, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(82053-1200, apos, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', [.2 .2 .2], 'HorizontalAlignment', 'left', 'Rotation', 90);
 
             hold off
 
