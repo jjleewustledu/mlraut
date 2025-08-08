@@ -93,7 +93,7 @@ classdef AnalyticSignal < handle & mlraut.HCP
             if endsWith(this.task_dir, "-all")
                 N = 1200 - this.num_frames_to_trim;  % heuristic for hp_thresh
             else
-            N = this.num_frames - this.num_frames_to_trim;
+                N = this.num_frames - this.num_frames_to_trim;
             end
             Nyquist = (this.Fs/2)*(1/N); % Nyquist limited Hz
             if this.force_band
@@ -500,6 +500,15 @@ classdef AnalyticSignal < handle & mlraut.HCP
             this.global_signal_ = [this.global_signal_; that.global_signal_];
             this.bold_signal_ = [this.bold_signal_; that.bold_signal_];
             this.physio_signal_ = [this.physio_signal_; that.physio_signal_];
+            this.physio_angle_ = [this.physio_angle_; that.physio_angle_];
+
+            keys = this.physio_supplementary.keys;
+            for kcell = keys
+                k = kcell{1};
+                this.physio_supplementary_(k) = [this.physio_supplementary_(k); that.physio_supplementary(k)];
+            end
+
+            this.num_frames_ = this.num_frames + that.num_frames;
         end
 
         function this = malloc(this)
