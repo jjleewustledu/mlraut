@@ -67,7 +67,7 @@ classdef HCPYoungAdult7TData < handle & mlraut.CohortData
                 assert(isfolder(g));
                 return
             end
-            if contains(hostname, "cluster")
+            if isInParallelWorker()
                 g = "/ceph/hcpdb/packages/unzip/HCP_1200";
                 assert(isfolder(g));
                 return

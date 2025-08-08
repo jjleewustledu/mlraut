@@ -62,7 +62,7 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         end
         function g = get.root_dir(~)
             if contains(computer, "MAC")
-                g = "/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200";
+                g = "/Users/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200";
                 assert(isfolder(g));
                 return
             end
@@ -71,7 +71,7 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 assert(isfolder(g));
                 return
             end
-            if contains(hostname, "cluster")
+            if isInParallelWorker()
                 g = "/ceph/hcpdb/packages/unzip/HCP_1200";
                 assert(isfolder(g));
                 return

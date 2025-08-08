@@ -55,7 +55,7 @@ classdef Physio < handle
                 g = {'995174'};
                 return
             end
-            if contains(hostname, 'cluster')
+            if isInParallelWorker()
                 g = {'995174'};
                 return
             end

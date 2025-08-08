@@ -67,7 +67,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             this.out_dir = out_dir;  % for group averages
 
             % init
-            mats = asrow(glob(fullfile(out_dir, '*/sub-*_ses-*ASHCPPar*.mat')));
+            src_dir = fullfile(getenv("HOME"), "shared_shimony", "AnalyticSignalHCP");
+            mats = asrow(glob(fullfile(src_dir, '*/sub-*_ses-*ASHCPPar*.mat')));
             if nmats(2) > length(mats)
                 nmats(2) = length(mats);
             end
@@ -241,7 +242,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
             warning('off', 'MATLAB:TooManyInputs');
 
-            c = mlraut.CHPC3.propcluster('john_lee', mempercpu='48gb', walltime='3:00:00');
+            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='64gb', walltime='3:00:00');
             disp(c.AdditionalProperties)
             for irow = 1:Nrow
                 try
