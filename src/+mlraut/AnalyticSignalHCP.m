@@ -330,12 +330,18 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this_subset.num_nodes = this.num_nodes;
             this_subset.out_dir = this.out_dir;
             this_subset.root_dir = this.root_dir;
+            try
             this_subset.stats_fqfn = this.stats_fqfn;
             this_subset.task_dir = this.task_dir;
             this_subset.task_dtseries_fqfn = this.task_dtseries_fqfn;
             this_subset.task_niigz_fqfn = this.task_niigz_fqfn;
             this_subset.task_ref_niigz_fqfn = this.task_ref_niigz_fqfn;
             this_subset.task_ref_dscalar_fqfn = this.task_ref_dscalar_fqfn;
+            catch ME
+                if ~contains(this.current_task, "-all")
+                    handexcept(ME)
+                end
+            end
             this_subset.thickness_dscalar_fqfn = this.thickness_dscalar_fqfn;
             this_subset.t1w_fqfn = this.t1w_fqfn;
             this_subset.tr = this.tr;

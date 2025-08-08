@@ -137,9 +137,20 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             g = mg(1);
         end
         function g = get.task_ref_dscalar_fqfn(this)
-            mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp2000_clean_vn.dscalar.nii"));
+            task_super_dir_ = fileparts(this.task_dir);
+            task_dir_ = this.task_dir;
+            task_ = this.task;
+
+            if contains(this.task, "-all")
+                % find one of the original tasks
+                task_star_ = strrep(strrep(task_, "-all", "*"), "-", "_");
+                dirs = mglob(fullfile(task_super_dir_, task_star_));   
+                task_ = mybasename(dirs(1));
+                task_dir_ = fullfile(task_super_dir_, task_);
+            end
+            mg = mglob(fullfile(task_dir_, task_ + "_Atlas_hp2000_clean_vn.dscalar.nii"));
             if isemptytext(mg)
-                mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp2000_clean_bias.dscalar.nii"));
+                mg = mglob(fullfile(task_dir_, task_ + "_Atlas_hp2000_clean_bias.dscalar.nii"));
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
@@ -224,6 +235,67 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(end);
+        end
+    end
+
+    methods (Static)        
+        function that = concat_frames_and_save(srcdir, opts)
+            %% assumes run-01, run-02, run-03, run-all may exist
+
+            arguments
+                srcdir {mustBeFolder} = pwd
+                opts.physios {mustBeText} = "iFV"
+                opts.globbing_patt {mustBeTextScalar} = "sub-*_ses-*_proc-%s*.mat"
+                opts.do_save logical = true
+                opts.do_save_ciftis logical = false
+                opts.do_save_dynamic logical = false
+            end
+
+            pwd0 = pushd(srcdir);
+
+            for phys = opts.physios
+                g = mglob(sprintf(opts.globbing_patt, phys));
+                g = g(~contains(g, "-concat"));
+                if isempty(g)
+                    continue
+                end
+
+                % single file -> rename to run-all
+                if isscalar(g)
+                    copyfile(g, regexprep(g, 'rfMRI-REST\d-[LR]{2}', 'rfMRI-REST-all'));  % 'run-\d+', 'run-all'
+                    continue
+                end
+
+                % multiple files -> invoke AnalyticSignalHCP.concat_frames()
+                that = mlraut.AnalyticSignalHCP.load(g(1)); % class="mlraut.AnalyticSignalHCP"
+                template_cifti_ = that.template_cifti;
+                for gidx = 2:length(g)  % concat subsequent runs into that
+                    that_ = mlraut.AnalyticSignalHCP.load(g(gidx)); % class="mlraut.AnalyticSignalHCP"
+                    that.concat_frames(that_);
+                end
+
+                % that expects tasks to be cell; current_task is embedded in filenames
+                if isscalar(that.tasks)
+                    that.tasks = ensureCell(regexprep(that.tasks, 'rfMRI_REST\d_[LR]{2}', 'rfMRI-REST-all'));
+                else
+                    that.tasks = ensureCell(regexprep(that.tasks{1}, 'rfMRI_REST\d_[LR]{2}', 'rfMRI-REST-all'));
+                end
+                that.current_task = that.tasks{1};
+                
+                % template_cifti formats saving ciftis
+                that.template_cifti = template_cifti_;
+
+                % save as requested
+                that.out_dir = srcdir;
+                that.do_save = opts.do_save;
+                that.do_save_ciftis = opts.do_save_ciftis;
+                that.do_save_dynamic = opts.do_save_dynamic;
+                if any([opts.do_save, opts.do_save_ciftis, opts.do_save_dynamic])
+                    that.meta_save();
+                end
+            end
+
+            popd(pwd0)
         end
     end
 

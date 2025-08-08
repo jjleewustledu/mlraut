@@ -165,7 +165,9 @@ classdef Lee2024 < handle
             arguments
                 this mlraut.Lee2024  %#ok<INUSA>
                 srcdir {mustBeFolder} = pwd
-                opts.physios {mustBeText} = ["CE_on_T1w", "iFV-brightest"]
+                opts.physios {mustBeText} = "iFV"
+                opts.globbing_patt {mustBeTextScalar} = "sub-*-run-0*%s*.mat"
+                opts.concat_patt {mustBeTextScalar} = ""
                 opts.do_save logical = true
                 opts.do_save_ciftis logical = false
                 opts.do_save_dynamic logical = false
@@ -174,7 +176,7 @@ classdef Lee2024 < handle
             pwd0 = pushd(srcdir);
 
             for phys = opts.physios
-                g = mglob(sprintf("sub-*-run-0*%s*.mat", phys));
+                g = mglob(sprintf(opts.globbing_patt, phys));
                 g = g(~contains(g, "-concat"));
                 if isempty(g)
                     continue
@@ -182,7 +184,7 @@ classdef Lee2024 < handle
 
                 % single file -> rename to run-all
                 if isscalar(g)
-                    copyfile(g, regexprep(g, 'run-\d+', 'run-all'));
+                    copyfile(g, regexprep(g, 'run-\d+', 'run-all'));  % 'run-\d+', 'run-all'
                     continue
                 end
 
@@ -191,10 +193,10 @@ classdef Lee2024 < handle
                 that = ld1.this;
                 template_cifti_ = that.template_cifti;
                 if isscalar(that.tasks)
-                    that.tasks = ensureCell(regexprep(that.tasks, 'run-\d+', 'run-all'));
+                    that.tasks = ensureCell(regexprep(that.tasks, 'run-\d+', 'run-all')); % 'run-\d+', 'run-all'
                     that.current_task = that.tasks{1};
                 else
-                    that.tasks = ensureCell(regexprep(that.tasks{1}, 'run-\d+', 'run-all'));
+                    that.tasks = ensureCell(regexprep(that.tasks{1}, 'run-\d+', 'run-all')); % 'run-\d+', 'run-all'
                     that.current_task = that.tasks{1};
                 end
                 for gidx = 2:length(g)  % concat subsequent runs into that

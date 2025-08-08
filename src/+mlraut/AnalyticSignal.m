@@ -90,7 +90,11 @@ classdef AnalyticSignal < handle & mlraut.HCP
         end
 
         function g = get.hp_thresh(this)
+            if endsWith(this.task_dir, "-all")
+                N = 1200 - this.num_frames_to_trim;  % heuristic for hp_thresh
+            else
             N = this.num_frames - this.num_frames_to_trim;
+            end
             Nyquist = (this.Fs/2)*(1/N); % Nyquist limited Hz
             if this.force_band
                 g = Nyquist;

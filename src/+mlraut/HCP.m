@@ -160,8 +160,14 @@ classdef HCP < handle & mlsystem.IHandle
             g = 1/this.tr;
         end
         function g = get.num_frames(this)
+            if ~isempty(this.num_frames_)
+                g = this.num_frames_;
+                return
+            end
+
             trimmed = this.num_frames_ori - this.num_frames_to_trim;
-            g = min(trimmed, this.max_frames);
+            this.num_frames_ = min(trimmed, this.max_frames);
+            g = this.num_frames_;            
         end
         function g = get.num_frames_ori(this)
             g = this.bold_data_.num_frames_ori;
@@ -457,6 +463,7 @@ classdef HCP < handle & mlsystem.IHandle
         bold_data_
         cifti_
         cohort_data_
+        num_frames_
         subjects_
         tasks_
         task_dtseries_
