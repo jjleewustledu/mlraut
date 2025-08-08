@@ -273,6 +273,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.globbing_var = "globbed"
                 opts.sub_range = []  % total ~ 1:1113
                 opts.new_physio {mustBeText} = "iFV"
+                opts.anatomy {mustBeTextScalar} = "ctx"
                 opts.transform_tag {mustBeText} = ""
                 opts.test_range = []  % 1:2
                 opts.Ncol {mustBeInteger} = 32
@@ -301,7 +302,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
             warning('off', 'MATLAB:TooManyInputs');
 
-            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='40gb', walltime='24:00:00');
+            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='40gb', walltime='12:00:00');
             disp(c.AdditionalProperties)
 
             for col_idx = 1:opts.Ncol
@@ -311,7 +312,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         1, ...
                         {globbed(:, col_idx), ...
                             'col_idx', col_idx, 'new_physio', opts.new_physio, 'test_range', opts.test_range, ...
-                            'transform_tag', opts.transform_tag}, ...
+                            'transform_tag', opts.transform_tag, 'anatomy', opts.anatomy}, ...
                         'CurrentFolder', '/scratch/jjlee/Singularity/AnalyticSignalHCP', ...
                         'AutoAddClientPath', false);
                 catch ME
@@ -447,8 +448,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.tasks cell = {'rfMRI_REST1_LR', 'rfMRI_REST1_RL', 'rfMRI_REST2_LR', 'rfMRI_REST2_RL'}
                 opts.tags {mustBeTextScalar} = "ASHCPPar-construct-means"
                 opts.out_dir {mustBeFolder} = "/scratch/jjlee/Singularity/AnalyticSignalHCP"
-                opts.col_idx {mustBeInteger}
+                opts.col_idx {mustBeScalarOrEmpty} = nan
                 opts.new_physio {mustBeText} = "iFV"
+                opts.anatomy {mustBeTextScalar} = "ctx"
                 opts.test_range = []
                 opts.transform_tag {mustBeText} = ""
             end
@@ -470,7 +472,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             as.out_dir = opts.out_dir;
             as.mean_twistor_instance( ...
                 subjects, col_idx=opts.col_idx, new_physio=opts.new_physio, test_range=opts.test_range, ...
-                transform_tag=opts.transform_tag);
+                transform_tag=opts.transform_tag, anatomy=opts.anatomy);
 
             durations = toc;
         end
@@ -1004,10 +1006,11 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             arguments
                 this mlraut.AnalyticSignalHCPPar
                 subs {mustBeText}
-                opts.col_idx {mustBeInteger}
+                opts.col_idx {mustBeScalarOrEmpty} = nan
                 opts.new_physio {mustBeText} = "iFV"
                 opts.test_range = []
                 opts.transform_tag {mustBeText} = ""
+                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
             end
             if ~isemptytext(opts.transform_tag)
                 cell_opts = namedargs2cell(opts);
@@ -1050,6 +1053,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 end
                 mats = asrow(mglob( ...
                     fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
+                if any(contains(mats, "-all"))
+                    mats = mats(~contains(mats, "-all"));  % don't double count
+                end
                 if isemptytext(mats)
                     continue
                 end
@@ -1062,20 +1068,22 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         psi = ld.this_subset.bold_signal;
                         if isemptytext(opts.new_physio)
                             phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
+                            phi = ld.this_subset.physio_signal;
                         elseif strcmpi(opts.new_physio, 'vis')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 1);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
                         elseif strcmpi(opts.new_physio, 'sms')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 2);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
                         elseif strcmpi(opts.new_physio, 'dan')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 3);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
                         elseif strcmpi(opts.new_physio, 'van')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 4);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
                         elseif strcmpi(opts.new_physio, 'lim')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 5);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
                         elseif strcmpi(opts.new_physio, 'fpn')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 6);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
                         elseif strcmpi(opts.new_physio, 'dmn')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 7);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
                         else
                             re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
                             assert(~isempty(re_phi))
@@ -1165,6 +1173,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.new_physio {mustBeText} = "iFV"
                 opts.test_range = []
                 opts.transform_tag {mustBeText} = ""
+                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
             end
             subs = convertCharsToStrings(subs);
 
@@ -1226,20 +1235,22 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         psi = ld.this_subset.bold_signal;
                         if isemptytext(opts.new_physio)
                             phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
+                            phi = ld.this_subset.physio_signal;
                         elseif strcmpi(opts.new_physio, 'vis')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 1);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
                         elseif strcmpi(opts.new_physio, 'sms')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 2);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
                         elseif strcmpi(opts.new_physio, 'dan')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 3);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
                         elseif strcmpi(opts.new_physio, 'van')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 4);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
                         elseif strcmpi(opts.new_physio, 'lim')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 5);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
                         elseif strcmpi(opts.new_physio, 'fpn')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 6);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
                         elseif strcmpi(opts.new_physio, 'dmn')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 7);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
                         else
                             re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
                             assert(~isempty(re_phi))
@@ -1321,6 +1332,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.test_range = []
                 opts.transform_tag {mustBeText} = ""
                 opts.rsn {mustBeScalarOrEmpty} = []
+                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
             end
             subs = convertCharsToStrings(subs);
             if isscalar(subs)
@@ -1394,19 +1406,19 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         if isemptytext(opts.new_physio) || strcmp(opts.new_physio, ld.this_subset.source_physio)
                             phi = ld.this_subset.physio_signal;
                         elseif strcmpi(opts.new_physio, 'vis')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 1);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
                         elseif strcmpi(opts.new_physio, 'sms')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 2);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
                         elseif strcmpi(opts.new_physio, 'dan')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 3);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
                         elseif strcmpi(opts.new_physio, 'van')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 4);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
                         elseif strcmpi(opts.new_physio, 'lim')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 5);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
                         elseif strcmpi(opts.new_physio, 'fpn')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 6);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
                         elseif strcmpi(opts.new_physio, 'dmn')
-                            phi = ld.this_subset.HCP_signals.ctx.psi(:, 7);
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
                         else
                             re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
                             assert(~isempty(re_phi))
