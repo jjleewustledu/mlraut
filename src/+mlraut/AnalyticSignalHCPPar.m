@@ -554,7 +554,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.tag {mustBeTextScalar} = "ASHCPPar*par*"
                 opts.new_tag {mustBeTextScalar} = "meanfield"
                 opts.Nphase_out {mustBeScalarOrEmpty} = 8
-                opts.theta_berry {mustBeScalarOrEmpty} = mlraut.Cifti.theta_berry
+                opts.theta_berry {mustBeScalarOrEmpty} = 2*pi  % mlraut.Cifti.theta_berry
                 opts.Fs {mustBeScalarOrEmpty} = 1/0.72
             end
             if ~isemptytext(opts.new_tag) && ~startsWith(opts.new_tag, "-") && ~startsWith(opts.new_tag, "_")
@@ -602,8 +602,10 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     mats_weighted = cellfun(@(mat, weight) mat * weight, mats, num2cell(weights), 'UniformOutput', false);
 
                     % concatenate arrays along the 3rd dimension, then sum
-                    mat_avg = sum(cat(3, mats_weighted{:}), 3);
+                    mat_avg = sum(cat(3, mats_weighted{:}), 3);  % ~ N_theta x N_go
                     Nnu = size(mat_avg, 1);
+                    assert(Nnu > 1)
+                    assert(mod(Nnu, opts.Nphase_out) < eps)
 
                     % filename
                     re = regexp(g_last, "\S_sub-n(?<subn>\d+)_ses-n(?<sesn>\d+)_\S", "names");  % last cii may be defective & re is from `last - 1`
@@ -618,27 +620,44 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     end
 
                     if ~isempty(opts.Nphase_out) && opts.Nphase_out < Nnu
-                        % down-sample phase-ordered measure ~ 80 x Ngo -> 8 x Ngo
-                        if Nnu > 1 && mod(Nnu, opts.Nphase_out) == 0
-                            Navg = Nnu / opts.Nphase_out;
-                            mat_avg = squeeze(mean(reshape(mat_avg, Navg, opts.Nphase_out, []), 1));
-                            cii.diminfo{2} = cifti_diminfo_make_series( ...
-                                opts.Nphase_out, 0, opts.theta_berry/opts.Nphase_out, 'RADIAN');
-                        end
-                    end
+                        % down-sample phase-ordered measure ~ 80 x N_go -> 8 x N_go
 
-                    % update diminfo if mat_avg contains mean-field spectra ~ Nnu x Ngo
-                    if isempty(opts.Nphase_out) || opts.Nphase_out == Nnu
+                        % manage theta_berry
+                        [mat_avg,Nnu] = reconcile_theta_berry(mat_avg, opts.theta_berry, mlraut.Cifti.theta_berry);
+
+                        Navg = Nnu / opts.Nphase_out;  % num. of frames to average to satisfy opts.Nphase_out
+                        mat_avg = squeeze(mean(reshape(mat_avg, Navg, opts.Nphase_out, []), 1));  % requires Navg \in \mathbb{Z}^+
                         cii.diminfo{2} = cifti_diminfo_make_series( ...
-                            Nnu, 0, opts.Fs/(Nnu - 1), 'HERTZ');
-                    end
+                            opts.Nphase_out, 0, opts.theta_berry/opts.Nphase_out, 'RADIAN');
 
                     % save weighted average
                     cii.cdata = mat_avg';
                     cifti_write(cii, convertStringsToChars(fqfn));
+                    end
                 catch ME
                     handwarning(ME)
                 end
+            end
+
+            function [mat_avg_1,Nnu] = reconcile_theta_berry(mat_avg, theta_berry_1, theta_berry_0)
+                %% e.g., reconciles phase range [-2*pi, 2*pi] => [-pi, pi]
+                %  for theta_berry_1 = 2*pi, theta_berry_0 = 4*pi.
+
+                assert(theta_berry_1 <= theta_berry_0)
+                assert(mod(theta_berry_0, theta_berry_1) == 0)
+                Nberry = round(theta_berry_0 / theta_berry_1);  % 2
+                Ngo = size(mat_avg, 2);  % 91282
+                Ntheta = size(mat_avg, 1);  % 80
+                Ntheta_1 = round(Ntheta / Nberry);  % 40
+
+                mat_avg_1 = zeros(Ntheta_1, Ngo);
+                for b = 1:Nberry
+                    theta_left = (b - 1) * Ntheta_1 + 1;
+                    theta_right = b * Ntheta_1;
+                    mat_avg_1 = mat_avg_1 + mat_avg(theta_left:theta_right, :);
+                end
+                mat_avg_1 = mat_avg_1 / Nberry;                
+                Nnu = size(mat_avg_1, 1);
             end
         end
 
@@ -647,7 +666,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             arguments
                 out_dir {mustBeFolder} = pwd
-                opts.measures {mustBeText} = ["plvs", "X", "reY", "imY", "Z", "T", "comparator"]
+                opts.measures {mustBeText} = ["plvs", "X", "reY", "Z", "T", "comparator"]
                 opts.physio {mustBeText} = "iFV"
                 opts.gsr logical = false
                 opts.ddt logical = true
