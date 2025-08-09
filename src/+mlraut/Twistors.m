@@ -191,7 +191,7 @@ classdef Twistors < handle & mlsystem.IHandle
                 [psi,phi] = this.neg_ddt(psi, phi);
                 psi = this.ihcp_.build_centered_and_rescaled(psi);
             end
-            psi = (psi.*conj(phi) - phi.*conj(psi))/sqrt(2i);
+            psi = -1i*(psi.*conj(phi) - phi.*conj(psi))/sqrt(2);
         end
 
         function psi = Z(this, psi, phi)
@@ -212,6 +212,18 @@ classdef Twistors < handle & mlsystem.IHandle
                 psi = this.ihcp_.build_centered_and_rescaled(psi);
             end
             psi = (psi.*conj(psi) + phi.*conj(phi))/sqrt(2);
+        end
+
+        function x_ = x(this, psi, phi)
+            x_ = this.X(psi, phi) ./ this.T(psi, phi);
+        end
+
+        function y_ = y(this, psi, phi)
+            y_ = this.Y(psi, phi) ./ this.T(psi, phi);
+        end
+
+        function z_ = z(this, psi, phi)
+            z_ = this.Z(psi, phi) ./ this.T(psi, phi);
         end
 
         function z = zeta(this, xi, eta)

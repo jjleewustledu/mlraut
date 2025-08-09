@@ -279,6 +279,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.test_range = []  % 1:2
                 opts.Ncol {mustBeInteger} = 32
                 opts.account_name char = 'joshua_shimony'
+                opts.instance {mustBeTextScalar} = "mean_twistor_instance3"
             end
             ld = load(globbing_mat);
             globbed = convertStringsToChars(ld.(opts.globbing_var));
@@ -313,7 +314,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         1, ...
                         {globbed(:, col_idx), ...
                             'col_idx', col_idx, 'new_physio', opts.new_physio, 'test_range', opts.test_range, ...
-                            'transform_tag', opts.transform_tag, 'anatomy', opts.anatomy}, ...
+                            'transform_tag', opts.transform_tag, 'anatomy', opts.anatomy, 'instance', opts.instance}, ...
                         'CurrentFolder', '/scratch/jjlee/Singularity/AnalyticSignalHCP', ...
                         'AutoAddClientPath', false);
                 catch ME
@@ -455,6 +456,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.anatomy {mustBeTextScalar} = "ctx"
                 opts.test_range = []
                 opts.transform_tag {mustBeText} = ""
+                opts.instance {mustBeTextScalar} = "mean_twistor_instance"
             end
 
             tic;
@@ -472,7 +474,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
             as = mlraut.AnalyticSignalHCPPar.load(mat_fqfn(1), class="mlraut.AnalyticSignalHCPPar");
             as.out_dir = opts.out_dir;
-            as.mean_twistor_instance( ...
+            as.(opts.instance)( ...
                 subjects, col_idx=opts.col_idx, new_physio=opts.new_physio, test_range=opts.test_range, ...
                 transform_tag=opts.transform_tag, anatomy=opts.anatomy);
 
@@ -630,9 +632,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         cii.diminfo{2} = cifti_diminfo_make_series( ...
                             opts.Nphase_out, 0, opts.theta_berry/opts.Nphase_out, 'RADIAN');
 
-                    % save weighted average
-                    cii.cdata = mat_avg';
-                    cifti_write(cii, convertStringsToChars(fqfn));
+                        % save weighted average
+                        cii.cdata = mat_avg';
+                        cifti_write(cii, convertStringsToChars(fqfn));
                     end
                 catch ME
                     handwarning(ME)
@@ -1184,6 +1186,309 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
         end
 
+        function this = mean_twistor_instance2(this, subs, opts)
+            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx.
+            %  Write correct reY.
+
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                subs {mustBeText}
+                opts.col_idx {mustBeScalarOrEmpty} = nan
+                opts.new_physio {mustBeText} = "iFV"
+                opts.test_range = []
+                opts.transform_tag {mustBeText} = ""
+                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
+                opts.no_clobber logical = true
+            end
+            if ~isemptytext(opts.transform_tag)
+                cell_opts = namedargs2cell(opts);
+                this = this.mean_transformed_twistor_instance(subs, cell_opts{:});
+                return
+            end
+            subs = convertCharsToStrings(subs);
+
+            % DEBUG
+            disp(subs)
+
+            % define globbing
+            if ~isemptytext(opts.new_physio)
+                if ~strcmp(opts.anatomy, "ctx")
+                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
+                else
+                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
+                end
+            end
+            ptags_patt = regexprep(ptags, "\d{14}", "*");
+            globbing = mglob(fullfile(this.out_dir, ...
+                sprintf('reY_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
+            if opts.no_clobber && ~isempty(globbing)
+                fprintf("%s: found %s, so continuing to next data batch\n", stackstr(), globbing(1));
+                return
+            end
+
+            warning("off", "MATLAB:class:LoadDefinitionUpdated");
+
+            % \emph{this} supplies utilities
+
+            % abbrev.                 
+            transform = @this.bin_by_physio_angle;
+            nbin = this.cifti.Nbins;
+
+            % init
+            ngo = this.num_nodes;
+            reY_ = zeros(nbin, ngo);
+            nmats_corr = 0;
+
+            % find sub*.mat
+            if ~isempty(opts.test_range)
+                subs = subs(opts.test_range, :);
+            end
+            for sub = asrow(subs)
+                if isemptytext(sub)
+                    continue
+                end
+                mats = asrow(mglob( ...
+                    fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
+                if any(contains(mats, "-all"))
+                    mats = mats(~contains(mats, "-all"));  % don't double count
+                end
+                if isemptytext(mats)
+                    continue
+                end
+                errs = 0;
+
+                for mat = mats
+                    tic
+                    try
+                        ld = load(mat);
+                        psi = ld.this_subset.bold_signal;
+                        if isemptytext(opts.new_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, 'vis')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
+                        elseif strcmpi(opts.new_physio, 'sms')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
+                        elseif strcmpi(opts.new_physio, 'dan')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
+                        elseif strcmpi(opts.new_physio, 'van')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
+                        elseif strcmpi(opts.new_physio, 'lim')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
+                        elseif strcmpi(opts.new_physio, 'fpn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
+                        elseif strcmpi(opts.new_physio, 'dmn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
+                        else
+                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
+                            assert(~isempty(re_phi))
+                            assert(all(isfinite(re_phi)))
+                            phi = hilbert(re_phi);
+                        end
+                        Y = transform(this.Y(psi, phi), phi);
+
+                        reY_ = reY_ + real(Y);
+                    catch ME
+                        fprintf("while working with %s: ", mat);
+                        handwarning(ME)
+                        errs = errs + 1;
+                    end
+                    fprintf("time working with %s: ", mat);
+                    toc
+                end
+                % adjust for errs
+                nmats_corr = nmats_corr + numel(mats) - errs;
+            end
+
+            % complete averaging
+            reY_ = reY_/nmats_corr;
+
+            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
+            units_t = "RADIAN";
+            ntag = sprintf('n%g', nmats_corr);
+            this.cifti.write_cifti( ...
+                reY_, sprintf('reY_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+
+            warning("on", "MATLAB:class:LoadDefinitionUpdated");
+        end
+
+        function this = mean_twistor_instance3(this, subs, opts)
+            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx.
+            %  Writes x, z, zeta.
+
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                subs {mustBeText}
+                opts.col_idx {mustBeScalarOrEmpty} = nan
+                opts.new_physio {mustBeText} = "iFV"
+                opts.test_range = []
+                opts.transform_tag {mustBeText} = ""
+                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
+                opts.no_clobber logical = true
+            end
+            if ~isemptytext(opts.transform_tag)
+                cell_opts = namedargs2cell(opts);
+                this = this.mean_transformed_twistor_instance(subs, cell_opts{:});
+                return
+            end
+            subs = convertCharsToStrings(subs);
+
+            % DEBUG
+            disp(subs)
+
+            % define globbing
+            if ~isemptytext(opts.new_physio)
+                if ~strcmp(opts.anatomy, "ctx")
+                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
+                else
+                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
+                end
+            end
+            ptags_patt = regexprep(ptags, "\d{14}", "*");
+            globbing_x = mglob(fullfile(this.out_dir, ...
+                sprintf('x_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
+            globbing_rey = mglob(fullfile(this.out_dir, ...
+                sprintf('rey_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
+            globbing_z = mglob(fullfile(this.out_dir, ...
+                sprintf('z_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
+            globbing_rezeta = mglob(fullfile(this.out_dir, ...
+                sprintf('rezeta_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
+            globbing_imzeta = mglob(fullfile(this.out_dir, ...
+                sprintf('imzeta_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
+            if opts.no_clobber && ...
+                    ~isempty(globbing_x) && ...
+                    ~isempty(globbing_rey) && ...
+                    ~isempty(globbing_z) && ...
+                    ~isempty(globbing_rezeta) && ...
+                    ~isempty(globbing_imzeta)
+                fprintf("%s:\n",  stackstr());
+                fprintf("found %s,\n", globbing_x(1));
+                fprintf("found %s,\n", globbing_rey(1));
+                fprintf("found %s,\n", globbing_z(1));
+                fprintf("found %s,\n", globbing_rezeta(1));
+                fprintf("found %s,\n", globbing_imzeta(1));
+                fprintf("so continuing to next data batch\n");
+                return
+            end
+
+            warning("off", "MATLAB:class:LoadDefinitionUpdated");
+
+            % \emph{this} supplies utilities
+
+            % abbrev.                 
+            transform = @this.bin_by_physio_angle;
+            nbin = this.cifti.Nbins;
+
+            % init
+            ngo = this.num_nodes;
+            x_ = zeros(nbin, ngo);
+            rey_ = zeros(nbin, ngo);
+            z_ = zeros(nbin, ngo);
+            rezeta_ = zeros(nbin, ngo);
+            imzeta_ = zeros(nbin, ngo);
+            nmats_corr = 0;
+
+            % find sub*.mat
+            if ~isempty(opts.test_range)
+                subs = subs(opts.test_range, :);
+            end
+            for sub = asrow(subs)
+                if isemptytext(sub)
+                    continue
+                end
+                mats = asrow(mglob( ...
+                    fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
+                if any(contains(mats, "-all"))
+                    mats = mats(~contains(mats, "-all"));  % don't double count
+                end
+                if isemptytext(mats)
+                    continue
+                end
+                errs = 0;
+
+                for mat = mats
+                    tic
+                    try
+                        ld = load(mat);
+                        psi = ld.this_subset.bold_signal;
+                        if isemptytext(opts.new_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, 'vis')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
+                        elseif strcmpi(opts.new_physio, 'sms')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
+                        elseif strcmpi(opts.new_physio, 'dan')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
+                        elseif strcmpi(opts.new_physio, 'van')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
+                        elseif strcmpi(opts.new_physio, 'lim')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
+                        elseif strcmpi(opts.new_physio, 'fpn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
+                        elseif strcmpi(opts.new_physio, 'dmn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
+                        else
+                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
+                            assert(~isempty(re_phi))
+                            assert(all(isfinite(re_phi)))
+                            phi = hilbert(re_phi);
+                        end
+                        x = transform(this.x(psi, phi), phi);
+                        y = transform(this.y(psi, phi), phi);
+                        z = transform(this.z(psi, phi), phi);
+                        zeta = transform(this.zeta(psi, phi), phi);
+
+                        x_ = x_ + real(x);
+                        rey_ = rey_ + real(y);
+                        z_ = z_ + real(z);
+                        rezeta_ = rezeta_ + real(zeta);
+                        imzeta_ = imzeta_ + imag(zeta);
+                    catch ME
+                        fprintf("while working with %s: ", mat);
+                        handwarning(ME)
+                        errs = errs + 1;
+                    end
+                    fprintf("time working with %s: ", mat);
+                    toc
+                end
+                % adjust for errs
+                nmats_corr = nmats_corr + numel(mats) - errs;
+            end
+
+            % complete averaging
+            x_ = x_/nmats_corr;
+            rey_ = rey_/nmats_corr;
+            z_ = z_/nmats_corr;
+            rezeta_ = rezeta_/nmats_corr;
+            imzeta_ = imzeta_/nmats_corr;
+
+            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
+            units_t = "RADIAN";
+            ntag = sprintf('n%g', nmats_corr);
+            if ~isemptytext(opts.new_physio)
+                if ~strcmp(opts.anatomy, "ctx")
+                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
+                else
+                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
+                end
+            end
+            this.cifti.write_cifti( ...
+                x_, sprintf('x_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                rey_, sprintf('rey_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                z_, sprintf('z_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                rezeta_, sprintf('rezeta_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imzeta_, sprintf('imzeta_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+
+            warning("on", "MATLAB:class:LoadDefinitionUpdated");
+        end
+        
         function this = mean_transformed_twistor_instance(this, subs, opts)
             %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
 
