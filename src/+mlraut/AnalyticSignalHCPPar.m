@@ -277,7 +277,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.anatomy {mustBeTextScalar} = "ctx"
                 opts.transform_tag {mustBeText} = ""
                 opts.test_range = []  % 1:2
-                opts.Ncol {mustBeInteger} = 32
+                opts.Ncol {mustBeInteger} = 16
                 opts.account_name char = 'joshua_shimony'
                 opts.instance {mustBeTextScalar} = "mean_twistor_instance3"
             end
@@ -304,7 +304,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
             warning('off', 'MATLAB:TooManyInputs');
 
-            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='40gb', walltime='12:00:00');
+            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='40gb', walltime='24:00:00');
             disp(c.AdditionalProperties)
 
             for col_idx = 1:opts.Ncol
