@@ -549,14 +549,14 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             arguments
                 out_dir {mustBeFolder} = pwd
-                opts.measures {mustBeText} = ["bold", "neg-dbold-dt"]
-                opts.physio {mustBeText} = "iFV"
+                opts.measures {mustBeText} = ["reZsup0", "reZsup1", "reZsup2", "imZsup0", "imZsup1", "imZsup2", "rezeta", "imzeta", "T", "X", "Y", "Z", "plvs"]
+                opts.physio {mustBeText} = "RV-std"
                 opts.gsr logical = false
                 opts.ddt logical = true
-                opts.tag {mustBeTextScalar} = "ASHCPPar*par*"
+                opts.tag {mustBeTextScalar} = "ASHCPPar*_par*"
                 opts.new_tag {mustBeTextScalar} = "meanfield"
-                opts.Nphase_out {mustBeScalarOrEmpty} = 8
-                opts.theta_berry {mustBeScalarOrEmpty} = 2*pi  % mlraut.Cifti.theta_berry
+                opts.Nphase_out {mustBeScalarOrEmpty} = 80
+                opts.theta_berry {mustBeScalarOrEmpty} = 4*pi  % mlraut.Cifti.theta_berry
                 opts.Fs {mustBeScalarOrEmpty} = 1/0.72
             end
             if ~isemptytext(opts.new_tag) && ~startsWith(opts.new_tag, "-") && ~startsWith(opts.new_tag, "_")
@@ -581,7 +581,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         try
                             g_last = g;
                             cii = cifti_read(g);
-                            if any(~isfinite(cii.cdata))
+                            if any(~isfinite(cii.cdata), "all")
                                 continue
                             end
                             mats = [mats, cii.cdata'];  %#ok<*AGROW> % {Nt x Ngo} x Nmats; Nt x Ngo is preferred for internal repr.
@@ -1055,14 +1055,21 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             % init
             ngo = this.num_nodes;
+            rezeta_ = zeros(nbin, ngo);
+            imzeta_ = zeros(nbin, ngo);
+            reZ_sup_0_ = zeros(nbin, ngo);
+            reZ_sup_1_ = zeros(nbin, ngo);
+            reZ_sup_2_ = zeros(nbin, ngo);
+            imZ_sup_0_ = zeros(nbin, ngo);
+            imZ_sup_1_ = zeros(nbin, ngo);
+            imZ_sup_2_ = zeros(nbin, ngo);
             X_ = zeros(nbin, ngo);
-            reY_ = zeros(nbin, ngo);
-            imY_ = zeros(nbin, ngo);
+            Y_ = zeros(nbin, ngo);
             Z_ = zeros(nbin, ngo);
             T_ = zeros(nbin, ngo);
             r_ = zeros(1, ngo);
             bold_ = zeros(nbin, ngo);
-            neg_dbold_dt_ = zeros(nbin, ngo);
+            % neg_dbold_dt_ = zeros(nbin, ngo);
             plvs_ = zeros(nbin, ngo);
             nmats_corr = 0;
 

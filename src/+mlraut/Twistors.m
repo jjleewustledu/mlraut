@@ -204,6 +204,93 @@ classdef Twistors < handle & mlsystem.IHandle
             psi = (psi.*conj(psi) - phi.*conj(phi))/sqrt(2);
         end
 
+        function [Z_sup_alpha_,x_sup_AAp] = Z_sup_alpha(this, pi_sub_0p, pi_sub_1p, opts)
+            %% S & ST, Penrose & Rindler, sec. 6.2.
+            %  Args:
+            %      pi_sub_0p {mustBeNumeric} \pi_{0'} ~ psi ~ -dbold/dt
+            %      pi_sub_1p {mustBeNumeric} \pi_{1'} ~ phi ~ physio(t)
+            %      opts.type {mustBeTextScalar} = "midthickness"  % "sphere", "midthickness"
+            %      opts.center_coord {mustBeNumeric} = [90, 73, 116]  % mm, for precuneus
+            %      opts.go_qc logical = false  % greyordinate qc
+            %      opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 1/timescale
+            %      opts.use_E4 logical = true  % Ward & Wells sec. 8.1
+            %      opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7
+            %  Returns:
+            %      Z_sup_alpha_ (4-cell of single|double \mathsf{Z}^{\alpha}) ~ 
+            %                   N_t x N_go for {\mathsf{Z}^0, \mathsf{Z}^1, \mathsf{Z}^2, \mathsf{Z}^3}
+            %      x_sup_AAp (2x2-cell of single|double x^{AA'}
+
+            arguments
+                this mlraut.Twistors
+                pi_sub_0p {mustBeNumeric}
+                pi_sub_1p {mustBeNumeric}
+                opts.type {mustBeTextScalar} = "sphere"  % "sphere", "midthickness"
+                opts.center_coord {mustBeNumeric} = [90, 73, 116]  % mm, for precuneus
+                opts.go_qc logical = false  % greyordinate qc
+                opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 0.1 ~ 1/timescale
+                opts.use_E4 logical = true  % Ward & Wells sec. 8.1
+                opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7
+            end
+
+            % consider using -dbold/dt
+            if this.use_neg_ddt
+                [pi_sub_0p,pi_sub_1p] = this.neg_ddt(pi_sub_0p, pi_sub_1p);
+                pi_sub_0p = this.ihcp_.build_centered_and_rescaled(pi_sub_0p);
+            end
+
+            % init
+            N_t = size(pi_sub_0p, 1);
+            N_go = size(pi_sub_0p, 2);
+            if ~all(size(pi_sub_0p) == size(pi_sub_1p))  % ensure matched sizes for psi & phi
+                assert(all(size(pi_sub_1p) == [N_t, 1]))
+                pi_sub_1p = repmat(pi_sub_1p, [1, N_go]);
+            end
+
+            % Euclidean coords
+            go = this.grayordinate_positions(type=opts.type, qc=opts.go_qc, center_coord=opts.center_coord);  % 3 x N_go (mm)
+            assert(all(size(go) == [3, N_go]))            
+            func = str2func(this.ihcp_.rescaling);  % e.g., iqr
+            try
+                L = func(go, "all");
+            catch ME
+                handwarning(ME)
+                L = func(go, [], "all");  % characteristic length scale of hemisphere (mm)
+            end
+            c = opts.c;
+            x = go(1, :) / L;
+            y = go(2, :) / L;
+            z = go(3, :) / L;
+            t = c * ascol(linspace(0, (N_t - 1)*this.tr, N_t));
+            bulk = zeros(N_t, 1);  % forces shape with N_t rows
+
+            % Use \mathbb{E}^4 according to Ward & Wells, pg. 388
+            if opts.use_E4
+                x_sup_00p = (-1i * t + z) / sqrt(2);
+                x_sup_01p = (x - 1i * y + bulk) / sqrt(2);
+                x_sup_10p = (x + 1i * y + bulk) / sqrt(2);
+                x_sup_11p = (-1i * t - z) / sqrt(2);
+                omega_sup_0 = 1i * ( ...
+                    x_sup_00p .* pi_sub_0p + x_sup_01p .* pi_sub_1p);
+                omega_sup_1 = 1i * ( ...
+                    x_sup_10p .* pi_sub_0p + x_sup_11p .* pi_sub_1p);
+            else
+                % Penrose & Rindler equations 6.1.10, 6.2.7
+                omega_o_sup_0 = 0;  % Twistor angular momentum ~ [\mathring{omega}^0; \mathring{omega}^1]
+                omega_o_sup_1 = opts.s;  % \mathring{\omega}^1 ~ helicity; trying anti-self dual setting
+                x_sup_00p = (t + z) / sqrt(2);
+                x_sup_01p = (bulk + x + 1i * y) / sqrt(2);
+                x_sup_10p = (bulk + x - 1i * y) / sqrt(2);
+                x_sup_11p = (t - z) / sqrt(2);
+                omega_sup_0 = omega_o_sup_0 - 1i * ( ...
+                    x_sup_00p .* pi_sub_0p + x_sup_01p .* pi_sub_1p);
+                omega_sup_1 = omega_o_sup_1 - 1i * ( ...
+                    x_sup_10p .* pi_sub_0p + x_sup_11p .* pi_sub_1p);
+            end
+
+            x_sup_AAp = {x_sup_00p, x_sup_01p; x_sup_10p, x_sup_11p};
+            Z_sup_alpha_ = {omega_sup_0, omega_sup_1, pi_sub_0p, pi_sub_1p};
+        end
+
         function psi = T(this, psi, phi)
             %% of twistor
 

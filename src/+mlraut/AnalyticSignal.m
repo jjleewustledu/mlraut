@@ -597,6 +597,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = this.twistors_.Z(varargin{:});
         end
 
+        function Z_sup_alpha_ = Z_sup_alpha(this, varargin)
+            Z_sup_alpha_ = this.twistors_.Z_sup_alpha(varargin{:});
+        end
+
         function psi = x(this, varargin)
             psi = this.twistors_.x(varargin{:});
         end
