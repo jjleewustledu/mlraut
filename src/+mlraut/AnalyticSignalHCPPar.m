@@ -278,8 +278,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.transform_tag {mustBeText} = ""
                 opts.test_range = []  % 1:2
                 opts.Ncol {mustBeInteger} = 16
-                opts.account_name char = 'joshua_shimony'
-                opts.instance {mustBeTextScalar} = "mean_twistor_instance3"
+                opts.account_name char = 'joshua_shimony' % 'aristeidis_sotiras'
+                opts.instance {mustBeTextScalar} = "mean_twistor_instance"
             end
             ld = load(globbing_mat);
             globbed = convertStringsToChars(ld.(opts.globbing_var));
@@ -296,7 +296,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             globbed = convertStringsToChars(globbed);
             fprintf("%s:globbed:\n", stackstr())
             disp(size(globbed))
-            disp(ascol(globbed))
+            disp(globbed)
 
             % contact cluster slurm
 
@@ -304,7 +304,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
             warning('off', 'MATLAB:TooManyInputs');
 
-            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='40gb', walltime='24:00:00');
+            c = mlraut.CHPC3.propcluster(opts.account_name, mempercpu='48gb', walltime='24:00:00');
             disp(c.AdditionalProperties)
 
             for col_idx = 1:opts.Ncol
@@ -469,8 +469,19 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             idx = 0;
             while isempty(mat_fqfn) && idx < length(subjects)
                 idx = idx + 1;
-                mat_fqfn = mglob(fullfile( ...
-                    opts.out_dir, subjects{idx}, sprintf("sub-%s_ses-*_proc-*ASHCPPar*.mat", subjects{idx})));
+                if endsWith(opts.out_dir, subjects{idx})
+                    out_dir_ = fileparts(opts.out_dir);
+                else
+                    out_dir_ = opts.out_dir;
+                end
+                patt = fullfile( ...
+                    out_dir_, ...
+                    subjects{idx}, ...
+                    sprintf("sub-%s_ses-*_proc-*ASHCPPar*.mat", subjects{idx}));
+                % fprintf("%s: %s\n", stackstr(), patt);
+                mat_fqfn = mglob(patt);
+                % fprintf("mat_fqfn: \n")
+                % disp(mat_fqfn)
             end
             as = mlraut.AnalyticSignalHCPPar.load(mat_fqfn(1), class="mlraut.AnalyticSignalHCPPar");
             as.out_dir = opts.out_dir;
@@ -617,7 +628,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     if ~isemptytext(opts.new_tag)
                         fqfn = string(fqfn);
                         [pth,fp,x] = myfileparts(fqfn);
-                        fp = strrep(fp, "-ASCPPar", opts.new_tag + "-ASCPPar");
+                        fp = strrep(fp, "-ASHCPPar", opts.new_tag + "-ASHCPPar");
                         fqfn = fullfile(pth, fp + x);
                     end
 
@@ -629,13 +640,13 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
                         Navg = Nnu / opts.Nphase_out;  % num. of frames to average to satisfy opts.Nphase_out
                         mat_avg = squeeze(mean(reshape(mat_avg, Navg, opts.Nphase_out, []), 1));  % requires Navg \in \mathbb{Z}^+
-                        cii.diminfo{2} = cifti_diminfo_make_series( ...
-                            opts.Nphase_out, 0, opts.theta_berry/opts.Nphase_out, 'RADIAN');
-
-                        % save weighted average
-                        cii.cdata = mat_avg';
-                        cifti_write(cii, convertStringsToChars(fqfn));
                     end
+
+                    % save weighted average
+                    cii.diminfo{2} = cifti_diminfo_make_series( ...
+                        opts.Nphase_out, 0, opts.theta_berry/opts.Nphase_out, 'RADIAN');
+                    cii.cdata = mat_avg';
+                    cifti_write(cii, convertStringsToChars(fqfn));
                 catch ME
                     handwarning(ME)
                 end
@@ -668,11 +679,11 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             arguments
                 out_dir {mustBeFolder} = pwd
-                opts.measures {mustBeText} = ["plvs", "X", "reY", "Z", "T", "comparator"]
-                opts.physio {mustBeText} = "iFV"
+                opts.measures {mustBeText} = ["T", "X", "Y", "Z", "plvs", "comparator"]
+                opts.physio {mustBeText} = "RV-std"
                 opts.gsr logical = false
                 opts.ddt logical = true
-                opts.tag {mustBeTextScalar} = "ASHCPPar*par*"
+                opts.tag {mustBeTextScalar} = "ASHCPPar*_par*"
                 opts.new_tag {mustBeTextScalar} = "meanfield"
             end
 
@@ -1120,23 +1131,33 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                             assert(all(isfinite(re_phi)))
                             phi = hilbert(re_phi);
                         end
+
+                        zeta = transform(this.zeta(psi, phi), phi);
+                        Z_sup_alpha = cellfun(@(x) transform(x, phi), this.Z_sup_alpha(psi, phi), UniformOutput=false);
                         X = transform(this.X(psi, phi), phi);
                         Y = transform(this.Y(psi, phi), phi);
                         Z = transform(this.Z(psi, phi), phi);
                         T = transform(this.T(psi, phi), phi);
                         r = asrow(this.connectivity(psi, phi));
                         bold = transform(psi, phi);
-                        neg_dbold_dt = transform(this.neg_dbold_dt(psi, phi), phi);
+                        % neg_dbold_dt = transform(this.neg_dbold_dt(psi, phi), phi);
                         plvs = transform(this.phase_locked_values(psi, phi), phi);
-
+                        
+                        rezeta_ = rezeta_ + real(zeta);
+                        imzeta_ = imzeta_ + imag(zeta);
+                        reZ_sup_0_ = reZ_sup_0_ + real(Z_sup_alpha{1});
+                        reZ_sup_1_ = reZ_sup_1_ + real(Z_sup_alpha{2});
+                        reZ_sup_2_ = reZ_sup_2_ + real(Z_sup_alpha{3});
+                        imZ_sup_0_ = imZ_sup_0_ + imag(Z_sup_alpha{1});
+                        imZ_sup_1_ = imZ_sup_1_ + imag(Z_sup_alpha{2});
+                        imZ_sup_2_ = imZ_sup_2_ + imag(Z_sup_alpha{3});
                         X_ = X_ + real(X);
-                        reY_ = reY_ + real(Y);
-                        imY_ = imY_ + imag(Y);
+                        Y_ = Y_ + real(Y);
                         Z_ = Z_ + real(Z);
                         T_ = T_ + real(T);
                         r_ = r_ + real(r);
                         bold_ = bold_ + real(bold);
-                        neg_dbold_dt_ = neg_dbold_dt_ + real(neg_dbold_dt);
+                        % neg_dbold_dt_ = neg_dbold_dt_ + real(neg_dbold_dt);
                         plvs_ = plvs_ + real(plvs);
                     catch ME
                         fprintf("while working with %s: ", mat);
@@ -1151,14 +1172,22 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             end
 
             % complete averaging
+            assert(nmats_corr > 0)
+            rezeta_ = rezeta_/nmats_corr;
+            imzeta_ = imzeta_/nmats_corr;
+            reZ_sup_0_ = reZ_sup_0_/nmats_corr;
+            reZ_sup_1_ = reZ_sup_1_/nmats_corr;
+            reZ_sup_2_ = reZ_sup_2_/nmats_corr;
+            imZ_sup_0_ = imZ_sup_0_/nmats_corr;
+            imZ_sup_1_ = imZ_sup_1_/nmats_corr;
+            imZ_sup_2_ = imZ_sup_2_/nmats_corr;
             X_ = X_/nmats_corr;
-            reY_ = reY_/nmats_corr;
-            imY_ = imY_/nmats_corr;
+            Y_ = Y_/nmats_corr;
             Z_ = Z_/nmats_corr;
             T_ = T_/nmats_corr;
             r_ = r_/nmats_corr;
             bold_ = bold_/nmats_corr;
-            neg_dbold_dt_ = neg_dbold_dt_/nmats_corr;
+            % neg_dbold_dt_ = neg_dbold_dt_/nmats_corr;
             plvs_ = plvs_/nmats_corr;
 
             dt = this.cifti_.theta_berry/this.cifti_.Nbins;
@@ -1172,11 +1201,25 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 end
             end
             this.cifti.write_cifti( ...
+                rezeta_, sprintf('rezeta_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imzeta_, sprintf('imzeta_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                reZ_sup_0_, sprintf('reZsup0_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                reZ_sup_1_, sprintf('reZsup1_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                reZ_sup_2_, sprintf('reZsup2_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imZ_sup_0_, sprintf('imZsup0_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imZ_sup_1_, sprintf('imZsup1_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imZ_sup_2_, sprintf('imZsup2_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
                 X_, sprintf('X_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                reY_, sprintf('reY_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-            this.cifti.write_cifti( ...
-                imY_, sprintf('imY_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+                Y_, sprintf('Y_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
                 Z_, sprintf('Z_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
@@ -1185,313 +1228,10 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 r_, sprintf('comparator_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
                 bold_, sprintf('bold_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-            this.cifti.write_cifti( ...
-                neg_dbold_dt_, sprintf('neg-dbold-dt_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            % this.cifti.write_cifti( ...
+            %     neg_dbold_dt_, sprintf('neg-dbold-dt_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
                 plvs_, sprintf('plvs_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-
-            warning("on", "MATLAB:class:LoadDefinitionUpdated");
-        end
-
-        function this = mean_twistor_instance2(this, subs, opts)
-            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx.
-            %  Write correct reY.
-
-            arguments
-                this mlraut.AnalyticSignalHCPPar
-                subs {mustBeText}
-                opts.col_idx {mustBeScalarOrEmpty} = nan
-                opts.new_physio {mustBeText} = "iFV"
-                opts.test_range = []
-                opts.transform_tag {mustBeText} = ""
-                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
-                opts.no_clobber logical = true
-            end
-            if ~isemptytext(opts.transform_tag)
-                cell_opts = namedargs2cell(opts);
-                this = this.mean_transformed_twistor_instance(subs, cell_opts{:});
-                return
-            end
-            subs = convertCharsToStrings(subs);
-
-            % DEBUG
-            disp(subs)
-
-            % define globbing
-            if ~isemptytext(opts.new_physio)
-                if ~strcmp(opts.anatomy, "ctx")
-                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
-                else
-                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
-                end
-            end
-            ptags_patt = regexprep(ptags, "\d{14}", "*");
-            globbing = mglob(fullfile(this.out_dir, ...
-                sprintf('reY_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
-            if opts.no_clobber && ~isempty(globbing)
-                fprintf("%s: found %s, so continuing to next data batch\n", stackstr(), globbing(1));
-                return
-            end
-
-            warning("off", "MATLAB:class:LoadDefinitionUpdated");
-
-            % \emph{this} supplies utilities
-
-            % abbrev.                 
-            transform = @this.bin_by_physio_angle;
-            nbin = this.cifti.Nbins;
-
-            % init
-            ngo = this.num_nodes;
-            reY_ = zeros(nbin, ngo);
-            nmats_corr = 0;
-
-            % find sub*.mat
-            if ~isempty(opts.test_range)
-                subs = subs(opts.test_range, :);
-            end
-            for sub = asrow(subs)
-                if isemptytext(sub)
-                    continue
-                end
-                mats = asrow(mglob( ...
-                    fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
-                if any(contains(mats, "-all"))
-                    mats = mats(~contains(mats, "-all"));  % don't double count
-                end
-                if isemptytext(mats)
-                    continue
-                end
-                errs = 0;
-
-                for mat = mats
-                    tic
-                    try
-                        ld = load(mat);
-                        psi = ld.this_subset.bold_signal;
-                        if isemptytext(opts.new_physio)
-                            phi = ld.this_subset.physio_signal;
-                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
-                            phi = ld.this_subset.physio_signal;
-                        elseif strcmpi(opts.new_physio, 'vis')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
-                        elseif strcmpi(opts.new_physio, 'sms')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
-                        elseif strcmpi(opts.new_physio, 'dan')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
-                        elseif strcmpi(opts.new_physio, 'van')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
-                        elseif strcmpi(opts.new_physio, 'lim')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
-                        elseif strcmpi(opts.new_physio, 'fpn')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
-                        elseif strcmpi(opts.new_physio, 'dmn')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
-                        else
-                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
-                            assert(~isempty(re_phi))
-                            assert(all(isfinite(re_phi)))
-                            phi = hilbert(re_phi);
-                        end
-                        Y = transform(this.Y(psi, phi), phi);
-
-                        reY_ = reY_ + real(Y);
-                    catch ME
-                        fprintf("while working with %s: ", mat);
-                        handwarning(ME)
-                        errs = errs + 1;
-                    end
-                    fprintf("time working with %s: ", mat);
-                    toc
-                end
-                % adjust for errs
-                nmats_corr = nmats_corr + numel(mats) - errs;
-            end
-
-            % complete averaging
-            reY_ = reY_/nmats_corr;
-
-            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
-            units_t = "RADIAN";
-            ntag = sprintf('n%g', nmats_corr);
-            this.cifti.write_cifti( ...
-                reY_, sprintf('reY_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-
-            warning("on", "MATLAB:class:LoadDefinitionUpdated");
-        end
-
-        function this = mean_twistor_instance3(this, subs, opts)
-            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx.
-            %  Writes x, z, zeta.
-
-            arguments
-                this mlraut.AnalyticSignalHCPPar
-                subs {mustBeText}
-                opts.col_idx {mustBeScalarOrEmpty} = nan
-                opts.new_physio {mustBeText} = "iFV"
-                opts.test_range = []
-                opts.transform_tag {mustBeText} = ""
-                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
-                opts.no_clobber logical = true
-            end
-            if ~isemptytext(opts.transform_tag)
-                cell_opts = namedargs2cell(opts);
-                this = this.mean_transformed_twistor_instance(subs, cell_opts{:});
-                return
-            end
-            subs = convertCharsToStrings(subs);
-
-            % DEBUG
-            disp(subs)
-
-            % define globbing
-            if ~isemptytext(opts.new_physio)
-                if ~strcmp(opts.anatomy, "ctx")
-                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
-                else
-                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
-                end
-            end
-            ptags_patt = regexprep(ptags, "\d{14}", "*");
-            globbing_x = mglob(fullfile(this.out_dir, ...
-                sprintf('x_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
-            globbing_rey = mglob(fullfile(this.out_dir, ...
-                sprintf('rey_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
-            globbing_z = mglob(fullfile(this.out_dir, ...
-                sprintf('z_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
-            globbing_rezeta = mglob(fullfile(this.out_dir, ...
-                sprintf('rezeta_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
-            globbing_imzeta = mglob(fullfile(this.out_dir, ...
-                sprintf('imzeta_as_sub-%s_ses-%s_%s_par%i.dtseries.nii', 'n*', 'n*', ptags_patt, opts.col_idx)));
-            if opts.no_clobber && ...
-                    ~isempty(globbing_x) && ...
-                    ~isempty(globbing_rey) && ...
-                    ~isempty(globbing_z) && ...
-                    ~isempty(globbing_rezeta) && ...
-                    ~isempty(globbing_imzeta)
-                fprintf("%s:\n",  stackstr());
-                fprintf("found %s,\n", globbing_x(1));
-                fprintf("found %s,\n", globbing_rey(1));
-                fprintf("found %s,\n", globbing_z(1));
-                fprintf("found %s,\n", globbing_rezeta(1));
-                fprintf("found %s,\n", globbing_imzeta(1));
-                fprintf("so continuing to next data batch\n");
-                return
-            end
-
-            warning("off", "MATLAB:class:LoadDefinitionUpdated");
-
-            % \emph{this} supplies utilities
-
-            % abbrev.                 
-            transform = @this.bin_by_physio_angle;
-            nbin = this.cifti.Nbins;
-
-            % init
-            ngo = this.num_nodes;
-            x_ = zeros(nbin, ngo);
-            rey_ = zeros(nbin, ngo);
-            z_ = zeros(nbin, ngo);
-            rezeta_ = zeros(nbin, ngo);
-            imzeta_ = zeros(nbin, ngo);
-            nmats_corr = 0;
-
-            % find sub*.mat
-            if ~isempty(opts.test_range)
-                subs = subs(opts.test_range, :);
-            end
-            for sub = asrow(subs)
-                if isemptytext(sub)
-                    continue
-                end
-                mats = asrow(mglob( ...
-                    fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
-                if any(contains(mats, "-all"))
-                    mats = mats(~contains(mats, "-all"));  % don't double count
-                end
-                if isemptytext(mats)
-                    continue
-                end
-                errs = 0;
-
-                for mat = mats
-                    tic
-                    try
-                        ld = load(mat);
-                        psi = ld.this_subset.bold_signal;
-                        if isemptytext(opts.new_physio)
-                            phi = ld.this_subset.physio_signal;
-                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
-                            phi = ld.this_subset.physio_signal;
-                        elseif strcmpi(opts.new_physio, 'vis')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
-                        elseif strcmpi(opts.new_physio, 'sms')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
-                        elseif strcmpi(opts.new_physio, 'dan')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
-                        elseif strcmpi(opts.new_physio, 'van')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
-                        elseif strcmpi(opts.new_physio, 'lim')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
-                        elseif strcmpi(opts.new_physio, 'fpn')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
-                        elseif strcmpi(opts.new_physio, 'dmn')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
-                        else
-                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
-                            assert(~isempty(re_phi))
-                            assert(all(isfinite(re_phi)))
-                            phi = hilbert(re_phi);
-                        end
-                        x = transform(this.x(psi, phi), phi);
-                        y = transform(this.y(psi, phi), phi);
-                        z = transform(this.z(psi, phi), phi);
-                        zeta = transform(this.zeta(psi, phi), phi);
-
-                        x_ = x_ + real(x);
-                        rey_ = rey_ + real(y);
-                        z_ = z_ + real(z);
-                        rezeta_ = rezeta_ + real(zeta);
-                        imzeta_ = imzeta_ + imag(zeta);
-                    catch ME
-                        fprintf("while working with %s: ", mat);
-                        handwarning(ME)
-                        errs = errs + 1;
-                    end
-                    fprintf("time working with %s: ", mat);
-                    toc
-                end
-                % adjust for errs
-                nmats_corr = nmats_corr + numel(mats) - errs;
-            end
-
-            % complete averaging
-            x_ = x_/nmats_corr;
-            rey_ = rey_/nmats_corr;
-            z_ = z_/nmats_corr;
-            rezeta_ = rezeta_/nmats_corr;
-            imzeta_ = imzeta_/nmats_corr;
-
-            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
-            units_t = "RADIAN";
-            ntag = sprintf('n%g', nmats_corr);
-            if ~isemptytext(opts.new_physio)
-                if ~strcmp(opts.anatomy, "ctx")
-                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
-                else
-                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
-                end
-            end
-            this.cifti.write_cifti( ...
-                x_, sprintf('x_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-            this.cifti.write_cifti( ...
-                rey_, sprintf('rey_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-            this.cifti.write_cifti( ...
-                z_, sprintf('z_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-            this.cifti.write_cifti( ...
-                rezeta_, sprintf('rezeta_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
-            this.cifti.write_cifti( ...
-                imzeta_, sprintf('imzeta_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
 
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
         end
@@ -2023,6 +1763,109 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
                 fontsize(scale=3)
             end
+
+            % save figure
+            if ~isemptytext(opts.fig_fileprefix)
+                saveFigure2(h, opts.fig_fileprefix, ext={'.png'}, closeFigure=opts.closeFigure);
+            end
+        end
+
+        function h = rugplot_angles(this, psi, phi, opts)
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                psi {mustBeNumeric}
+                phi {mustBeNumeric}
+                opts.fig_fileprefix {mustBeTextScalar} = ""
+                opts.tag {mustBeTextScalar} = "psi"
+                opts.is_spectral logical = false
+                opts.closeFigure logical = true
+                opts.title {mustBeTextScalar} = ""
+                opts.complex_representation function_handle = @real
+            end
+            if isemptytext(opts.fig_fileprefix)
+                opts.fig_fileprefix = extractBefore(this.mat_fqfn, "-ASHCPPar") + "-ASHCPPar-rugplot-angles-" + opts.tag;
+            end
+            repr = opts.complex_representation;  % abbrev.
+
+            % fig position
+            fig_width = 2056;
+            fig_height = fig_width;  % 1329;
+            h = figure('Position', [1, 1, fig_width, fig_height]);
+            movegui(h, 'northwest');  % Moves to upper left
+
+            % generate imagesc
+            binned_psi = this.bin_by_physio_angle(psi, phi, Nbins=800);
+            nd = mlraut.NetworkData(this, binned_psi);
+            img = nd.reshape_by_anatomy(binned_psi);
+            imagesc(repr(img));
+            colormap(ry_bc_bl_no_white(1024));
+            colorbar;
+            clim([-5, 5]);
+
+            hold on
+
+            % colors
+            color = [.5 .5 .5];
+
+            % lines
+            xline(8788, 'Color', color, 'LineWidth', 1);  % VIS ctx
+            xline(20748, 'Color', color, 'LineWidth', 1);  % SMS
+            xline(27510, 'Color', color, 'LineWidth', 1);  % DAN
+            xline(34683, 'Color', color, 'LineWidth', 1);  % VAN
+            xline(39219, 'Color', color, 'LineWidth', 1);  % LIM
+            xline(46530, 'Color', color, 'LineWidth', 1);  % FPN
+            xline(58666, 'Color', color, 'LineWidth', 1);  % DMN            
+            xline(76498, 'Color', color, 'LineWidth', 1);  % cbm
+            xline(79855, 'Color', color, 'LineWidth', 1);  % str
+            % xline(82053, 'Color', color, 'LineWidth', 1);  % thal
+
+            % annotation
+            apos = 0.95*size(img, 1);
+            text(8788-1200, apos, 'VIS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(20748-1200, apos, 'SMS', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(27510-1200, apos, 'DAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(34683-1200, apos, 'VAN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(39219-1200, apos, 'LIM', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(46530-1200, apos, 'FPN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(58666-1200, apos, 'DMN', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(76498-1200, apos, 'cerebellum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(79855-1200, apos, 'striatum', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+            text(82053-1200, apos, 'thalamus', 'FontSize', 9, 'FontAngle', 'italic', 'Color', color, 'HorizontalAlignment', 'left', 'Rotation', 90);
+
+            hold off
+
+            % Calculate angle values
+            Nangles = size(img, 1);
+            n_ticks = 9; % Choose how many tick marks you want
+            tick_indices = linspace(1, Nangles, n_ticks);
+            tick_angles = linspace(0, mlraut.Cifti.theta_berry/pi, n_ticks);
+
+            % indices -> angles (rad)
+            ax = gca;
+            ax.YTick = tick_indices;
+            ax.YTickLabel = arrayfun(@(x) sprintf('%.1f', x), tick_angles, 'UniformOutput', false);
+
+            % Add labels
+            switch func2str(repr)
+                case 'real'
+                    atitle = "$$\Re \, \zeta(\mathbf{x}, t)$$";
+                case 'imag'
+                    atitle = "$$\Im \, \zeta(\mathbf{x}, t)$$";
+                case 'abs'
+                    atitle = "$$\left| \zeta(\mathbf{x}, t) \right|$$";
+                otherwise
+                    atitle = "$$\zeta(\mathbf{x}, t)$$";
+            end
+
+            xlabel("$x$ (greyordinates)", Interpreter="latex")
+            ylabel("wrapped phase of $\phi$ (rad/$\pi$)", Interpreter="latex")
+            if isemptytext(opts.title)
+                title(atitle, Interpreter="latex")
+            else
+                title(opts.title, Interpreter="latex")
+            end
+
+            fontsize(scale=3)
 
             % save figure
             if ~isemptytext(opts.fig_fileprefix)
