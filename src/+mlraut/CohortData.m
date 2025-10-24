@@ -24,16 +24,22 @@ classdef CohortData < handle & mlsystem.IHandle
 
     properties (Dependent)
         is_7T
+        is_task
         json
         mninonlinear_dir
         sub
         task
+        task_alt
+        task_alt_dir
         task_dir
     end
 
     methods %% GET, SET
         function g = get.is_7T(this)
             g = contains(this.task, '7T');
+        end
+        function g = get.is_task(this)
+            g = contains(this.task, 'tfMRI');
         end
         function g = get.json(this)
             if ~isempty(this.json_)
@@ -57,6 +63,20 @@ classdef CohortData < handle & mlsystem.IHandle
         function g = get.task(this)
             g = this.ihcp_.current_task;
         end
+        function g = get.task_alt(this)
+            g = this.ihcp_.current_task;
+
+            if contains(g, "all")
+                % find one of the original tasks
+                task_super_dir_ = fullfile(this.root_dir, this.sub, "MNINonLinear", "Results");
+                task_star_ = strrep(strrep(g, "all", "*"), "-", "_");
+                dirs = mglob(fullfile(task_super_dir_, task_star_));   
+                g = mybasename(dirs(1));
+            end
+        end
+        function g = get.task_alt_dir(this)
+            g = fullfile(this.root_dir, this.sub, "MNINonLinear", "Results", this.task_alt);
+        end
         function g = get.task_dir(this)
             g = fullfile(this.root_dir, this.sub, "MNINonLinear", "Results", this.task);
         end
@@ -75,18 +95,14 @@ classdef CohortData < handle & mlsystem.IHandle
             end
 
             switch class(ihcp)
-                case 'mlraut.HCP'
-                    this = mlraut.HCPYoungAdultData(ihcp);
-                case 'mlraut.AnalyticSignal'
-                    this = mlraut.HCPYoungAdultData(ihcp);
-                case {'mlraut.AnalyticSignalHCP', 'mlraut.AnalyticSignalHCPPar'}
+                case {'mlraut.HCP', 'mlraut.AnalyticSignal', 'mlraut.AnalyticSignalHCP', 'mlraut.AnalyticSignalHCPPar'}
                     this = mlraut.HCPYoungAdultData(ihcp);
                 case {'mlraut.AnalyticSignalHCPAging', 'mlraut.AnalyticSignalHCPAgingPar'}
                     this = mlraut.HCPAgingData(ihcp);
                 case {'mlraut.AnalyticSignalGBM', 'mlraut.AnalyticSignalGBMPar'}
                     this = mlraut.GBMCiftifyData2(ihcp);
                 otherwise
-                    error("mlraut:ValueError", "%s: received an %s object.", stackstr(), class(ihcp))
+                    this = mlraut.HCPYoungAdultData(ihcp);
             end
         end
     end

@@ -73,7 +73,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 nmats(2) = length(mats);
             end
             mats = mats(nmats(1):nmats(2));  % 3690 mat files
-            nbin = this.cifti.Nbins;
+            nbin = this.twistors.num_bins_angles;
             ngo = this.num_nodes;
             X_ = zeros(nbin, ngo);
             reY_ = zeros(nbin, ngo);
@@ -130,7 +130,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             plvs_ = plvs_/nmats_corr;
 
 
-            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
+            dt = this.twistors_.theta_berry/this.twistors_.num_bins_angles;
             units_t = "RADIAN";
             ntag = sprintf('n%g', nmats_corr);
             this.cifti.write_cifti( ...
@@ -217,7 +217,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.sub_indices double = 1:2  % total ~ 1:1113
                 opts.globbing_var = "globbed"
                 opts.Ncol {mustBeInteger} = 2
-                opts.account_name char = 'john_lee'
+                opts.account_name char = 'joshua_shimony'
                 opts.skip_existing logical = true
             end
             ld = load(globbing_mat);
@@ -268,21 +268,27 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             %% for clusters running Matlab parallel server
 
             arguments
-                globbing_mat {mustBeFile} = ...
+                globbing_mat {mustBeText} = ...
                     fullfile( ...
                     getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
                 opts.globbing_var = "globbed"
                 opts.sub_range = []  % total ~ 1:1113
-                opts.new_physio {mustBeText} = "iFV"
+                opts.new_physio {mustBeText} = "RV-std"
                 opts.anatomy {mustBeTextScalar} = "ctx"
-                opts.transform_tag {mustBeText} = ""
+                opts.tag {mustBeText} = "locuscer"
                 opts.test_range = []  % 1:2
-                opts.Ncol {mustBeInteger} = 16
+                opts.Ncol {mustBeInteger} = 2
                 opts.account_name char = 'joshua_shimony' % 'aristeidis_sotiras'
-                opts.instance {mustBeTextScalar} = "mean_twistor_instance"
+                opts.instance {mustBeTextScalar} = "mean_Z_sup_alpha_instance"
             end
-            ld = load(globbing_mat);
-            globbed = convertStringsToChars(ld.(opts.globbing_var));
+
+            % gather globbed
+            if isscalar(globbing_mat) && endsWith(globbing_mat, ".mat") && ~isemptytext(opts.globbing_var)
+                ld = load(globbing_mat);
+                globbed = ld.(opts.globbing_var);
+            else
+                globbed = globbing_mat;
+            end
             globbed = asrow(globbed);
             if ~isempty(opts.sub_range)
                 globbed = globbed(opts.sub_range);
@@ -314,7 +320,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         1, ...
                         {globbed(:, col_idx), ...
                             'col_idx', col_idx, 'new_physio', opts.new_physio, 'test_range', opts.test_range, ...
-                            'transform_tag', opts.transform_tag, 'anatomy', opts.anatomy, 'instance', opts.instance}, ...
+                            'tag', opts.tag, 'anatomy', opts.anatomy, 'instance', opts.instance}, ...
                         'CurrentFolder', '/scratch/jjlee/Singularity/AnalyticSignalHCP', ...
                         'AutoAddClientPath', false);
                 catch ME
@@ -339,7 +345,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.globbing_var = "globbed"
                 opts.sub_range = []  % total ~ 1:1113
                 opts.new_physio {mustBeText} = "iFV"
-                opts.transform_tag {mustBeText} = ""
+                opts.tag {mustBeText} = ""
                 opts.test_range = []  % 1:2
                 opts.Ncol {mustBeInteger} = 32
                 opts.account_name char = 'joshua_shimony'
@@ -377,7 +383,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         1, ...
                         {globbed(:, col_idx), ...
                             'col_idx', col_idx, 'new_physio', opts.new_physio, 'test_range', opts.test_range, ...
-                            'transform_tag', opts.transform_tag}, ...
+                            'tag', opts.tag}, ...
                         'CurrentFolder', '/scratch/jjlee/Singularity/AnalyticSignalHCP', ...
                         'AutoAddClientPath', false);
                 catch ME
@@ -455,7 +461,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.new_physio {mustBeText} = "iFV"
                 opts.anatomy {mustBeTextScalar} = "ctx"
                 opts.test_range = []
-                opts.transform_tag {mustBeText} = ""
+                opts.tag {mustBeText} = ""
                 opts.instance {mustBeTextScalar} = "mean_twistor_instance"
             end
 
@@ -487,7 +493,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             as.out_dir = opts.out_dir;
             as.(opts.instance)( ...
                 subjects, col_idx=opts.col_idx, new_physio=opts.new_physio, test_range=opts.test_range, ...
-                transform_tag=opts.transform_tag, anatomy=opts.anatomy);
+                tag=opts.tag, anatomy=opts.anatomy);
 
             durations = toc;
         end
@@ -501,7 +507,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.col_idx {mustBeInteger}
                 opts.new_physio {mustBeText} = "iFV"
                 opts.test_range = []
-                opts.transform_tag {mustBeText} = ""
+                opts.tag {mustBeText} = ""
             end
             subjects = convertCharsToStrings(subjects);
 
@@ -560,14 +566,14 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             arguments
                 out_dir {mustBeFolder} = pwd
-                opts.measures {mustBeText} = ["reZsup0", "reZsup1", "reZsup2", "imZsup0", "imZsup1", "imZsup2", "rezeta", "imzeta", "T", "X", "Y", "Z", "plvs"]
+                opts.measures {mustBeText} = ["reZsup0", "reZsup1", "reZsup2", "imZsup0", "imZsup1", "imZsup2", "rezeta", "imzeta", "T", "X", "Y", "Z", "plvs", "bold"]
                 opts.physio {mustBeText} = "RV-std"
                 opts.gsr logical = false
                 opts.ddt logical = true
                 opts.tag {mustBeTextScalar} = "ASHCPPar*_par*"
                 opts.new_tag {mustBeTextScalar} = "meanfield"
                 opts.Nphase_out {mustBeScalarOrEmpty} = 80
-                opts.theta_berry {mustBeScalarOrEmpty} = 4*pi  % mlraut.Cifti.theta_berry
+                opts.theta_berry {mustBeScalarOrEmpty} = 4*pi  % mlraut.Twistors.theta_berry
                 opts.Fs {mustBeScalarOrEmpty} = 1/0.72
             end
             if ~isemptytext(opts.new_tag) && ~startsWith(opts.new_tag, "-") && ~startsWith(opts.new_tag, "_")
@@ -636,7 +642,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         % down-sample phase-ordered measure ~ 80 x N_go -> 8 x N_go
 
                         % manage theta_berry
-                        [mat_avg,Nnu] = reconcile_theta_berry(mat_avg, opts.theta_berry, mlraut.Cifti.theta_berry);
+                        [mat_avg,Nnu] = reconcile_theta_berry(mat_avg, opts.theta_berry, mlraut.Twistors.theta_berry);
 
                         Navg = Nnu / opts.Nphase_out;  % num. of frames to average to satisfy opts.Nphase_out
                         mat_avg = squeeze(mean(reshape(mat_avg, Navg, opts.Nphase_out, []), 1));  % requires Navg \in \mathbb{Z}^+
@@ -1031,10 +1037,11 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             lambda_xi = iqr(abs(xi_(opts.t_range, opts.g_range)), "all");
             xi = xi_ * lambda_psi / lambda_xi;
         end
+    
     end
 
     methods
-        function this = mean_twistor_instance(this, subs, opts)
+        function this = mean_angle_instance(this, subs, opts)
             %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
 
             arguments
@@ -1042,14 +1049,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 subs {mustBeText}
                 opts.col_idx {mustBeScalarOrEmpty} = nan
                 opts.new_physio {mustBeText} = "iFV"
-                opts.test_range = []
-                opts.transform_tag {mustBeText} = ""
                 opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
-            end
-            if ~isemptytext(opts.transform_tag)
-                cell_opts = namedargs2cell(opts);
-                this = this.mean_transformed_twistor_instance(subs, cell_opts{:});
-                return
+                opts.test_range = []
+                opts.tag {mustBeText} = ""
             end
             subs = convertCharsToStrings(subs);
 
@@ -1062,7 +1064,128 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             % abbrev.                 
             transform = @this.bin_by_physio_angle;
-            nbin = this.cifti.Nbins;
+            nbin = this.twistors.num_bins_angles;
+
+            % init
+            ngo = this.num_nodes;
+            angle_ = zeros(nbin, ngo);
+            nmats_correct = 0;
+
+            % find sub*.mat
+            if ~isempty(opts.test_range)
+                subs = subs(opts.test_range, :);
+            end
+            for sub = asrow(subs)
+                if isemptytext(sub)
+                    continue
+                end
+                mats = asrow(mglob( ...
+                    fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
+                if any(contains(mats, "-all"))
+                    mats = mats(~contains(mats, "-all"));  % don't double count
+                end
+                if isemptytext(mats)
+                    continue
+                end
+                errs = 0;
+
+                for mat = mats
+                    tic
+                    try
+                        ld = load(mat);
+                        psi = ld.this_subset.bold_signal;
+                        if isemptytext(opts.new_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, 'vis')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
+                        elseif strcmpi(opts.new_physio, 'sms')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
+                        elseif strcmpi(opts.new_physio, 'dan')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
+                        elseif strcmpi(opts.new_physio, 'van')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
+                        elseif strcmpi(opts.new_physio, 'lim')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
+                        elseif strcmpi(opts.new_physio, 'fpn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
+                        elseif strcmpi(opts.new_physio, 'dmn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
+                        else
+                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
+                            assert(~isempty(re_phi))
+                            assert(all(isfinite(re_phi)))
+                            phi = hilbert(re_phi);
+                        end
+
+                        angle = transform(this.angle(psi, phi), phi);
+                        angle_ = angle_ + angle;
+                    catch ME
+                        fprintf("while working with %s: ", mat);
+                        handwarning(ME)
+                        errs = errs + 1;
+                    end
+                    fprintf("time working with %s: ", mat);
+                    toc
+                end
+                % adjust for errs
+                nmats_correct = nmats_correct + numel(mats) - errs;
+            end
+
+            % complete averaging
+            assert(nmats_correct > 0)
+            angle_ = angle_/nmats_correct;
+
+            dt = this.twistors_.theta_berry/this.twistors_.num_bins_angles;
+            units_t = "RADIAN";
+            ntag = sprintf('n%g', nmats_correct);
+            if ~isemptytext(opts.new_physio)
+                if ~strcmp(opts.anatomy, "ctx")
+                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
+                else
+                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
+                end
+            end
+            if ~isemptytext(opts.tag)
+                ptags = ptags + "-" + opts.tag;
+            end
+            this.cifti.write_cifti( ...
+                angle_, sprintf('angle_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+
+            warning("on", "MATLAB:class:LoadDefinitionUpdated");
+        end
+
+        function this = mean_twistor_instance(this, subs, opts)
+            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
+
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                subs {mustBeText}
+                opts.col_idx {mustBeScalarOrEmpty} = nan
+                opts.new_physio {mustBeText} = "iFV"
+                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
+                opts.test_range = []
+                opts.tag {mustBeText} = ""
+
+                % for this.Z_sup_alpha()
+                opts.center_coord {mustBeNumeric} = mlraut.Twistors.LOCUS_CERULEUS_COORD  % mm, for precuneus
+                opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 0.1 ~ 1/timescale
+                opts.use_E4 logical = true  % Ward & Wells sec. 8.1
+                opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7; only influences ~opts.use_E4
+            end
+            subs = convertCharsToStrings(subs);
+
+            % DEBUG
+            disp(subs)
+
+            warning("off", "MATLAB:class:LoadDefinitionUpdated");
+
+            % \emph{this} supplies utilities
+
+            % abbrev.                 
+            transform = @this.bin_by_physio_angle;
+            nbin = this.twistors.num_bins_angles;
 
             % init
             ngo = this.num_nodes;
@@ -1133,7 +1256,14 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         end
 
                         zeta = transform(this.zeta(psi, phi), phi);
-                        Z_sup_alpha = cellfun(@(x) transform(x, phi), this.Z_sup_alpha(psi, phi), UniformOutput=false);
+                        Z_sup_alpha = cellfun(@(x) transform(x, phi), ...
+                            this.Z_sup_alpha( ...
+                                psi, phi, ...
+                                center_coord=opts.center_coord, ...
+                                c=opts.c, ...
+                                use_E4=opts.use_E4, ...
+                                s=opts.s), ...
+                            UniformOutput=false);
                         X = transform(this.X(psi, phi), phi);
                         Y = transform(this.Y(psi, phi), phi);
                         Z = transform(this.Z(psi, phi), phi);
@@ -1190,7 +1320,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % neg_dbold_dt_ = neg_dbold_dt_/nmats_corr;
             plvs_ = plvs_/nmats_corr;
 
-            dt = this.cifti_.theta_berry/this.cifti_.Nbins;
+            dt = this.twistors_.theta_berry/this.twistors_.num_bins_angles;
             units_t = "RADIAN";
             ntag = sprintf('n%g', nmats_corr);
             if ~isemptytext(opts.new_physio)
@@ -1199,6 +1329,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 else
                     ptags = strrep(this.tags, this.source_physio, opts.new_physio);
                 end
+            end
+            if ~isemptytext(opts.tag)
+                ptags = ptags + "-" + opts.tag;
             end
             this.cifti.write_cifti( ...
                 rezeta_, sprintf('rezeta_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
@@ -1235,9 +1368,169 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
         end
+
+        function this = mean_Z_sup_alpha_instance(this, subs, opts)
+            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
+
+            arguments
+                this mlraut.AnalyticSignalHCPPar
+                subs {mustBeText}
+                opts.col_idx {mustBeScalarOrEmpty} = nan
+                opts.new_physio {mustBeText} = "iFV"
+                opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
+                opts.test_range = []
+                opts.tag {mustBeText} = ""
+
+                % for this.Z_sup_alpha()
+                opts.center_coord {mustBeNumeric} = mlraut.Twistors.V1_R_COORD  % mm, for precuneus
+                opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 0.1 ~ 1/timescale
+                opts.use_E4 logical = true  % Ward & Wells sec. 8.1
+                opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7; only influences ~opts.use_E4
+            end
+            subs = convertCharsToStrings(subs);
+            if opts.s == 0
+                opts.use_E4 = true;
+            else
+                opts.use_E4 = false;
+            end
+
+            % DEBUG
+            disp(subs)
+
+            warning("off", "MATLAB:class:LoadDefinitionUpdated");
+
+            % \emph{this} supplies utilities
+
+            % abbrev.                 
+            transform = @this.bin_by_physio_angle;
+            nbin = this.twistors.num_bins_angles;
+
+            % init
+            ngo = this.num_nodes;
+            reZ_sup_0_ = zeros(nbin, ngo);
+            reZ_sup_1_ = zeros(nbin, ngo);
+            reZ_sup_2_ = zeros(nbin, ngo);
+            imZ_sup_0_ = zeros(nbin, ngo);
+            imZ_sup_1_ = zeros(nbin, ngo);
+            imZ_sup_2_ = zeros(nbin, ngo);
+            nmats_corr = 0;
+
+            % find sub*.mat
+            if ~isempty(opts.test_range)
+                subs = subs(opts.test_range, :);
+            end
+            for sub = asrow(subs)
+                if isemptytext(sub)
+                    continue
+                end
+                mats = asrow(mglob( ...
+                    fullfile(this.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub))));
+                if any(contains(mats, "-all"))
+                    mats = mats(~contains(mats, "-all"));  % don't double count
+                end
+                if isemptytext(mats)
+                    continue
+                end
+                errs = 0;
+
+                for mat = mats
+                    tic
+                    try
+                        ld = load(mat);
+                        psi = ld.this_subset.bold_signal;
+                        if isemptytext(opts.new_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
+                            phi = ld.this_subset.physio_signal;
+                        elseif strcmpi(opts.new_physio, 'vis')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
+                        elseif strcmpi(opts.new_physio, 'sms')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
+                        elseif strcmpi(opts.new_physio, 'dan')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
+                        elseif strcmpi(opts.new_physio, 'van')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
+                        elseif strcmpi(opts.new_physio, 'lim')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
+                        elseif strcmpi(opts.new_physio, 'fpn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
+                        elseif strcmpi(opts.new_physio, 'dmn')
+                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
+                        else
+                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
+                            assert(~isempty(re_phi))
+                            assert(all(isfinite(re_phi)))
+                            phi = hilbert(re_phi);
+                        end
+
+                        Z_sup_alpha = cellfun(@(x) transform(x, phi), ...
+                            this.Z_sup_alpha( ...
+                                psi, phi, ...
+                                center_coord=opts.center_coord, ...
+                                c=opts.c, ...
+                                use_E4=opts.use_E4, ...
+                                s=opts.s), ...
+                            UniformOutput=false);
+                        
+                        reZ_sup_0_ = reZ_sup_0_ + real(Z_sup_alpha{1});
+                        reZ_sup_1_ = reZ_sup_1_ + real(Z_sup_alpha{2});
+                        reZ_sup_2_ = reZ_sup_2_ + real(Z_sup_alpha{3});
+                        imZ_sup_0_ = imZ_sup_0_ + imag(Z_sup_alpha{1});
+                        imZ_sup_1_ = imZ_sup_1_ + imag(Z_sup_alpha{2});
+                        imZ_sup_2_ = imZ_sup_2_ + imag(Z_sup_alpha{3});
+                    catch ME
+                        fprintf("while working with %s: ", mat);
+                        handwarning(ME)
+                        errs = errs + 1;
+                    end
+                    fprintf("time working with %s: ", mat);
+                    toc
+                end
+                % adjust for errs
+                nmats_corr = nmats_corr + numel(mats) - errs;
+            end
+
+            % complete averaging
+            assert(nmats_corr > 0)
+            reZ_sup_0_ = reZ_sup_0_/nmats_corr;
+            reZ_sup_1_ = reZ_sup_1_/nmats_corr;
+            reZ_sup_2_ = reZ_sup_2_/nmats_corr;
+            imZ_sup_0_ = imZ_sup_0_/nmats_corr;
+            imZ_sup_1_ = imZ_sup_1_/nmats_corr;
+            imZ_sup_2_ = imZ_sup_2_/nmats_corr;
+
+            dt = this.twistors_.theta_berry/this.twistors_.num_bins_angles;
+            units_t = "RADIAN";
+            ntag = sprintf('n%g', nmats_corr);
+            if ~isemptytext(opts.new_physio)
+                if ~strcmp(opts.anatomy, "ctx")
+                    ptags = strrep(this.tags, this.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
+                else
+                    ptags = strrep(this.tags, this.source_physio, opts.new_physio);
+                end
+            end
+            if ~isemptytext(opts.tag)
+                ptags = ptags + "-" + opts.tag;
+            end
+            this.cifti.write_cifti( ...
+                reZ_sup_0_, sprintf('reZsup0_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                reZ_sup_1_, sprintf('reZsup1_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                reZ_sup_2_, sprintf('reZsup2_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imZ_sup_0_, sprintf('imZsup0_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imZ_sup_1_, sprintf('imZsup1_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                imZ_sup_2_, sprintf('imZsup2_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);            
+
+            warning("on", "MATLAB:class:LoadDefinitionUpdated");
+        end
         
         function this = mean_transformed_twistor_instance(this, subs, opts)
-            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
+            %% Fourier transformed.
+            %  Accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
 
             arguments
                 this mlraut.AnalyticSignalHCPPar
@@ -1245,7 +1538,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.col_idx {mustBeInteger}
                 opts.new_physio {mustBeText} = "iFV"
                 opts.test_range = []
-                opts.transform_tag {mustBeText} = ""
+                opts.tag {mustBeText} = ""
                 opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
             end
             subs = convertCharsToStrings(subs);
@@ -1258,7 +1551,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % \emph{this} supplies utilities
 
             % abbrev.
-            switch char(opts.transform_tag)
+            switch char(opts.tag)
                 case 'fft'
                     transform = @(x,y) fft(x);
                     nbin = this.num_frames - 1;
@@ -1371,8 +1664,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             if ~isemptytext(opts.new_physio)
                 ptags = strrep(this.tags, this.source_physio, opts.new_physio);
             end
-            if ~isemptytext(opts.transform_tag)
-                ptags = strrep(ptags, "-ASHCPPar", sprintf("-%s-ASHCPPar", opts.transform_tag));
+            if ~isemptytext(opts.tag)
+                ptags = strrep(ptags, "-ASHCPPar", sprintf("-%s-ASHCPPar", opts.tag));
             end
             this.cifti.write_cifti( ...
                 reX_, sprintf('reX_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=df, units_t=units_f);
@@ -1395,7 +1688,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
         end
 
         function this = mean_transformed_zeta(this, subs, opts)
-            %% accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
+            %% Fourier transformed.
+            %  Accepts text array subs; find mat files for subs; writes files indexed by opts.col_idx
 
             arguments
                 this mlraut.AnalyticSignalHCPPar
@@ -1403,7 +1697,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.col_idx {mustBeScalarOrEmpty} = []
                 opts.new_physio {mustBeText} = ""
                 opts.test_range = []
-                opts.transform_tag {mustBeText} = ""
+                opts.tag {mustBeText} = ""
                 opts.rsn {mustBeScalarOrEmpty} = []
                 opts.anatomy {mustBeTextScalar} = "ctx"  % "cbm", "str", "thal"
             end
@@ -1422,7 +1716,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % \emph{this} supplies utilities
 
             % abbrev.
-            switch char(opts.transform_tag)
+            switch char(opts.tag)
                 case 'fft'
                     transform = @(x) fft(x);
                     nbin = this.num_frames - 1;
@@ -1537,7 +1831,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             % save mat
             fqfn_zeta = fullfile(out_dir_, ...
-                sprintf('%szeta_as_sub-%s_ses-%s_%s%s.mat', opts.transform_tag, n_tag, n_tag, new_tags, par_tag));
+                sprintf('%szeta_as_sub-%s_ses-%s_%s%s.mat', opts.tag, n_tag, n_tag, new_tags, par_tag));
             save(fqfn_zeta, "zeta_nu_", "-v7.3");
             fqfn_zetaavggo = fullfile(out_dir_, ...
                 sprintf('zetaavggo_as_sub-%s_ses-%s_%s%s.mat', n_tag, n_tag, new_tags, par_tag));
@@ -1545,7 +1839,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
 
             % save cifti
             if isempty(mask_rsn)
-                if strcmp(opts.transform_tag, "fft")
+                if strcmp(opts.tag, "fft")
                     dt = this.Fs/(this.num_frames - 1);
                     units_t = "HERTZ";
                 else
@@ -1556,13 +1850,13 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     real(zeta_nu_), ...
                     fullfile(out_dir_, ...
                         sprintf('re%szeta_as_sub-%s_ses-%s_%s%s', ...
-                        opts.transform_tag, n_tag, n_tag, new_tags, par_tag)), ...
+                        opts.tag, n_tag, n_tag, new_tags, par_tag)), ...
                     dt=dt, units_t=units_t);
                 this.cifti.write_cifti( ...
                     imag(zeta_nu_), ...
                     fullfile(out_dir_, ...
                         sprintf('im%szeta_as_sub-%s_ses-%s_%s%s', ...
-                        opts.transform_tag, n_tag, n_tag, new_tags, par_tag)), ...
+                        opts.tag, n_tag, n_tag, new_tags, par_tag)), ...
                     dt=dt, units_t=units_t);
             end
             
@@ -1794,7 +2088,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             movegui(h, 'northwest');  % Moves to upper left
 
             % generate imagesc
-            binned_psi = this.bin_by_physio_angle(psi, phi, Nbins=800);
+            binned_psi = this.bin_by_physio_angle(psi, phi, num_bins_angles=800);
             nd = mlraut.NetworkData(this, binned_psi);
             img = nd.reshape_by_anatomy(binned_psi);
             imagesc(repr(img));
@@ -1838,7 +2132,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             Nangles = size(img, 1);
             n_ticks = 9; % Choose how many tick marks you want
             tick_indices = linspace(1, Nangles, n_ticks);
-            tick_angles = linspace(0, mlraut.Cifti.theta_berry/pi, n_ticks);
+            tick_angles = linspace(0, this.twistors_.theta_berry/pi, n_ticks);
 
             % indices -> angles (rad)
             ax = gca;
@@ -1939,23 +2233,23 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             arguments
                 this mlraut.AnalyticSignalHCPPar
                 phi_t {mustBeNumeric}
-                opts.Nbins {mustBeScalarOrEmpty} = []
+                opts.num_bins_angles {mustBeScalarOrEmpty} = []
             end
             assert(size(phi_t, 2) == 1)
-            if isempty(opts.Nbins) && ~isempty(this.cifti)
-                opts.Nbins = this.cifti.Nbins;
-            elseif isempty(opts.Nbins)
-                opts.Nbins = 40;
+            if isempty(opts.num_bins_angles) && ~isempty(this.twistors)
+                opts.num_bins_angles = this.twistors.num_bins_angles;
+            elseif isempty(opts.num_bins_angles)
+                opts.num_bins_angles = 80;
             end
-            Nbins_ = opts.Nbins;
+            num_bins_angles_ = opts.num_bins_angles;
 
-            phi_nu = zeros(Nbins_, 1);
-            binlim = asrow(linspace(-pi, pi, Nbins_ + 1));
+            phi_nu = zeros(num_bins_angles_, 1);
+            binlim = asrow(linspace(-pi, pi, num_bins_angles_ + 1));
             alpha = angle(phi_t);  % wrapped [-pi, pi]
 
             % average phi by phase bins
-            selected = false(size(phi_t, 1), Nbins_);
-            for b = 2:Nbins_+1
+            selected = false(size(phi_t, 1), num_bins_angles_);
+            for b = 2:num_bins_angles_+1
                 selected(:, b-1) = binlim(b-1) < alpha & alpha < binlim(b);
                 phi_nu(b-1,:) = mean(phi_t(selected(:, b-1), :), 1, "omitnan");
             end
@@ -1967,18 +2261,18 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 psi_nu {mustBeNumeric}
                 opts.phi_t {mustBeNumeric}
                 opts.selected {mustBeNumericOrLogical}
-                opts.Nbins {mustBeScalarOrEmpty} = []
+                opts.num_bins_angles {mustBeScalarOrEmpty} = []
             end
-            if isempty(opts.Nbins) && ~isempty(this.cifti)
-                opts.Nbins = this.cifti.Nbins;
-            elseif isempty(opts.Nbins)
-                opts.Nbins = 40;
+            if isempty(opts.num_bins_angles) && ~isempty(this.twistors)
+                opts.num_bins_angles = this.twistors.num_bins_angles;
+            elseif isempty(opts.num_bins_angles)
+                opts.num_bins_angles = 80;
             end
-            Nbins_ = opts.Nbins;            
+            num_bins_angles_ = opts.num_bins_angles;            
 
             % approx. reconstitute psi_t
             psi_t = zeros(size(opts.phi_t, 1), size(psi_nu, 2));
-            for b = 1:Nbins_
+            for b = 1:num_bins_angles_
                 Nsamples = sum(opts.selected(:, b), 1);
                 psi_t(opts.selected(:, b), :) = repmat(psi_nu(b,:), [Nsamples, 1]);
             end

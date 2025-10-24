@@ -28,6 +28,7 @@ classdef HCP < handle & mlsystem.IHandle
 
         extended_task_dir  % supports HCPAging/rfMRIExtended/fmriresults01/HCA*
         Fs  % BOLD sampling rate (Hz)
+        num_bins_angles  % see also Twistors.num_bins_angles
         num_frames
         num_frames_ori  % set by BOLDData.task_dtseries()
         num_frames_to_trim  % set by CohortData.num_frames_to_trim
@@ -159,6 +160,14 @@ classdef HCP < handle & mlsystem.IHandle
         function g = get.Fs(this)
             g = 1/this.tr;
         end
+        function g = get.num_bins_angles(this)
+            g = this.num_bins_angles_;
+        end
+        function     set.num_bins_angles(this, s)
+            assert(isnumeric(s))
+            assert(isscalar(s))
+            this.num_bins_angles_ = s;
+        end
         function g = get.num_frames(this)
             if ~isempty(this.num_frames_)
                 g = this.num_frames_;
@@ -252,8 +261,8 @@ classdef HCP < handle & mlsystem.IHandle
     end
 
     methods
-        function binned = bin_by_physio_angle(this, varargin)
-            binned = this.cifti_.bin_by_physio_angle(varargin{:});
+        function binned = bin_by_physio_angle(this, varargin)        
+            binned = this.twistors_.bin_by_physio_angle(varargin{:});
         end
 
         function this = malloc(this)
@@ -423,6 +432,7 @@ classdef HCP < handle & mlsystem.IHandle
 
             arguments
                 opts.max_frames double = Inf
+                opts.num_bins_angles {mustBeInteger} = 80
                 opts.subjects {mustBeText} = {}
                 opts.tasks {mustBeText} = {}
                 opts.use_neg_ddt logical = true
@@ -441,6 +451,7 @@ classdef HCP < handle & mlsystem.IHandle
             this.do_task = false;
 
             this.max_frames = opts.max_frames;
+            this.num_bins_angles_ = opts.num_bins_angles;
             this.subjects_ = opts.subjects;
             this.tasks_ = opts.tasks;
             this.use_neg_ddt = opts.use_neg_ddt;
@@ -463,6 +474,7 @@ classdef HCP < handle & mlsystem.IHandle
         bold_data_
         cifti_
         cohort_data_
+        num_bins_angles_
         num_frames_
         subjects_
         tasks_

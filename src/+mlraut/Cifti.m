@@ -6,11 +6,6 @@ classdef Cifti < handle & mlsystem.IHandle
     %  Developed on Matlab 23.2.0.2485118 (R2023b) Update 6 for MACA64.  Copyright 2024 John J. Lee.
     
 
-    properties (Constant)
-        Nbins = 80  % 40
-        theta_berry = 4*pi  % 2*pi
-    end
-
     properties (Dependent)
         is_7T
         out_dir
@@ -58,106 +53,8 @@ classdef Cifti < handle & mlsystem.IHandle
             cii = cifti_read(fn);
         end
 
-        function binned = bin_by_physio_angle_0(this, psi, phi, opts)
-            %% Average psi(t) into bins of angles alpha <- angle(phi), whereby {alpha_i, i \in \mathbb{N}} 
-            %  span [-pi, pi].  This allows generation of figures such as Ryans' Science Adv. (2021) Fig. 4.
-            %
-            %  Args:
-            %      this mlraut.Cifti
-            %      psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
-            %      phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
-            %      opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
-            %      opts.Nbins {mustBeScalarOrEmpty} = 40
-            %  Returns:
-            %      binned numeric ~ Nbins x Ngo; analytic
-
-            arguments
-                this mlraut.Cifti
-                psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
-                phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
-                opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
-                opts.Nbins {mustBeScalarOrEmpty} = this.Nbins
-            end
-            phi = phi(1:size(psi, 1), :);
-            Nbins_ = opts.Nbins;
-            binlim = asrow(linspace(-pi, pi, Nbins_ + 1));
-
-            % init
-            binned = zeros(Nbins_, size(psi, 2));
-
-            % wrapped physio (is not unwrapped)
-            if size(phi, 2) > 1
-                phi = mean(phi, 2);
-            end
-            wrapped_phi = angle(phi);
-
-            % average bold by phase bins
-            for b = 2:Nbins_+1
-                selected = binlim(b-1) < wrapped_phi & wrapped_phi < binlim(b);
-                binned(b-1,:) = mean(psi(selected, :), 1, "omitnan");
-            end
-
-            if ~isempty(opts.smoothing) && opts.smoothing > 0
-                width = opts.smoothing;
-                bins3 = binned;
-                bins2 = repmat(binned, width, 1);
-                for i = Nbins_+1:2*Nbins_
-                    bins3(i-Nbins_, :) = mean(bins2(i-width:i+width, :), 1, "omitnan");
-                end
-                binned = bins3;
-            end
-        end
-
-        function binned = bin_by_physio_angle(this, psi, phi, opts)
-            %% Average psi(t) into bins of angles alpha <- angle(phi), whereby {alpha_i, i \in \mathbb{N}} 
-            %  span [-2 pi, 2 pi], allowing assessment of Berry's phase.  This allows generation of figures 
-            %  similar to Ryans' Science Adv. (2021) Fig. 4.
-            %
-            %  Args:
-            %      this mlraut.Cifti
-            %      psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
-            %      phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
-            %      opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
-            %      opts.Nbins {mustBeScalarOrEmpty} = 40
-            %  Returns:
-            %      binned numeric ~ Nbins x Ngo; analytic
-
-            arguments
-                this mlraut.Cifti
-                psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
-                phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
-                opts.smoothing {mustBeInteger} = []  % unused, but option is in the API
-                opts.Nbins {mustBeScalarOrEmpty} = this.Nbins
-            end
-            phi = phi(1:size(psi, 1), :);
-            Nbins_ = opts.Nbins;
-            binlim = asrow(linspace(-this.theta_berry/2, this.theta_berry/2, Nbins_ + 1));
-
-            % init
-            binned = zeros(Nbins_, size(psi, 2));
-
-            % wrapped physio is not unwrapped
-            if size(phi, 2) > 1
-                phi = mean(phi, 2);
-            end
-            theta = unwrap(angle(phi));
-            Nberry = this.theta_berry/(2*pi);
-            wrapped_theta = Nberry*angle(exp(1i*theta/Nberry));  % in [-2 pi, 2 pi] for this.theta_berry = 4 pi
-
-            % average bold by phase bins
-            for b = 2:Nbins_+1
-                selected = binlim(b-1) < wrapped_theta & wrapped_theta < binlim(b);
-                binned(b-1,:) = mean(psi(selected, :), 1, "omitnan");
-            end
-        end
-        
-        function fqfn = average_times(~, fqfn0)
-            cii = cifti_read(fqfn0);
-            cii.cdata = mean(cii.cdata, 2);  % cifti ~ Ngo x Nt
-            cii.diminfo{2} = cifti_diminfo_make_scalars(1);
-            fqfn = strrep(fqfn0, ".dtseries.nii", "_avgt.dscalar.nii");
-            assert(contains(fqfn, "_avgt.dscalar.nii"), stackstr())
-            cifti_write(cii, convertStringsToChars(fqfn));
+        function binned = bin_by_physio_angle(this, varargin)
+            binned = this.ihcp_.twistors.bin_by_physio_angle(varargin{:});
         end
         
         function cii = write_cifti(this, c1_data, fn, opts)
@@ -289,7 +186,50 @@ classdef Cifti < handle & mlsystem.IHandle
         end
     end
 
-    methods (Static)
+    methods (Static)        
+        function fqfn = average_times(fqfn0)
+            cii = cifti_read(fqfn0);
+            cii.cdata = mean(cii.cdata, 2);  % cifti ~ Ngo x Nt
+            cii.diminfo{2} = cifti_diminfo_make_scalars(1);
+            fqfn = strrep(fqfn0, ".dtseries.nii", "_avgt.dscalar.nii");
+            assert(contains(fqfn, "_avgt.dscalar.nii"), stackstr())
+            cifti_write(cii, convertStringsToChars(fqfn));
+        end
+
+        function fqfn = rebin_by_physio_angle(fqfn0, fqfn, opts)
+            %% e.g. dtseries with 80 frames => dtseries with 16 frames for num_neighbors = 5
+
+            arguments
+                fqfn0 {mustBeFile}
+                fqfn {mustBeTextScalar}
+                opts.num_neighbors {mustBeNumeric} = 5
+                opts.seriesStart {mustBeNumeric} = -2 * pi + pi / 8
+            end
+
+            cii = cifti_read(fqfn0);
+            cdata = cii.cdata;
+            Ngo = size(cdata, 1);
+            Nt = size(cdata, 2);
+            assert(0 == mod(Nt, opts.num_neighbors))
+
+            Nt1 = Nt / opts.num_neighbors;
+            cdata1 = nan(Ngo, Nt1);
+            for tidx = 1:Nt1
+                idx1 = opts.num_neighbors * (tidx - 1) + 1;
+                idx2 = opts.num_neighbors * tidx;
+                cdata1(:, tidx) = mean(cdata(:, idx1:idx2), 2);
+            end
+
+            cii.cdata = cdata1;
+            di = cii.diminfo{2};
+            length_ = di.length / opts.num_neighbors;
+            seriesStart = di.seriesStart;
+            seriesStep = di.seriesStep * opts.num_neighbors;
+            seriesUnit = di.seriesUnit;
+            cii.diminfo{2} = cifti_diminfo_make_series(length_, seriesStart, seriesStep, seriesUnit);
+            assert(~strcmp(fqfn0, fqfn), stackstr())
+            cifti_write(cii, convertStringsToChars(fqfn));
+        end
     end
 
     %% PROTECTED

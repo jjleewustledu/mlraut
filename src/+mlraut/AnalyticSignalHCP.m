@@ -377,6 +377,10 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             this.comparator_ = this.connectivity(bold_, physio_);
         end
 
+        function write_cifti(this, varargin)
+            this.cifti_.write_cifti(varargin{:});
+        end
+
         function write_ciftis(this, opts)
             %% Args:
             %      this mlraut.AnalyticSignalHCP
@@ -396,11 +400,22 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
                 opts.atag {mustBeTextScalar} = "_binangle"
                 opts.parts logical = [];
                 opts.dyn logical = false;
-                opts.dt {mustBeScalarOrEmpty} = this.cifti_.theta_berry/this.cifti_.Nbins
+                opts.dt {mustBeScalarOrEmpty} = this.twistors_.theta_berry/this.twistors_.num_bins_angles
                 opts.units_t {mustBeTextScalar} = "RADIAN"
+
+                % for this.Z_sup_alpha()
+                opts.center_coord {mustBeNumeric} = mlraut.Twistors.LOCUS_CERULEUS_COORD  % mm, for precuneus
+                opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 0.1 ~ 1/timescale
+                opts.use_E4 logical = true  % Ward & Wells sec. 8.1
+                opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7; only influences ~opts.use_E4
             end
 
-            Z_sup_alpha_ = this.Z_sup_alpha(this.bold_signal_, this.physio_signal_);
+            Z_sup_alpha_ = this.Z_sup_alpha( ...
+                this.bold_signal_, this.physio_signal_, ...
+                center_coord=opts.center_coord, ...
+                c=opts.c, ...
+                use_E4=opts.use_E4, ...
+                s=opts.s);
             for alpha = 0:2
                 this.cifti_.write_ciftis( ...
                     real(Z_sup_alpha_{alpha + 1}), ...
@@ -497,7 +512,7 @@ classdef AnalyticSignalHCP < handle & mlraut.AnalyticSignal
             %     partitions=opts.parts, ...
             %     do_save_dynamic=opts.dyn, ...
             %     dt=opts.dt, ...
-            %     units_t=opts.units_t);
+            %     units_t=opts.units_t);  % included in Z_sup_alpha_
             this.cifti_.write_ciftis( ...
                 this.phase_locked_values(this.bold_signal_, this.physio_signal_), ...
                 sprintf('plvs_as_sub-%s_ses-%s_%s', this.current_subject, this.current_task, opts.tags), ...

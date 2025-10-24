@@ -63,6 +63,9 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         function g = get.root_dir(~)
             if contains(computer, "MAC")
                 g = "/Users/jjlee/mnt/CHPC_hcpdb/packages/unzip/HCP_1200";
+                if ~isfolder(g)
+                    g = "/Volumes/PrecunealSSD2/HCP/AWS/hcp-openaccess/HCP_1200";
+                end
                 assert(isfolder(g));
                 return
             end
@@ -79,16 +82,16 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             error("mlraut:NotImplementedError", stackstr());
         end
         function g = get.stats_fqfn(this)
-            mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_stats.dscalar.nii"));
+            mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_stats.dscalar.nii"));
             % rfMRI_REST1_7T_PA_Atlas_stats.dscalar.nii, rfMRI_REST1_RL_Atlas_stats.dscalar.nii
             g = mg(end);
         end
         function g = get.task_dtseries_fqfn(this)
             if this.is_7T
-                mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_1.6mm_MSMAll_hp2000_clean.dtseries.nii"));
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_1.6mm_MSMAll_hp2000_clean.dtseries.nii"));
                 % rfMRI_REST1_7T_PA_Atlas_1.6mm_MSMAll_hp2000_clean.dtseries.nii
                 if isemptytext(mg)
-                    mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_1.6mm_hp2000_clean.dtseries.nii"));
+                    mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_1.6mm_hp2000_clean.dtseries.nii"));
                     % rfMRI_REST1_7T_PA_Atlas_1.6mm_hp2000_clean.dtseries.nii
                 end
                 assert(~isemptytext(mg), stackstr())
@@ -96,14 +99,22 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 return
             end
 
-            mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_MSMAll_hp2000_clean.dtseries.nii"));
+            if this.is_task
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_MSMAll.dtseries.nii"));
+                % tfMRI_WM_RL_Atlas_MSMAll.dtseries.nii
+                assert(~isemptytext(mg), stackstr())
+                g = mg(end);
+                return
+            end
+
+            mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_MSMAll_hp2000_clean.dtseries.nii"));
             % rfMRI_REST1_RL_Atlas_MSMAll_hp2000_clean.dtseries.nii
             if isemptytext(mg)
-                mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_hp2000_clean.dtseries.nii"));
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_hp2000_clean.dtseries.nii"));
                 % rfMRI_REST1_RL_Atlas_hp2000_clean.dtseries.nii
             end
             if isemptytext(mg)
-                mg = mglob(fullfile(this.task_dir, this.task + "_Atlas_MSMAll.dtseries.nii"));
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_MSMAll.dtseries.nii"));
                 % rfMRI_REST1_RL_Atlas_hp2000_clean.dtseries.nii
             end
             assert(~isemptytext(mg), stackstr())
@@ -111,10 +122,10 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
         end
         function g = get.task_niigz_fqfn(this)
             if this.is_7T
-                mg = mglob(fullfile(this.task_dir, this.task + "_hp*_clean.nii.gz"));
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_hp*_clean.nii.gz"));
                 % rfMRI_REST1_7T_PA_hp2000_clean.nii.gz
                 if isemptytext(mg)
-                    mg = mglob(fullfile(this.task_dir, this.task + ".nii.gz"));
+                    mg = mglob(fullfile(this.task_alt_dir, this.task_alt + ".nii.gz"));
                     % rfMRI_REST1_7T_PA.nii.gz
                 end
                 assert(~isemptytext(mg), stackstr())
@@ -122,35 +133,32 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 return
             end
 
-            mg = mglob(fullfile(this.task_dir, this.task + "_hp*_clean.nii.gz"));
+            if this.is_task
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + ".nii.gz"));
+                % tfMRI_WM_RL.nii.gz
+                assert(~isemptytext(mg), stackstr())
+                g = mg(end);
+                return
+            end
+
+            mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_hp*_clean.nii.gz"));
             % rfMRI_REST1_RL_hp2000_clean.nii.gz
             if isemptytext(mg)
-                mg = mglob(fullfile(this.task_dir, this.task + ".nii.gz"));
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + ".nii.gz"));
                 % rfMRI_REST1_RL.nii.gz
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
         end
         function g = get.task_ref_niigz_fqfn(this)
-            mg = mglob(fullfile(this.task_dir, this.task + "_SBRef*.nii.gz"));
+            mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_SBRef*.nii.gz"));
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
         end
         function g = get.task_ref_dscalar_fqfn(this)
-            task_super_dir_ = fileparts(this.task_dir);
-            task_dir_ = this.task_dir;
-            task_ = this.task;
-
-            if contains(this.task, "-all")
-                % find one of the original tasks
-                task_star_ = strrep(strrep(task_, "-all", "*"), "-", "_");
-                dirs = mglob(fullfile(task_super_dir_, task_star_));   
-                task_ = mybasename(dirs(1));
-                task_dir_ = fullfile(task_super_dir_, task_);
-            end
-            mg = mglob(fullfile(task_dir_, task_ + "_Atlas_hp2000_clean_vn.dscalar.nii"));
+            mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_hp2000_clean_vn.dscalar.nii"));
             if isemptytext(mg)
-                mg = mglob(fullfile(task_dir_, task_ + "_Atlas_hp2000_clean_bias.dscalar.nii"));
+                mg = mglob(fullfile(this.task_alt_dir, this.task_alt + "_Atlas_hp2000_clean_bias.dscalar.nii"));
             end
             assert(~isemptytext(mg), stackstr())
             g = mg(1);
@@ -203,10 +211,11 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             this.out_dir_ = out_dir;
         end
 
-        function g = surf_gii_fqfn(this, hemis)
+        function g = surf_gii_fqfn(this, hemis, opts)
             arguments
                 this mlraut.HCPYoungAdultData
                 hemis {mustBeTextScalar} = "L"
+                opts.type {mustBeTextScalar} = "midthickness"  % "sphere", "midthickness"
             end
 
             if startsWith(hemis, "L", IgnoreCase=true)
@@ -216,10 +225,10 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             end
 
             if this.is_7T
-                mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere_MSMall.164k_fs_LR.surf.gii"));
+                mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+"."+opts.type+"_MSMall.164k_fs_LR.surf.gii"));
                 % 995174.L.midthickness_MSMAll.164k_fs_LR.surf.gii
                 if isemptytext(mg)
-                    mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+".sphere.164k_fs_LR.surf.gii"));
+                    mg = mglob(fullfile(this.mninonlinear_dir, "*."+hemis+"."+opts.type+".164k_fs_LR.surf.gii"));
                     % 995174.L.midthickness.164k_fs_LR.surf.gii
                 end
                 assert(~isemptytext(mg), stackstr())
@@ -227,10 +236,10 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
                 return
             end
 
-            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere_MSMall.32k_fs_LR.surf.gii"));
+            mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+"."+opts.type+"_MSMall.32k_fs_LR.surf.gii"));
             % 995174.L.midthickness_MSMAll.32k_fs_LR.surf.gii
             if isemptytext(mg)
-                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+".sphere.32k_fs_LR.surf.gii"));
+                mg = mglob(fullfile(this.mninonlinear_dir, "fsaverage_LR32k", "*."+hemis+"."+opts.type+".32k_fs_LR.surf.gii"));
                 % 995174.L.midthickness.32k_fs_LR.surf.gii
             end
             assert(~isemptytext(mg), stackstr())

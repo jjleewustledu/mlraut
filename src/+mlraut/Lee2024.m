@@ -159,17 +159,18 @@ classdef Lee2024 < handle
             c = mlraut.BOLDData.concat_dtseries(varargin{:});
         end
 
-        function that = concat_frames_and_save(this, srcdir, opts)
+        function as = concat_frames_and_save(this, srcdir, opts)
             %% assumes run-01, run-02, run-03, run-all may exist
 
             arguments
                 this mlraut.Lee2024  %#ok<INUSA>
                 srcdir {mustBeFolder} = pwd
                 opts.physios {mustBeText} = "iFV"
-                opts.globbing_patt {mustBeTextScalar} = "sub-*-run-0*%s*.mat"
+                opts.globbing_patt {mustBeTextScalar} = "sub-*_proc-%s*.mat"
                 opts.concat_patt {mustBeTextScalar} = ""
+                opts.obj_name {mustBeTextScalar} = "this_subset"
                 opts.do_save logical = true
-                opts.do_save_ciftis logical = false
+                opts.do_save_ciftis logical = true
                 opts.do_save_dynamic logical = false
             end
 
@@ -189,28 +190,30 @@ classdef Lee2024 < handle
                 end
 
                 % multiple files -> invoke AnalyticSignalHCP.concat_frames()
-                ld1 = load(g(1));  % adjust first run
-                that = ld1.this;
-                template_cifti_ = that.template_cifti;
-                if isscalar(that.tasks)
-                    that.tasks = ensureCell(regexprep(that.tasks, 'run-\d+', 'run-all')); % 'run-\d+', 'run-all'
-                    that.current_task = that.tasks{1};
-                else
-                    that.tasks = ensureCell(regexprep(that.tasks{1}, 'run-\d+', 'run-all')); % 'run-\d+', 'run-all'
-                    that.current_task = that.tasks{1};
-                end
+                as = mlraut.AnalyticSignalHCPPar.load(g(1));  % adjust first run
                 for gidx = 2:length(g)  % concat subsequent runs into that
-                    ld_ = load(g(gidx));
-                    that.concat_frames(ld_.this);
+                    as_ = mlraut.AnalyticSignalHCPPar.load(g(gidx));
+                    as.concat_frames(as_);
                 end
-                
-                that.template_cifti = template_cifti_;
-                that.out_dir = srcdir;
-                that.do_save = opts.do_save;
-                that.do_save_ciftis = opts.do_save_ciftis;
-                that.do_save_dynamic = opts.do_save_dynamic;
+                template_cifti_ = as.template_cifti;
+                if isscalar(as.tasks)
+                    as.tasks = ensureCell(regexprep(as.tasks, 'run-\d+', 'run-all')); % 'run-\d+', 'run-all'
+                    as.tasks = ensureCell(regexprep(as.tasks, 'rfMRI_REST\d_[LR]+', 'rfMRI-all'));
+                    as.current_task = as.tasks{1};
+                else
+                    as.tasks = ensureCell(regexprep(as.tasks{1}, 'run-\d+', 'run-all')); % 'run-\d+', 'run-all'
+                    as.tasks = ensureCell(regexprep(as.tasks{1}, 'rfMRI_REST\d_[LR]+', 'rfMRI-all'));
+                    as.current_task = as.tasks{1};
+                end                
+                as.template_cifti = template_cifti_;
+
+                % save
+                as.out_dir = srcdir;
+                as.do_save = opts.do_save;
+                as.do_save_ciftis = opts.do_save_ciftis;
+                as.do_save_dynamic = opts.do_save_dynamic;
                 if any([opts.do_save, opts.do_save_ciftis, opts.do_save_dynamic])
-                    that.meta_save();
+                    as.meta_save();
                 end
             end
 

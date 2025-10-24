@@ -5,20 +5,56 @@ classdef Twistors < handle & mlsystem.IHandle
     %  Created 11-Dec-2024 22:23:24 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlraut/src/+mlraut.
     %  Developed on Matlab 24.2.0.2773142 (R2024b) Update 2 for MACA64.  Copyright 2024 John J. Lee.
     
-    properties        
+    properties (Constant)
+        ANT_COMMISSURE_COORD = [90, 128, 68]  % Conte69_AverageT1w.nii.gz
+        PRECUNEUS_COORD = [90, 73, 116]
+        LOCUS_CERULEUS_COORD = [90, 94, 60]
+        V1_L_COORD = [81, 30, 69]
+        V1_R_COORD = [99, 30, 69]
+        DACC_COORD = [90, 158, 95]
+        SCAN1_L_COORD = [60, 115, 137]  % Penfield shoulder
+        SCAN2_L_COORD = [43, 117, 120]  % Penfield neck
+        SCAN3_L_COORD = [33, 122, 85]  % Penfield tongue
+        SCAN1_R_COORD = [120, 115, 137]
+        SCAN2_R_COORD = [137, 117, 120]
+        SCAN3_R_COORD = [147, 122, 85]
+
+        theta_berry = 4*pi  % 2*pi
+    end
+
+    properties
+        mask_ctx
+        mask_cbm
+        mask_HC
+        mask_other
+        mask_str
+        mask_thal
     end
 
     properties (Dependent)
         bold_signal  % hilbert(bold) ~ Nt x Nx
+        hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
+        lp_thresh  % high freq. bound, Ryan ~ 0.05-0.1 Hz, for CSF studies ~ 0.1 Hz
+        num_bins_angles  % this.ihcp_.num_bins_angles, needed by bin_by_physio_angle
         physio_signal  % hilbert(physio) ~ Nt x 1
         tr
         use_neg_ddt
         v_physio_is_inf % v_physio reaches head diameter in time << tr
+        waves_dir
     end
 
     methods  %% GET
         function g = get.bold_signal(this)
             g = this.ihcp_.bold_signal;
+        end
+        function g = get.hp_thresh(this)
+            g = this.ihcp_.hp_thresh;
+        end
+        function g = get.lp_thresh(this)
+            g = this.ihcp_.lp_thresh;
+        end
+        function g = get.num_bins_angles(this)
+            g = this.ihcp_.num_bins_angles;
         end
         function g = get.physio_signal(this)
             g = this.ihcp_.physio_signal;
@@ -32,13 +68,12 @@ classdef Twistors < handle & mlsystem.IHandle
         function g = get.v_physio_is_inf(this)
             g = this.ihcp_.v_physio_is_inf;
         end
+        function g = get.waves_dir(this)
+            g = this.ihcp_.waves_dir;
+        end
     end
 
     methods
-        function binned = bin_by_physio_angle(this, varargin)
-            binned = this.ihcp_.cifti.bin_by_physio_angle(varargin{:});
-        end
-
         function [pos,v] = center_of_mass_position(this, roi)
             %% pos ~ 3 x 1, in mm
             %  v ~ 3 x 1, indices of imaging img
@@ -85,21 +120,61 @@ classdef Twistors < handle & mlsystem.IHandle
             psi = this.ihcp_.connectivity(varargin{:});
         end
 
-        function pos = grayordinate_positions(this)
+        function pos = greyordinate_concatenate(this, poset)
+            %% [left, right, subcortex] ~ [Nx29696, Nx29716, Nx31870] ~ [Nx91282]; split subcortext x5
+
+            assert(size(poset{1}, 2) ==  29696)
+            assert(size(poset{2}, 2) == 29716)
+            assert(size(poset{3}, 2) == 17853)
+            assert(size(poset{4}, 2) == 1559)
+            assert(size(poset{5}, 2) == 3553)
+            assert(size(poset{6}, 2) == 2536)
+            assert(size(poset{7}, 2) == 6369)
+            pos(:,1:29696) = poset{1};
+            pos(:,29697:59412) = poset{2};
+            pos(:,this.mask_cbm) = poset{3};
+            pos(:,this.mask_HC) = poset{4};
+            pos(:,this.mask_str) = poset{5};
+            pos(:,this.mask_thal) = poset{6};
+            pos(:,this.mask_other) = poset{7};
+        end
+
+        function poset = greyordinate_split(this, pos)
+            %% [left, right, subcortex] ~ [Nx29696, Nx29716, Nx31870] ~ [Nx91282]; split subcortext x5
+
+            assert(size(pos, 2) == 91282)
+            poset{1} = pos(:,1:29696);
+            poset{2} = pos(:,29697:59412);
+            poset{3} = pos(:,this.mask_cbm);
+            poset{4} = pos(:,this.mask_HC);
+            poset{5} = pos(:,this.mask_str);
+            poset{6} = pos(:,this.mask_thal);
+            poset{7} = pos(:,this.mask_other);
+        end
+
+        function pos = grayordinate_positions(this, precision, opts)
             %% pos ~ 3 x N_grayords, in mm
+
+            arguments
+                this mlraut.Twistors
+                precision {mustBeTextScalar} = ""
+                opts.center_coord {mustBeNumeric} = this.ANT_COMMISSURE_COORD  % Conte69_AverageT1w.nii.gz
+                opts.type {mustBeTextScalar} = "midthickness"
+                opts.qc logical = false
+            end
 
             % cifti has models
             task = cifti_read(convertStringsToChars(this.ihcp_.task_dtseries_fqfn));
             models = task.diminfo{1}.models;
 
             % left cortex
-            gl = gifti(convertStringsToChars(this.ihcp_.cohort_data.surf_gii_fqfn("L")));
+            gl = gifti(convertStringsToChars(this.ihcp_.cohort_data.surf_gii_fqfn("L", type=opts.type)));
             gl_pos = gl.vertices';
             gl_pos = gl_pos(:, models{1}.vertlist+1);  % 0-start to 1-start; remove bad vertices
             % e.g., task.diminfo{1}.models{1} ~ 'CORTEX_LEFT', count = 29696, numvert = 32492
 
             % right cortex
-            gr = gifti(convertStringsToChars(this.ihcp_.cohort_data.surf_gii_fqfn("R")));
+            gr = gifti(convertStringsToChars(this.ihcp_.cohort_data.surf_gii_fqfn("R", type=opts.type)));
             gr_pos = gr.vertices';
             gr_pos = gr_pos(:, models{2}.vertlist+1);  % 0-start to 1-start; remove bad vertices
             % e.g., task.diminfo{1}.models{2} ~ 'CORTEX_RIGHT', count = 29716, numvert = 32492
@@ -109,13 +184,42 @@ classdef Twistors < handle & mlsystem.IHandle
             ic = mlfourd.ImagingContext2(this.ihcp_.wmparc_fqfn);
             sc_pos = this.voxel_indices_to_position(outinfo.voxlist1, ic);
 
-            % qc:
-            % extracted = zeros(outinfo.voldims, 'single');
-            % extracted(cifti_vox2ind(outinfo.voldims, outinfo.voxlist1)) = sc.cdata(outinfo.ciftilist, 1);
-            % ifc = ic.imagingFormat; ifc.img = extracted;
-            % ifc.view
-
             pos = [gl_pos, gr_pos, sc_pos];  % [3x29696, 3x29716, 3x31870] ~ [3x91282]
+            pos = pos + ascol(this.ANT_COMMISSURE_COORD) - ascol(opts.center_coord);
+
+            if strcmpi(precision, "single") && ~isa(pos, "single")
+                pos = single(pos);
+            end
+            if strcmpi(precision, "double") && ~isa(pos, "double")
+                pos = double(pos);
+            end
+
+            % qc
+            if opts.qc
+                this.visualize_density(pos);
+
+                leftinfo = cifti_diminfo_dense_get_surface_info(task.diminfo{1}, 'CORTEX_LEFT');
+                rightinfo = cifti_diminfo_dense_get_surface_info(task.diminfo{1}, 'CORTEX_RIGHT');
+                info.cortex_left_idx = leftinfo.ciftilist;
+                info.cortex_right_idx = rightinfo.ciftilist;
+                info.subcortical_idx = outinfo.ciftilist;
+                this.visualize_greyordinate_subsets(pos, info);
+            end
+        end
+
+        function this = load_anatomy_masks(this)
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_ctx_HCP.mat'));
+            this.mask_ctx = ld.mask_ctx;
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_cbm_HCP.mat'));
+            this.mask_cbm = ld.mask_cbm;
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_HC_HCP.mat'));
+            this.mask_HC = ld.mask_HC;
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_str_HCP.mat'));
+            this.mask_str = ld.mask_str;
+            ld = load(fullfile(this.waves_dir, 'supporting_files', 'mask_thal_HCP.mat'));
+            this.mask_thal = ld.mask_thal;
+
+            this.mask_other = ~this.mask_ctx & ~this.mask_cbm & ~this.mask_HC & ~this.mask_str & ~this.mask_thal;
         end
 
         function propagated_signal = propagate_physio(this, physio_signal, opts)
@@ -155,17 +259,17 @@ classdef Twistors < handle & mlsystem.IHandle
             else
                 propagated_signal = physio_signal(1)*ones(opts.size_bold_signal);
             end
-            bold_pos = this.grayordinate_positions();  % 3 x N_x
+            bold_pos = this.grayordinate_positions(type="sphere");  % 3 x N_x
             x = abs(vecnorm(bold_pos - opts.physio_pos));  % Nx x 1, in mm
 
             Nt = size(propagated_signal, 1);
-            tr = this.ihcp_.tr;
-            times = ascol(0:tr:(Nt - 1)*tr);
-            times = times + tr/2;  % mid-frame times
+            tr_ = this.ihcp_.tr;
+            times = ascol(0:tr_:(Nt - 1)*tr_);
+            times = times + tr_/2;  % mid-frame times
             for tidx_phys = 1:Nt
-                t = (tidx_phys - 0.5)*tr;  % mid-frame time
-                tplus = t + tr/2;
-                tminus = t - tr/2;
+                t = (tidx_phys - 0.5)*tr_;  % mid-frame time
+                tplus = t + tr_/2;
+                tminus = t - tr_/2;
                 selection = tminus*v <= x & x <= tplus*v;  % frame boundaries overlap
                 propagated_signal(:, selection) = ...
                     this.forward(physio_signal, times, dt=x(selection)/v, unvisited_is_inf=opts.unvisited_is_inf);
@@ -173,6 +277,49 @@ classdef Twistors < handle & mlsystem.IHandle
         end
 
         %% Twistor elements & related
+
+        function binned = bin_by_physio_angle(this, psi, phi, opts)
+            %% Average psi(t) into bins of angles theta <- angle(phi), whereby {theta_i, i \in \mathbb{N}} 
+            %  span [-2 pi, 2 pi], allowing assessment of Berry's phase.  This allows generation of figures 
+            %  similar to Ryans' Science Adv. (2021) Fig. 4.
+            %
+            %  Args:
+            %      this mlraut.Cifti
+            %      psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
+            %      phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
+            %      opts.smoothing {mustBeInteger} = 3  % set to [] to not smooth
+            %      opts.num_bins_angles {mustBeScalarOrEmpty} = 40
+            %  Returns:
+            %      binned numeric ~ num_bins_angles x Ngo; analytic
+
+            arguments
+                this mlraut.Twistors
+                psi {mustBeNumeric}  % already gsr, centered, filtered, rescaled, analytic; Nt x Ngo
+                phi {mustBeNumeric}  % already centered, filtered, rescaled, analytic; Nt x 1
+                opts.smoothing {mustBeInteger} = []  % unused, but option is in the API
+                opts.num_bins_angles {mustBeScalarOrEmpty} = this.num_bins_angles
+            end
+            phi = phi(1:size(psi, 1), :);
+            num_bins_angles_ = opts.num_bins_angles;
+            binlim = asrow(linspace(-this.theta_berry/2, this.theta_berry/2, num_bins_angles_ + 1));
+
+            % init
+            binned = zeros(num_bins_angles_, size(psi, 2));
+
+            % wrapped physio is not unwrapped
+            if size(phi, 2) > 1
+                phi = mean(phi, 2);
+            end
+            theta = unwrap(angle(phi));
+            Nberry = this.theta_berry/(2*pi);
+            wrapped_theta = Nberry*angle(exp(1i*theta/Nberry));  % in [-2 pi, 2 pi] for this.theta_berry = 4 pi
+
+            % average bold by phase bins
+            for b = 2:num_bins_angles_+1
+                selected = binlim(b-1) < wrapped_theta & wrapped_theta < binlim(b);
+                binned(b-1,:) = mean(psi(selected, :), 1, "omitnan");
+            end
+        end
 
         function psi = X(this, psi, phi)
             %% of twistor
@@ -217,7 +364,8 @@ classdef Twistors < handle & mlsystem.IHandle
             %      opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7
             %  Returns:
             %      Z_sup_alpha_ (4-cell of single|double \mathsf{Z}^{\alpha}) ~ 
-            %                   N_t x N_go for {\mathsf{Z}^0, \mathsf{Z}^1, \mathsf{Z}^2, \mathsf{Z}^3}
+            %                   N_t x N_go for {\mathsf{Z}^0, \mathsf{Z}^1, \mathsf{Z}^2, \mathsf{Z}^3},
+            %                   but since \mathsf{Z}^3 is the spatially uniform arousal, exclude to save storage.
             %      x_sup_AAp (2x2-cell of single|double x^{AA'}
 
             arguments
@@ -225,11 +373,11 @@ classdef Twistors < handle & mlsystem.IHandle
                 pi_sub_0p {mustBeNumeric}
                 pi_sub_1p {mustBeNumeric}
                 opts.type {mustBeTextScalar} = "sphere"  % "sphere", "midthickness"
-                opts.center_coord {mustBeNumeric} = [90, 73, 116]  % mm, for precuneus
+                opts.center_coord {mustBeNumeric} = this.LOCUS_CERULEUS_COORD  % mm, for precuneus
                 opts.go_qc logical = false  % greyordinate qc
                 opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 0.1 ~ 1/timescale
-                opts.use_E4 logical = true  % Ward & Wells sec. 8.1
-                opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7
+                opts.use_E4 logical = false  % Ward & Wells sec. 8.1
+                opts.s {mustBeScalarOrEmpty} = -1/2^(5/2)  % helicity in Penrose & Rindler eq. 6.2.7; only influences ~opts.use_E4
             end
 
             % consider using -dbold/dt
@@ -377,6 +525,7 @@ classdef Twistors < handle & mlsystem.IHandle
             end
 
             this.ihcp_ = ihcp;
+            % this.load_anatomy_masks()
         end
     end
 
@@ -465,6 +614,75 @@ classdef Twistors < handle & mlsystem.IHandle
                     partitions=select, ...
                     do_save_dynamic=false);
             end
+        end
+        
+        function visualize_density(GC)
+            positions = GC';
+
+            % Calculate local density using k-nearest neighbors
+            k = 50;  % Number of neighbors to consider
+            [idx, distances] = knnsearch(positions, positions, 'K', k+1);
+
+            % Use mean distance to k nearest neighbors as inverse density measure
+            mean_distances = mean(distances(:, 2:end), 2);
+            density_values = 1 ./ mean_distances;
+            density_normalized = (density_values - min(density_values)) / ...
+                (max(density_values) - min(density_values));
+
+            % Create color map based on density
+            colors = hot(256);  % Use hot colormap for density
+            color_indices = round(density_normalized * 255) + 1;
+            point_colors = colors(color_indices, :);
+
+            % Create and display density-colored point cloud
+            ptCloud = pointCloud(positions, 'Color', uint8(point_colors * 255));
+
+            figure('Position', [100, 100, 1000, 800]);
+            pcshow(ptCloud, 'MarkerSize', 5);
+            title('Greyordinate Density Visualization');
+            colormap(hot);
+
+            % Correct way to set colorbar label
+            cb = colorbar;
+            cb.Label.String = 'Relative Density';
+            cb.Label.FontSize = 12;
+
+            axis equal;
+            view(45, 20);
+        end
+        
+        function visualize_greyordinate_subsets(GC, greyord_info)
+            % Create subplots for different anatomical regions
+            figure('Position', [50, 50, 1600, 500]);
+
+            % Left cortex only
+            subplot(1, 3, 1);
+            left_coords = GC(:, greyord_info.cortex_left_idx)';
+            ptCloud_left = pointCloud(left_coords);
+            pcshow(ptCloud_left, 'MarkerSize', 4);
+            title('Left Cortex');
+            view(180, 0);  % Lateral view
+            axis equal; grid on;
+
+            % Right cortex only
+            subplot(1, 3, 2);
+            right_coords = GC(:, greyord_info.cortex_right_idx)';
+            ptCloud_right = pointCloud(right_coords);
+            pcshow(ptCloud_right, 'MarkerSize', 4);
+            title('Right Cortex');
+            view(0, 0);  % Lateral view
+            axis equal; grid on;
+
+            % Subcortical structures only
+            subplot(1, 3, 3);
+            subcort_coords = GC(:, greyord_info.subcortical_idx)';
+            ptCloud_subcort = pointCloud(subcort_coords);
+            pcshow(ptCloud_subcort, 'MarkerSize', 8);
+            title('Subcortical Structures');
+            view(45, 20);
+            axis equal; grid on;
+
+            sgtitle('Greyordinate Components', 'FontSize', 16);
         end
 
         function pos = voxel_indices_to_position(v, ic)
