@@ -1,0 +1,181 @@
+┌────────────────────────────────────────────────────────────────────────────┐
+│                BrainSmash Direct SLURM - Quick Reference                   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ INSTALLATION                                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+  chmod +x install_direct_slurm.sh
+  ./install_direct_slurm.sh
+  # Adds brainsmash-* commands to ~/bin
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BASIC WORKFLOW                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+  1. Test:        brainsmash-test
+  2. Prepare:     brainsmash-prepare --input file.mat --var subjects
+  3. Submit:      brainsmash-submit --start 1 --end 64
+  4. Monitor:     brainsmash-monitor status
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FROM MATLAB (All-in-one)                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+  job_ids = mlraut.BrainSmashAdapter_direct.submit_sample_subs_tasks_direct(...
+      'measure', 'phase_locked_values', ...
+      'Ncol', 64, ...
+      'walltime', '02:00:00');
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ MONITORING                                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Status:         brainsmash-monitor status
+  Live watch:     brainsmash-monitor watch
+  History:        brainsmash-monitor history
+  Job logs:       brainsmash-monitor logs 12345678
+  Summary:        brainsmash-monitor summary
+  Performance:    brainsmash-monitor performance
+
+  SLURM commands:
+  squeue -u $USER                    # Your running jobs
+  sacct -j 12345678                  # Job details
+  scontrol show job 12345678         # Full job info
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ JOB CONTROL                                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Cancel one:     scancel 12345678
+  Cancel all:     scancel -u $USER
+  Cancel pattern: scancel --name=brainsmash_20251107*
+  Hold job:       scontrol hold 12345678
+  Release job:    scontrol release 12345678
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ COMMON OPTIONS                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Submit 10 jobs with 16GB each:
+    brainsmash-submit --start 1 --end 10 --mem 16gb
+
+  Submit to free partition (3h max):
+    brainsmash-submit --partition free --time 03:00:00
+
+  Test single job:
+    brainsmash-submit --start 1 --end 1 --time 00:30:00
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TROUBLESHOOTING                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+  View error log:
+    tail -f /scratch/jjlee/slurm_logs/brainsmash_*_12345678.err
+
+  Check why job pending:
+    squeue -j 12345678 -o "%.18i %.9P %.30j %.8T %R"
+
+  Check memory usage:
+    sacct -j 12345678 --format=JobID,MaxRSS,Elapsed
+
+  Interactive debug:
+    srun --pty --account=joshua_shimony --partition=tier1_cpu bash
+    module load matlab/R2024b
+    cd /scratch/jjlee/tmp
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PERFORMANCE COMPARISON                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Method                          Time/Job    Speedup
+  ────────────────────────────────────────────────────
+  MATLAB Parallel Server          4500-6000s  1.0x (baseline)
+  Direct SLURM (Ceph)            ~800s       5-7x faster
+  Direct SLURM (Lustre cache)    ~800s       5-7x faster
+  Non-HPC server (sshfs)         ~800s       5-7x faster
+
+  Bottleneck removed: MATLAB Parallel Server overhead
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FILE LOCATIONS                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Scripts:      /scratch/jjlee/slurm_scripts/
+  Logs:         /scratch/jjlee/slurm_logs/
+  Output:       /scratch/jjlee/Singularity/AnalyticSignalHCP/
+  Temp:         /scratch/jjlee/tmp/
+  MATLAB class: ~/MATLAB-Drive/mlraut/src/+mlraut/BrainSmashAdapter_direct.m
+  Utilities:    ~/bin/brainsmash-*
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ RESOURCE RECOMMENDATIONS                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Memory:       16-32GB per job (monitor with sacct)
+  Wall time:    02:00:00 (actual ~800s = 13 min)
+  Partition:    tier1_cpu (joshua_shimony account)
+                tier2_cpu (aristeidis_sotiras account)
+                free (any account, 3h max)
+  Jobs:         64 jobs for ~1100 subjects (~17 subjects/job)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BATCH DATA FORMAT                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Input:  .mat file with subject list (e.g., verified_globbed)
+  Output: batch_data.mat with cell array:
+          - Rows: subjects per job (~17)
+          - Cols: number of jobs (64)
+          - Empty cells for padding
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ USEFUL SLURM COMMANDS                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+  sinfo                              # Partition status
+  sinfo -p tier1_cpu                 # Specific partition
+  sacct --starttime=2025-11-07       # Jobs since date
+  scontrol show partition tier1_cpu  # Partition limits
+  squeue -p tier1_cpu                # Jobs in partition
+  sprio -j 12345678                  # Job priority
+  sshare -u $USER                    # Account shares
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EMERGENCY PROCEDURES                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Kill all your jobs:
+    scancel -u $USER
+
+  Kill specific run:
+    scancel --name=brainsmash_20251107*
+
+  Check disk usage:
+    quota -s
+    df -h /scratch/jjlee
+
+  Clean up logs:
+    find /scratch/jjlee/slurm_logs -mtime +30 -delete
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ GETTING HELP                                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+  Full docs:    cat /scratch/jjlee/slurm_scripts/README_DirectSLURM.md
+  Script help:  brainsmash-submit --help
+  CHPC docs:    https://confluence.wustl.edu/display/CHPC/
+  SLURM docs:   https://slurm.schedmd.com/
+
+  Contact:      John J. Lee (jjlee@wustl.edu)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EXAMPLE SESSION                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+  # 1. Login to CHPC
+  ssh login3.chpc.wustl.edu
+
+  # 2. Test system
+  brainsmash-test
+
+  # 3. Prepare data (if not already done)
+  brainsmash-prepare
+
+  # 4. Submit jobs
+  brainsmash-submit --start 1 --end 64 --mem 32gb --time 02:00:00
+
+  # 5. Monitor
+  brainsmash-monitor watch
+
+  # 6. Check results when complete
+  ls /scratch/jjlee/Singularity/AnalyticSignalHCP/*.npy
+
+└─────────────────────────────────────────────────────────────────────────────┘
+                    Version 1.0 | 2025-11-07 | jjlee@wustl.edu

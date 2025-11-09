@@ -6,7 +6,8 @@ classdef Twistors < handle & mlsystem.IHandle
     %  Developed on Matlab 24.2.0.2773142 (R2024b) Update 2 for MACA64.  Copyright 2024 John J. Lee.
     
     properties (Constant)
-        ANT_COMMISSURE_COORD = [90, 128, 68]  % Conte69_AverageT1w.nii.gz
+        ATLAS_SIZE = [182, 218, 182]
+        ANT_COMMISSURE_COORD = [90, 128, 68]  % Conte69_AverageT1w.nii.gz ~ 182 x 218 x 182 mm
         PRECUNEUS_COORD = [90, 73, 116]
         LOCUS_CERULEUS_COORD = [90, 94, 60]
         V1_L_COORD = [81, 30, 69]
@@ -33,7 +34,8 @@ classdef Twistors < handle & mlsystem.IHandle
 
     properties (Dependent)
         bold_signal  % hilbert(bold) ~ Nt x Nx
-        hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz
+        go_indices
+        hp_thresh  % low freq. bound, Ryan ~ 0.01 Hz        
         lp_thresh  % high freq. bound, Ryan ~ 0.05-0.1 Hz, for CSF studies ~ 0.1 Hz
         num_bins_angles  % this.ihcp_.num_bins_angles, needed by bin_by_physio_angle
         physio_signal  % hilbert(physio) ~ Nt x 1
@@ -46,6 +48,11 @@ classdef Twistors < handle & mlsystem.IHandle
     methods  %% GET
         function g = get.bold_signal(this)
             g = this.ihcp_.bold_signal;
+        end
+        function g = get.go_indices(this)
+            g{1} = 1:29696;  % L
+            g{2} = 29697:59412;  % R
+            g{3} = 59413:91282;  % subcortex
         end
         function g = get.hp_thresh(this)
             g = this.ihcp_.hp_thresh;
@@ -278,7 +285,7 @@ classdef Twistors < handle & mlsystem.IHandle
 
         %% Twistor elements & related
 
-        function binned = bin_by_physio_angle(this, psi, phi, opts)
+        function [binned,binlim] = bin_by_physio_angle(this, psi, phi, opts)
             %% Average psi(t) into bins of angles theta <- angle(phi), whereby {theta_i, i \in \mathbb{N}} 
             %  span [-2 pi, 2 pi], allowing assessment of Berry's phase.  This allows generation of figures 
             %  similar to Ryans' Science Adv. (2021) Fig. 4.
@@ -291,6 +298,7 @@ classdef Twistors < handle & mlsystem.IHandle
             %      opts.num_bins_angles {mustBeScalarOrEmpty} = 40
             %  Returns:
             %      binned numeric ~ num_bins_angles x Ngo; analytic
+            %      binlim numeric ~ -this.theta_berry/2:dtheta:this.theta_berrry/2, num. bins = this.num_bins_angles
 
             arguments
                 this mlraut.Twistors
@@ -318,6 +326,18 @@ classdef Twistors < handle & mlsystem.IHandle
             for b = 2:num_bins_angles_+1
                 selected = binlim(b-1) < wrapped_theta & wrapped_theta < binlim(b);
                 binned(b-1,:) = mean(psi(selected, :), 1, "omitnan");
+            end
+        end
+
+        function Z_ = tune_to_phi(this, Z_, phi)
+            %% rotates all Z^\alpha to be in phase with phi to facilitate signal averaging
+
+            [Z_,binlim] = this.bin_by_physio_angle(Z_, phi);  % N_bins_angles x N_go
+            N_bins = this.num_bins_angles;
+            dtheta = binlim(2) - binlim(1);  % arc for one linear bin
+            theta = binlim(1:end-1) + dtheta/2;
+            for idx = 1:N_bins
+                Z_(idx, :) = Z_(idx, :)*exp(-1i*theta(idx));
             end
         end
 
@@ -351,11 +371,47 @@ classdef Twistors < handle & mlsystem.IHandle
             psi = (psi.*conj(psi) - phi.*conj(phi))/sqrt(2);
         end
 
-        function [Z_sup_alpha_,x_sup_AAp] = Z_sup_alpha(this, pi_sub_0p, pi_sub_1p, opts)
+        function Z_ = Z_sup_0_binned(this, psi, phi, varargin)
+            Z_sup_alpha_ = this.Z_sup_alpha(psi, phi, varargin{:});
+            Z_ = Z_sup_alpha_{1};
+            Z_ = this.bin_by_physio_angle(Z_, phi);  % N_bins_angles x N_go
+        end
+        
+        function Z_ = Z_sup_1_binned(this, psi, phi, varargin)
+            Z_sup_alpha_ = this.Z_sup_alpha(psi, phi, varargin{:});
+            Z_ = Z_sup_alpha_{2};
+            Z_ = this.bin_by_physio_angle(Z_, phi);  % N_bins_angles x N_go
+        end
+        
+        function Z_ = Z_sup_2_binned(this, psi, phi, varargin)
+            Z_sup_alpha_ = this.Z_sup_alpha(psi, phi, varargin{:});
+            Z_ = Z_sup_alpha_{3};
+            Z_ = this.bin_by_physio_angle(Z_, phi);  % N_bins_angles x N_go
+        end
+
+        function Z_ = Z_sup_0_tuned(this, psi, phi, varargin)
+            Z_sup_alpha_ = this.Z_sup_alpha(psi, phi, varargin{:});
+            Z_ = Z_sup_alpha_{1};
+            Z_ = this.tune_to_phi(Z_, phi);            
+        end
+
+        function Z_ = Z_sup_1_tuned(this, psi, phi, varargin)
+            Z_sup_alpha_ = this.Z_sup_alpha(psi, phi, varargin{:});
+            Z_ = Z_sup_alpha_{2};
+            Z_ = this.tune_to_phi(Z_, phi);
+        end
+
+        function Z_ = Z_sup_2_tuned(this, psi, phi, varargin)
+            Z_sup_alpha_ = this.Z_sup_alpha(psi, phi, varargin{:});
+            Z_ = Z_sup_alpha_{3};
+            Z_ = this.tune_to_phi(Z_, phi);
+        end
+
+        function [Z_sup_alpha_,x_sup_AAp] = Z_sup_alpha(this, psi, phi, opts)
             %% S & ST, Penrose & Rindler, sec. 6.2.
             %  Args:
-            %      pi_sub_0p {mustBeNumeric} \pi_{0'} ~ psi ~ -dbold/dt
-            %      pi_sub_1p {mustBeNumeric} \pi_{1'} ~ phi ~ physio(t)
+            %      psi {mustBeNumeric} ~ \pi_{0'} ~ -dbold/dt
+            %      phi {mustBeNumeric} ~ \pi_{1'} ~ physio(t)
             %      opts.type {mustBeTextScalar} = "midthickness"  % "sphere", "midthickness"
             %      opts.center_coord {mustBeNumeric} = [90, 73, 116]  % mm, for precuneus
             %      opts.go_qc logical = false  % greyordinate qc
@@ -370,28 +426,33 @@ classdef Twistors < handle & mlsystem.IHandle
 
             arguments
                 this mlraut.Twistors
-                pi_sub_0p {mustBeNumeric}
-                pi_sub_1p {mustBeNumeric}
+                psi {mustBeNumeric}
+                phi {mustBeNumeric}
                 opts.type {mustBeTextScalar} = "sphere"  % "sphere", "midthickness"
                 opts.center_coord {mustBeNumeric} = this.LOCUS_CERULEUS_COORD  % mm, for precuneus
                 opts.go_qc logical = false  % greyordinate qc
                 opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 0.1 ~ 1/timescale
-                opts.use_E4 logical = false  % Ward & Wells sec. 8.1
-                opts.s {mustBeScalarOrEmpty} = -1/2^(5/2)  % helicity in Penrose & Rindler eq. 6.2.7; only influences ~opts.use_E4
+                opts.use_E4 logical = true  % Ward & Wells sec. 8.1
+                opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7; only influences ~opts.use_E4
+            end
+
+            % force consistent opts
+            if opts.s ~= 0
+                opts.use_E4 = false;
             end
 
             % consider using -dbold/dt
             if this.use_neg_ddt
-                [pi_sub_0p,pi_sub_1p] = this.neg_ddt(pi_sub_0p, pi_sub_1p);
-                pi_sub_0p = this.ihcp_.build_centered_and_rescaled(pi_sub_0p);
+                [psi,phi] = this.neg_ddt(psi, phi);
+                psi = this.ihcp_.build_centered_and_rescaled(psi);
             end
 
             % init
-            N_t = size(pi_sub_0p, 1);
-            N_go = size(pi_sub_0p, 2);
-            if ~all(size(pi_sub_0p) == size(pi_sub_1p))  % ensure matched sizes for psi & phi
-                assert(all(size(pi_sub_1p) == [N_t, 1]))
-                pi_sub_1p = repmat(pi_sub_1p, [1, N_go]);
+            N_t = size(psi, 1);
+            N_go = size(psi, 2);
+            if ~all(size(psi) == size(phi))  % ensure matched sizes for psi & phi
+                assert(all(size(phi) == [N_t, 1]))
+                phi = repmat(phi, [1, N_go]);
             end
 
             % Euclidean coords
@@ -404,39 +465,71 @@ classdef Twistors < handle & mlsystem.IHandle
                 handwarning(ME)
                 L = func(go, [], "all");  % characteristic length scale of hemisphere (mm)
             end
-            c = opts.c;
-            x = go(1, :) / L;
-            y = go(2, :) / L;
-            z = go(3, :) / L;
-            t = c * ascol(linspace(0, (N_t - 1)*this.tr, N_t));
-            bulk = zeros(N_t, 1);  % forces shape with N_t rows
 
-            % Use \mathbb{E}^4 according to Ward & Wells, pg. 388
-            if opts.use_E4
-                x_sup_00p = (-1i * t + z) / sqrt(2);
-                x_sup_01p = (x - 1i * y + bulk) / sqrt(2);
-                x_sup_10p = (x + 1i * y + bulk) / sqrt(2);
-                x_sup_11p = (-1i * t - z) / sqrt(2);
-                omega_sup_0 = 1i * ( ...
-                    x_sup_00p .* pi_sub_0p + x_sup_01p .* pi_sub_1p);
-                omega_sup_1 = 1i * ( ...
-                    x_sup_10p .* pi_sub_0p + x_sup_11p .* pi_sub_1p);
-            else
-                % Penrose & Rindler equations 6.1.10, 6.2.7
-                omega_o_sup_0 = 0;  % Twistor angular momentum ~ [\mathring{omega}^0; \mathring{omega}^1]
-                omega_o_sup_1 = opts.s;  % \mathring{\omega}^1 ~ helicity; trying anti-self dual setting
-                x_sup_00p = (t + z) / sqrt(2);
-                x_sup_01p = (bulk + x + 1i * y) / sqrt(2);
-                x_sup_10p = (bulk + x - 1i * y) / sqrt(2);
-                x_sup_11p = (t - z) / sqrt(2);
-                omega_sup_0 = omega_o_sup_0 - 1i * ( ...
-                    x_sup_00p .* pi_sub_0p + x_sup_01p .* pi_sub_1p);
-                omega_sup_1 = omega_o_sup_1 - 1i * ( ...
-                    x_sup_10p .* pi_sub_0p + x_sup_11p .* pi_sub_1p);
+            % separately propagate left, right, subcortex
+            x_sup_00p_ = zeros(N_t, N_go);
+            x_sup_01p_ = zeros(N_t, N_go);
+            x_sup_10p_ = zeros(N_t, N_go);
+            x_sup_11p_ = zeros(N_t, N_go);
+            omega_sup_0_ = zeros(N_t, N_go);
+            omega_sup_1_ = zeros(N_t, N_go);
+            pi_sub_0p_ = psi;
+            pi_sub_1p_ = phi;
+            s_ = [opts.s, opts.s, 0];  % for now, suppress helicity in the subcortex to avoid unrealistic asymmetries
+
+            for gidx = 1:3  % left, right, subcortex
+
+                pi_sub_0p = pi_sub_0p_(:, this.go_indices{gidx});
+                pi_sub_1p = pi_sub_1p_(:, this.go_indices{gidx});
+                s = s_(gidx);
+
+                c = opts.c;
+                x = go(1, this.go_indices{gidx}) / L;
+                y = go(2, this.go_indices{gidx}) / L;
+                z = go(3, this.go_indices{gidx}) / L;
+                t = c * ascol(linspace(0, (N_t - 1)*this.tr, N_t));
+                bulk = zeros(N_t, 1);  % forces shape with N_t rows
+                if 2 == gidx
+                    % adjust x-coord of right hemisphere
+                    x = -x;
+                end
+
+                % Use \mathbb{E}^4 according to Ward & Wells, pg. 388
+                if opts.use_E4
+                    x_sup_00p = (-1i * t + z) / sqrt(2);
+                    x_sup_01p = (x - 1i * y + bulk) / sqrt(2);
+                    x_sup_10p = (x + 1i * y + bulk) / sqrt(2);
+                    x_sup_11p = (-1i * t - z) / sqrt(2);
+                    omega_sup_0 = 1i * ( ...
+                        x_sup_00p .* pi_sub_0p + x_sup_01p .* pi_sub_1p);
+                    omega_sup_1 = 1i * ( ...
+                        x_sup_10p .* pi_sub_0p + x_sup_11p .* pi_sub_1p);
+                else
+                    % Penrose & Rindler equations 6.1.10, 6.2.7 vs. Ward & Wells pg. 248
+                    omega_o_sup_0 = 0;  % Twistor angular momentum ~ [\mathring{omega}^0; \mathring{omega}^1]
+                    omega_o_sup_1 = s;  % \mathring{\omega}^1 ~ helicity; trying anti-self dual setting
+                    x_sup_00p = (t + z) / sqrt(2);
+                    x_sup_01p = (bulk + x - 1i * y) / sqrt(2);
+                    x_sup_10p = (bulk + x + 1i * y) / sqrt(2);
+                    x_sup_11p = (t - z) / sqrt(2);
+                    omega_sup_0 = omega_o_sup_0 + 1i * ( ...
+                        x_sup_00p .* pi_sub_0p + x_sup_01p .* pi_sub_1p);
+                    omega_sup_1 = omega_o_sup_1 + 1i * ( ...
+                        x_sup_10p .* pi_sub_0p + x_sup_11p .* pi_sub_1p);
+                end
+
+                x_sup_00p_(:, this.go_indices{gidx}) = x_sup_00p;
+                x_sup_01p_(:, this.go_indices{gidx}) = x_sup_01p;
+                x_sup_10p_(:, this.go_indices{gidx}) = x_sup_10p;
+                x_sup_11p_(:, this.go_indices{gidx}) = x_sup_11p;
+                omega_sup_0_(:, this.go_indices{gidx}) = omega_sup_0;
+                omega_sup_1_(:, this.go_indices{gidx}) = omega_sup_1;
+                pi_sub_0p_(:, this.go_indices{gidx}) = pi_sub_0p;
+                pi_sub_1p_(:, this.go_indices{gidx}) = pi_sub_1p;
             end
 
-            x_sup_AAp = {x_sup_00p, x_sup_01p; x_sup_10p, x_sup_11p};
-            Z_sup_alpha_ = {omega_sup_0, omega_sup_1, pi_sub_0p, pi_sub_1p};
+            x_sup_AAp = {x_sup_00p_, x_sup_01p_; x_sup_10p_, x_sup_11p_};
+            Z_sup_alpha_ = {omega_sup_0_, omega_sup_1_, pi_sub_0p_, pi_sub_1p_};
         end
 
         function psi = T(this, psi, phi)

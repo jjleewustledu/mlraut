@@ -64,6 +64,31 @@ classdef CHPC3
             disp(c.AdditionalProperties)
         end
 
+        function c = propcluster_free(account_name, opts)
+            arguments
+                account_name = ''
+                opts.partition = 'free'
+                opts.mempercpu {mustBeTextScalar} = '64gb'  
+                opts.walltime {mustBeTextScalar} = '03:00:00'  % max
+            end
+            opts.partition = convertStringsToChars(opts.partition);
+
+            c = parcluster;
+            c.AdditionalProperties.ClusterHost = 'login3.chpc.wustl.edu';
+            c.AdditionalProperties.EmailAddress = '';
+            c.AdditionalProperties.EnableDebug = false;
+            c.AdditionalProperties.GpusPerNode = 0;
+            c.AdditionalProperties.MemPerCPU = opts.mempercpu;
+            % c.AdditionalProperties.Node = '';
+            c.AdditionalProperties.Partition = opts.partition;
+            c.AdditionalProperties.RemoteJobStorageLocation = '/home/jjlee/.matlab/3p_cluster_jobs/chpc/twistor.attlocal.net.dhcp.wustl.edu/R2024b/nonshared';
+            c.AdditionalProperties.UseIdentityFile = false;
+            c.AdditionalProperties.UseSmpd = false;
+            c.AdditionalProperties.Username = 'jjlee';
+            c.AdditionalProperties.WallTime = opts.walltime;
+            disp(c.AdditionalProperties)
+        end
+
         function c = propcluster_tiny(account_name, opts)
             arguments
                 account_name = 'aristeidis_sotiras'  % 'joshua_shimony' 'manu_goyal' 'jjlee'

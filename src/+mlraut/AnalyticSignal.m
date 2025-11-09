@@ -597,6 +597,30 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = this.twistors_.Z(varargin{:});
         end
 
+        function Z_ = Z_sup_0_binned(this, varargin)
+            Z_ = this.twistors_.Z_sup_0_binned(varargin{:});
+        end
+
+        function Z_ = Z_sup_0_tuned(this, varargin)
+            Z_ = this.twistors_.Z_sup_0_tuned(varargin{:});
+        end
+
+        function Z_ = Z_sup_1_binned(this, varargin)
+            Z_ = this.twistors_.Z_sup_1_binned(varargin{:});
+        end
+
+        function Z_ = Z_sup_1_tuned(this, varargin)
+            Z_ = this.twistors_.Z_sup_1_tuned(varargin{:});
+        end
+
+        function Z_ = Z_sup_2_binned(this, varargin)
+            Z_ = this.twistors_.Z_sup_2_binned(varargin{:});
+        end
+
+        function Z_ = Z_sup_2_tuned(this, varargin)
+            Z_ = this.twistors_.Z_sup_2_tuned(varargin{:});
+        end
+
         function Z_sup_alpha_ = Z_sup_alpha(this, varargin)
             Z_sup_alpha_ = this.twistors_.Z_sup_alpha(varargin{:});
         end
@@ -1122,8 +1146,10 @@ classdef AnalyticSignal < handle & mlraut.HCP
             opts.tags = convertCharsToStrings(opts.tags);
 
             % path management
-            addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
-            addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
+            if ~isdeployed
+                addpath(genpath(fullfile(this.waves_dir, 'Dependencies', '-end')));
+                addpath(genpath(fullfile(this.waves_dir, 'supporting_files', '')));
+            end
 
             this.anatomy_list_ = opts.anatomy_list;
             this.do_7T = opts.do_7T;

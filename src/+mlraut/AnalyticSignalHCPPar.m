@@ -277,7 +277,7 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.anatomy {mustBeTextScalar} = "ctx"
                 opts.tag {mustBeText} = "locuscer"
                 opts.test_range = []  % 1:2
-                opts.Ncol {mustBeInteger} = 2
+                opts.Ncol {mustBeInteger} = 32
                 opts.account_name char = 'joshua_shimony' % 'aristeidis_sotiras'
                 opts.instance {mustBeTextScalar} = "mean_Z_sup_alpha_instance"
             end
@@ -1382,17 +1382,12 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 opts.tag {mustBeText} = ""
 
                 % for this.Z_sup_alpha()
-                opts.center_coord {mustBeNumeric} = mlraut.Twistors.V1_R_COORD  % mm, for precuneus
+                opts.center_coord {mustBeNumeric} = mlraut.Twistors.LOCUS_CERULEUS_COORD  % mm, for precuneus
                 opts.c {mustBeScalarOrEmpty} = this.lp_thresh  % speed limit for Poincare invariance ~ 0.1 ~ 1/timescale
-                opts.use_E4 logical = true  % Ward & Wells sec. 8.1
+                opts.use_E4 logical = false  % Ward & Wells sec. 8.1
                 opts.s {mustBeScalarOrEmpty} = 0  % helicity in Penrose & Rindler eq. 6.2.7; only influences ~opts.use_E4
             end
             subs = convertCharsToStrings(subs);
-            if opts.s == 0
-                opts.use_E4 = true;
-            else
-                opts.use_E4 = false;
-            end
 
             % DEBUG
             disp(subs)
@@ -1510,7 +1505,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                 end
             end
             if ~isemptytext(opts.tag)
-                ptags = ptags + "-" + opts.tag;
+                ptags = ptags + "-" + opts.tag + ...
+                    strrep(sprintf("-coord%s", mat2str(opts.center_coord)), " ", ",");
             end
             this.cifti.write_cifti( ...
                 reZ_sup_0_, sprintf('reZsup0_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);

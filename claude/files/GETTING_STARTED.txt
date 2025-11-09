@@ -1,0 +1,194 @@
+┌──────────────────────────────────────────────────────────────────┐
+│  BrainSmash Direct SLURM - Getting Started Checklist            │
+└──────────────────────────────────────────────────────────────────┘
+
+INSTALLATION (One-time setup)
+─────────────────────────────────────────────────────────────────
+
+□ Step 1: Upload files to CHPC
+  scp *.sh *.m *.md *.txt login3.chpc.wustl.edu:/scratch/jjlee/
+
+□ Step 2: Login to CHPC
+  ssh login3.chpc.wustl.edu
+
+□ Step 3: Run installer
+  cd /scratch/jjlee
+  chmod +x install_direct_slurm.sh
+  ./install_direct_slurm.sh
+
+□ Step 4: Add to PATH (if needed)
+  echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+  source ~/.bashrc
+
+□ Step 5: Test installation
+  brainsmash-test
+  
+  ✓ If test job completes successfully, installation is verified!
+
+
+FIRST PRODUCTION RUN
+─────────────────────────────────────────────────────────────────
+
+□ Step 1: Prepare batch data (if not already done)
+  brainsmash-prepare \
+    --input $SINGULARITY_HOME/AnalyticSignalHCP/mlraut_AnalyticSignalHCPPar_verified_globbed.mat \
+    --var verified_globbed \
+    --ncol 64
+
+□ Step 2: Submit a small test batch first (recommended)
+  brainsmash-submit --start 1 --end 5 --mem 32gb --time 02:00:00
+  
+  Note: This submits only 5 jobs to verify everything works
+
+□ Step 3: Monitor test jobs
+  brainsmash-monitor watch
+  
+  Press Ctrl+C to exit
+  
+□ Step 4: Check test results
+  ls /scratch/jjlee/Singularity/AnalyticSignalHCP/*.npy
+  
+  ✓ If test jobs complete in ~13-15 minutes and produce output files,
+    you're ready for full-scale submission!
+
+□ Step 5: Submit all jobs
+  brainsmash-submit --start 1 --end 64 --mem 32gb --time 02:00:00
+
+
+DAILY WORKFLOW
+─────────────────────────────────────────────────────────────────
+
+Option A: From login node (shell)
+  1. brainsmash-submit --start 1 --end 64
+  2. brainsmash-monitor status
+  3. Check results when done
+
+Option B: From MATLAB (easier)
+  1. Launch MATLAB on login node
+  2. Run:
+     mlraut.BrainSmashAdapter_direct.submit_sample_subs_tasks_direct(...);
+  3. Monitor from shell:
+     brainsmash-monitor status
+
+
+MONITORING JOBS
+─────────────────────────────────────────────────────────────────
+
+□ Check current status
+  brainsmash-monitor status
+  
+□ Live monitoring (updates every 30s)
+  brainsmash-monitor watch
+  
+□ View specific job log
+  brainsmash-monitor logs JOBID
+  
+□ Performance statistics
+  brainsmash-monitor performance
+  
+□ Full summary
+  brainsmash-monitor summary
+
+
+TROUBLESHOOTING
+─────────────────────────────────────────────────────────────────
+
+Problem: Jobs stuck in PENDING state
+Solution: 
+  □ Check why: squeue -j JOBID -o "%.18i %.9P %.30j %.8T %R"
+  □ Wait if reason is "Resources" or "Priority"
+  □ Contact admin if reason is unusual
+
+Problem: Jobs failing immediately
+Solution:
+  □ Check error log: brainsmash-monitor logs JOBID
+  □ Common fix: Verify batch_data.mat exists
+  □ Try test job: brainsmash-test
+
+Problem: Slow performance (>1000s per job)
+Solution:
+  □ Check actual time: sacct -j JOBID --format=Elapsed
+  □ Verify you're using direct submission (not MATLAB Parallel Server)
+  □ Check node load: squeue | grep node_name
+
+Problem: Can't find brainsmash-* commands
+Solution:
+  □ Check PATH: echo $PATH | grep "$HOME/bin"
+  □ Add to PATH: export PATH="$HOME/bin:$PATH"
+  □ Or use full paths: /scratch/jjlee/slurm_scripts/submit_brainsmash_jobs.sh
+
+
+PERFORMANCE EXPECTATIONS
+─────────────────────────────────────────────────────────────────
+
+Expected runtime per job:
+  ✓ 800-1000 seconds (13-17 minutes)
+  ✗ >2000 seconds = something wrong
+
+Expected total time for 64 jobs:
+  ✓ All complete within 20-30 minutes (wall time)
+  
+Memory usage:
+  ✓ Typical: 16-24 GB
+  ✗ If >32 GB, may need optimization
+
+
+EMERGENCY PROCEDURES
+─────────────────────────────────────────────────────────────────
+
+Cancel all jobs:
+  scancel -u $USER
+
+Cancel specific run:
+  scancel --name=brainsmash_TIMESTAMP*
+  
+Check disk space:
+  quota -s
+  df -h /scratch/jjlee
+
+Clean up old logs:
+  find /scratch/jjlee/slurm_logs -name "*.out" -mtime +30 -delete
+  find /scratch/jjlee/slurm_logs -name "*.err" -mtime +30 -delete
+
+
+REFERENCE DOCUMENTS
+─────────────────────────────────────────────────────────────────
+
+□ Full documentation
+  cat /scratch/jjlee/slurm_scripts/README_DirectSLURM.md
+  
+□ Quick reference
+  cat /scratch/jjlee/slurm_scripts/QUICKREF.txt
+  
+□ Delivery summary
+  cat /scratch/jjlee/slurm_scripts/DELIVERY_SUMMARY.txt
+
+
+GETTING HELP
+─────────────────────────────────────────────────────────────────
+
+Command help:
+  brainsmash-submit --help
+  brainsmash-monitor --help
+  
+CHPC documentation:
+  https://confluence.wustl.edu/display/CHPC/
+  
+SLURM documentation:
+  https://slurm.schedmd.com/
+
+
+SUCCESS CRITERIA
+─────────────────────────────────────────────────────────────────
+
+You'll know it's working when:
+  ✓ Test job completes successfully
+  ✓ Production jobs finish in ~800-1000 seconds each
+  ✓ 64 jobs complete within 30 minutes wall time
+  ✓ Output .npy files appear in output directory
+  ✓ Performance is 5-7x faster than MATLAB Parallel Server
+
+┌──────────────────────────────────────────────────────────────────┐
+│  Ready to restore your expected performance!                     │
+│  Start with: ./install_direct_slurm.sh                          │
+└──────────────────────────────────────────────────────────────────┘

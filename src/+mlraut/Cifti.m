@@ -230,6 +230,79 @@ classdef Cifti < handle & mlsystem.IHandle
             assert(~strcmp(fqfn0, fqfn), stackstr())
             cifti_write(cii, convertStringsToChars(fqfn));
         end
+
+        function saveas_dscalar_nii(cdata, fqfn)
+            arguments
+                cdata {mustBeNumeric}
+                fqfn {mustBeTextScalar}
+            end
+
+            % load template dscalar`
+            template_fqfn = fullfile( ...
+                getenv("HOME"), ...
+                "MATLAB-Drive", ...
+                "arousal-waves-main", ...
+                "surface_files", ...
+                "Conte69_atlas-v2.LR.32k_fs_LR.wb", ...
+                "996782_rfMRI_REST1_LR_Atlas_hp2000_clean_vn.dscalar.nii");
+            cii = cifti_read(template_fqfn);
+
+            assert(size(cdata, 1) == size(cii.cdata, 1))
+            cii.cdata = single(cdata);
+            cii.diminfo{2} = cifti_diminfo_make_scalars( ...
+                size(cdata, 2));
+            fqfn = convertStringsToChars(fqfn);
+            cifti_write(cii, fqfn)
+        end
+
+        function saveas_dtseries_nii(cdata, fqfn, opts)
+            arguments
+                cdata {mustBeNumeric}
+                fqfn {mustBeTextScalar}
+                opts.dt {mustBeNumeric} = 0.72  % HCP Young Adult
+                opts.units_t {mustBeTextScalar} = "SECOND"
+            end
+
+            % load template dtseries
+            template_fqfn = fullfile( ...
+                getenv("HOME"), ...
+                "MATLAB-Drive", ...
+                "arousal-waves-main", ...
+                "surface_files", ...
+                "Conte69_atlas-v2.LR.32k_fs_LR.wb", ...
+                "bold_as_sub-n2396_ses-n2396_proc-RV-std-gsr0-ddt1-butter8-lp0p1-hp0p01-scaleiqr-subset-meanfield-ASHCPPar.dtseries.nii");
+            cii = cifti_read(template_fqfn);
+
+            assert(size(cdata, 1) == size(cii.cdata, 1))
+            cii.cdata = single(cdata);
+            cii.diminfo{2} = cifti_diminfo_make_series( ...
+                size(cdata, 2), 0, opts.dt, convertStringsToChars(opts.units_t));
+            fqfn = convertStringsToChars(fqfn);
+            cifti_write(cii, fqfn)
+        end
+
+        function fqfn1 = zscore_cifti(fqfn, opts)
+            arguments
+                fqfn {mustBeFile}
+                opts.fqfn1 {mustBeTextScalar} = ""
+            end
+            if isemptytext(opts.fqfn1)
+                % Pattern: capture "_proc-" followed by non-underscore characters
+                % and replace by inserting the new tag before the trailing underscore
+                patt = '(_proc-[^_]+)(_)';
+                repl = sprintf('$1-%s$2', 'zscore');
+                fqfn1 = regexprep(fqfn, patt, repl);
+            else
+                fqfn1 = opts.fqfn1;
+            end
+            fqfn = convertStringsToChars(fqfn);
+            fqfn1 = convertStringsToChars(fqfn1);
+
+            cii = cifti_read(fqfn);
+            assert(allfinite(cii.cdata));
+            cii.cdata = zscore(cii.cdata, 0, 'all');
+            cifti_write(cii, fqfn1);
+        end
     end
 
     %% PROTECTED

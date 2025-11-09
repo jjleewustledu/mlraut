@@ -562,7 +562,7 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
             diary("off");
         end
 
-        function duration = construct_and_call_fultz(subjects, opts)
+        function duration_ = construct_and_call_fultz(subjects, opts)
             %% must be called by batch()
 
             arguments
@@ -605,8 +605,8 @@ classdef AnalyticSignalGBMPar < handle & mlraut.AnalyticSignalGBM
                 tag=opts.tags);
             disp("calling this")
             call(this);
-            duration = toc;
-            fprintf("tic-toc duration: %s seconds", duration);
+            duration_ = toc;
+            fprintf("tic-toc duration: %s seconds", duration_);
             diary("off");
         end
     end
