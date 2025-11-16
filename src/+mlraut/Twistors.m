@@ -603,6 +603,11 @@ classdef Twistors < handle & mlsystem.IHandle
             plvs = conj(as) ./ abs(as);
         end
 
+        function plvs = phase_locked_values_binned(this, psi, phi)
+            plvs = this.phase_locked_values(psi, phi);
+            plvs = this.bin_by_physio_angle(plvs, phi);  % N_bins_angles x N_go
+        end
+
         function theta = unwrap(this, psi, phi)
             %% floating-point equivalent to:
             %  theta = unwrap(angle(psi)) - unwrap(angle(phi))

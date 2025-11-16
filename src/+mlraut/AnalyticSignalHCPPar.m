@@ -82,7 +82,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             T_ = zeros(nbin, ngo);
             r_ = zeros(1, ngo);
             bold_ = zeros(nbin, ngo);
-            plvs_ = zeros(nbin, ngo);
+            replvs_ = zeros(nbin, ngo);
+            implvs_ = zeros(nbin, ngo);
             errs = 0;
 
             % abbrev.
@@ -109,7 +110,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                     T_ = T_ + real(T);
                     r_ = r_ + real(r);
                     bold_ = bold_ + real(bold);
-                    plvs_ = plvs_ + real(plvs);
+                    replvs_ = replvs_ + real(plvs);
+                    implvs_ = implvs_ + imag(plvs);
                 catch ME
                     fprintf("while working with %s: ", mat{1});
                     handwarning(ME)
@@ -127,7 +129,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             T_ = T_/nmats_corr;
             r_ = r_/nmats_corr;
             bold_ = bold_/nmats_corr;
-            plvs_ = plvs_/nmats_corr;
+            replvs_ = replvs_/nmats_corr;
+            implvs_ = implvs_/nmats_corr;
 
 
             dt = this.twistors_.theta_berry/this.twistors_.num_bins_angles;
@@ -148,7 +151,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             this.cifti.write_cifti( ...
                 bold_, sprintf('bold_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                plvs_, sprintf('plvs_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
+                replvs_, sprintf('replvs_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                implvs_, sprintf('implvs_as_sub-%s_ses-%s_%s', ntag, ntag, this.tags), dt=dt, units_t=units_t);
 
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
         end
@@ -1204,7 +1209,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             r_ = zeros(1, ngo);
             bold_ = zeros(nbin, ngo);
             % neg_dbold_dt_ = zeros(nbin, ngo);
-            plvs_ = zeros(nbin, ngo);
+            replvs_ = zeros(nbin, ngo);
+            implvs_ = zeros(nbin, ngo);
             nmats_corr = 0;
 
             % find sub*.mat
@@ -1288,7 +1294,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
                         r_ = r_ + real(r);
                         bold_ = bold_ + real(bold);
                         % neg_dbold_dt_ = neg_dbold_dt_ + real(neg_dbold_dt);
-                        plvs_ = plvs_ + real(plvs);
+                        replvs_ = replvs_ + real(plvs);
+                        implvs_ = implvs_ + imag(plvs);
                     catch ME
                         fprintf("while working with %s: ", mat);
                         handwarning(ME)
@@ -1318,7 +1325,8 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             r_ = r_/nmats_corr;
             bold_ = bold_/nmats_corr;
             % neg_dbold_dt_ = neg_dbold_dt_/nmats_corr;
-            plvs_ = plvs_/nmats_corr;
+            replvs_ = replvs_/nmats_corr;
+            implvs_ = implvs_/nmats_corr;
 
             dt = this.twistors_.theta_berry/this.twistors_.num_bins_angles;
             units_t = "RADIAN";
@@ -1364,7 +1372,9 @@ classdef AnalyticSignalHCPPar < handle & mlraut.AnalyticSignalHCP
             % this.cifti.write_cifti( ...
             %     neg_dbold_dt_, sprintf('neg-dbold-dt_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
             this.cifti.write_cifti( ...
-                plvs_, sprintf('plvs_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+                replvs_, sprintf('replvs_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
+            this.cifti.write_cifti( ...
+                implvs_, sprintf('implvs_as_sub-%s_ses-%s_%s_par%i', ntag, ntag, ptags, opts.col_idx), dt=dt, units_t=units_t);
 
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
         end

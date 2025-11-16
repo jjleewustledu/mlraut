@@ -14,7 +14,7 @@ classdef BrainSmashAdapter < handle
         function [j,c] = cluster_test()
 
             % N.B.:  Matlab requires ~ 1101020 kB
-            c = mlraut.CHPC3.propcluster_free("joshua_shimony", mempercpu="10gb", walltime="00:10:00");
+            c = mlraut.CHPC3.propcluster("joshua_shimony", mempercpu="10gb", walltime="00:10:00");
             try
                 j = c.batch( ...
                     @mlraut.CHPC3.parallel_example, ...
@@ -35,17 +35,15 @@ classdef BrainSmashAdapter < handle
                 opts.globbing_var = "verified_globbed"
                 opts.new_physio {mustBeTextScalar} = "iFV"
                 opts.anatomy {mustBeTextScalar} = "ctx"
-                opts.measure {mustBeTextScalar} = "phase_locked_values"  % "Z_sup_0_tuned"
-                opts.measure_name {mustBeTextScalar} = "plvs"  % "Zsup0tuned"
+                opts.measure {mustBeTextScalar} = "Z_sup_0_tuned"  % "phase_locked_values"
+                opts.measure_name {mustBeTextScalar} = "Zsup0tuned"  % "plvs"
                 opts.out_dir {mustBeTextScalar} = "/scratch/jjlee/Singularity/AnalyticSignalHCP/cache"
                 opts.real logical = true  % real() | imag()
-                opts.funch function_handle = @mlraut.BrainSmashAdapter.sample_subs_tasks_scrambled
-                % opts.funch function_handle = @mlraut.BrainSmashAdapter.sample_subs_tasks
-                opts.mempercpu char {mustBeTextScalar} = '32gb'  % '32gb'
-                opts.walltime char {mustBeTextScalar} = '24:00:00'
-                %opts.walltime char {mustBeTextScalar} = '8:00:00'
+                opts.funch function_handle = @mlraut.BrainSmashAdapter.sample_subs_tasks
+                opts.mempercpu char {mustBeTextScalar} = '40gb'
+                opts.walltime char {mustBeTextScalar} = '6:00:00'
                 opts.starting_index_col {mustBeInteger} = 1
-                opts.Ncol {mustBeInteger} = 86
+                opts.Ncol {mustBeInteger} = 61  % max(mod(1097, 61)) ~ 60 in range 32:64; Nrow ~ 18
                 opts.partition_free logical = false
             end
 
@@ -87,10 +85,12 @@ classdef BrainSmashAdapter < handle
             else
                 c = mlraut.CHPC3.propcluster(account_name, mempercpu=opts.mempercpu, walltime=opts.walltime);
             end
-            subs = ensureCell(convertStringsToChars(subs));            
+            subs = ensureCell(convertStringsToChars(subs));
+            jidx = 0;
             for col_idx = opts.starting_index_col:opts.starting_index_col+Ncol-1
                 try
-                    j = c.batch( ...
+                    jidx = jidx + 1;
+                    j(jidx) = c.batch( ...
                         opts.funch, ...
                         1, ...
                         {subs(:, col_idx-opts.starting_index_col+1), ...
@@ -117,20 +117,20 @@ classdef BrainSmashAdapter < handle
         function globbing_mat = sample_subs_tasks(globbing_mat, opts)
             %% collects opts.measure for all tasks for all sub
             arguments
-                globbing_mat {mustBeText} = ...
-                    fullfile( ...
-                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
-                opts.globbing_var = "globbed"
-                opts.new_physio {mustBeTextScalar} = "RV-std"
+                globbing_mat {mustBeText} = "200917"
+                opts.globbing_var = "verified_globbed"
+                opts.new_physio {mustBeTextScalar} = "iFV"
                 opts.anatomy {mustBeTextScalar} = "ctx"
-                opts.measure {mustBeTextScalar} = "Z_sup_2_tuned"
-                opts.measure_name {mustBeTextScalar} = "Zsup2tuned"
+                opts.measure {mustBeTextScalar} = "Z_sup_2_binned"  % "Z_sup_2_tuned"
+                opts.measure_name {mustBeTextScalar} = "Zsup2binned"  % "Zsup2tuned"
                 opts.col_idx {mustBeScalarOrEmpty} = nan
-                opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP"
+                opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP/cache"
+                opts.sub_folders {mustBeTextScalar} = fullfile("BrainSmashAdapter", "sample_subs_tasks")
                 opts.stat = []  % e.g., @identity, @mean; [] skips writing cifti
                 opts.real logical = true  % real() | imag()
-                opts.do_save logical = true
             end
+
+            do_binned = contains(opts.measure, "_binned");
 
             % `globbing_mat` -> `subs`
             if isscalar(string(globbing_mat)) && endsWith(globbing_mat, ".mat") && ~isemptytext(opts.globbing_var)
@@ -141,6 +141,7 @@ classdef BrainSmashAdapter < handle
             end
             subs = convertCharsToStrings(subs);
             subs = asrow(subs);
+            fprintf("%s: ", stackstr()); disp(subs);
 
             % construct `as` which supplies utilities from AnalyticSignalHCP
             warning("off", "MATLAB:class:LoadDefinitionUpdated");
@@ -154,6 +155,7 @@ classdef BrainSmashAdapter < handle
                     sprintf("sub-%s_ses-*_proc-*ASHCPPar*.mat", subs(idx)));
                 mat_fqfn = mglob(patt);
             end
+            fprintf("%s: loading ASHCPPar object from %s\n", stackstr(), mat_fqfn(1))
             as = mlraut.AnalyticSignalHCPPar.load(mat_fqfn(1), class="mlraut.AnalyticSignalHCPPar");
             as.out_dir = opts.out_dir;
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
@@ -173,11 +175,17 @@ classdef BrainSmashAdapter < handle
                     continue
                 end
 
-                img_ = [];
+                if do_binned
+                    img_ = nan([length(mat_fqfn), as.num_bins_angles, as.num_nodes]);  % N_task x N_go
+                else
+                    img_ = nan([length(mat_fqfn), as.num_nodes]);  % N_task x N_go
+                end
                 nerror = 0;
+                task_idx = 0;
                 for mat_fqfn = mat_fqfns
                     tic
                     try
+                        task_idx = task_idx + 1;
                         ld = load(mat_fqfn);
                         psi = ld.this_subset.bold_signal;
                         if isemptytext(opts.new_physio)
@@ -205,7 +213,12 @@ classdef BrainSmashAdapter < handle
                             phi = hilbert(re_phi);
                         end
 
-                        img_ = [img_; as.(opts.measure)(psi, phi)]; %#ok<AGROW> % accum N_{angles} x `ngo`
+                        measure_2d = as.(opts.measure)(psi, phi);  % N_theta x N_go
+                        if do_binned
+                            img_(task_idx, :, :) = measure_2d;  % N_tasks x N_theta x N_go
+                        else                            
+                            img_(task_idx, :) = mean(measure_2d, 1);  % N_tasks x N_go
+                        end
                     catch ME
                         fprintf("while working with %s: ", mat_fqfn);
                         nerror = nerror + 1;
@@ -215,57 +228,85 @@ classdef BrainSmashAdapter < handle
                     toc
                 end
 
-                img_ = mean(img_, 1, "omitnan");  % 1 x `ngo`
-                samples = [samples; img_];  %#ok<AGROW> % accum N_{subs} x `ngo`
-            end
-
-            % build parts of filenames
-            ntag = size(samples, 1);
-            if ~strcmp(opts.anatomy, "ctx")
-                ptags = strrep(as.tags, as.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
-            else
-                ptags = strrep(as.tags, as.source_physio, opts.new_physio);
-            end
-
-            % assemble struct of measure
-            measure_data = struct( ...
-                "measure", opts.measure, ...
-                "measure_name", opts.measure_name, ...
-                "as", [], "subs", subs, "samples", samples, "ntag", ntag, "ptags", ptags, "nerror", nerror);
-
-            % save intermediates to out_fqfn
-            if opts.do_save
-                out_fqfn = fullfile( ...
-                    opts.out_dir, ...
-                    sprintf('%s_%s_as_sub-%i_ses-%i_%s_par%i.mat', ...
-                    stackstr(use_dashes=false), opts.measure_name, ntag, ntag, ptags, opts.col_idx));
-                save(out_fqfn, "measure_data", "-v7.3");
-            end
-
-            % apply stat function handle, then save out_fqfn as cifti, then return            
-            if isa(opts.stat, "function_handle")
-                try
-                    stat_samples_ = opts.stat(samples, 1);
-                catch
-                    try
-                        stat_samples_ = opts.stat(samples, [], 1);
-                    catch
-                        stat_samples_ = opts.stat(samples);
-                    end
-                end
-                if opts.real
-                    stat_samples_ = real(stat_samples_);
-                    prefix = "re";
+                % average tasks
+                if do_binned
+                    samples = mean(img_, 1, "omitnan");  % 1 x N_go
+                    samples = squeeze(samples);  % needed for samples ~ 1 x N_theta x N_go
                 else
-                    stat_samples_ = imag(stat_samples_);
-                    prefix = "im";
+                    samples = mean(img_, 1, "omitnan");  % 1 x N_go
                 end
-                measure_data_ = measure_data;  % expensive copy; set opts.stat <- [] if unnecessary
-                measure_data_.samples = stat_samples_;
-                mlraut.BrainSmashAdapter.write_cifti( ...
-                    measure_data_, ...
-                    prefix=prefix+func2str(opts.stat), ...
-                    out_dir=opts.out_dir);
+
+                % build parts of filenames
+                mat_fqfp = myfileprefix(mat_fqfn(1));
+                if ~strcmp(opts.anatomy, "ctx")
+                    py_fqfp = strrep(mat_fqfp, as.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
+                else
+                    py_fqfp = strrep(mat_fqfp, as.source_physio, opts.new_physio);
+                end
+                [pth_,fp_] = myfileparts(py_fqfp);
+                pth_ = fullfile(myfileparts(pth_), opts.sub_folders, sub);
+                ensuredir(pth_);
+                py_fqfp = fullfile(pth_, opts.measure_name + "_as_" + regexprep(fp_, "_ses-\S+_", "_ses-all_"));
+                py_fqfn = py_fqfp + ".npy";
+
+                % save .npy, ensuring MATLAB is using local conda python
+                nilpy = '/home/usr/jjlee/.conda/envs/matlab_py310/bin/python';
+                twistorpy = '/Users/jjlee/anaconda3/envs/py310/bin/python';
+                chpcpy = fullfile(getenv('HOME'), 'miniconda3/envs/py3/bin/python');
+                if isfile(nilpy)
+                    pe = pyenv('Version', nilpy);
+                elseif isfile(twistorpy)
+                    pe = pyenv('Version', twistorpy);
+                elseif isfile(chpcpy)
+                    pe = pyenv('Version', chpcpy);
+                else
+                    error("mlraut:RunTimeError", "%s: no python found", stackstr());
+                end
+                fprintf("%s: %s, %s\n", stackstr(), pe.Version, pe.Executable)
+                if ~all(isnan(samples), "all")
+                    py.numpy.save(py_fqfn, samples);  % 1 x N_go, N_theta x N_go
+                end
+
+                % apply stat function handle, then save out_fqfn as cifti, then return
+                % not for production runs
+                if isempty(opts.stat)
+                    continue
+                end
+                if isa(opts.stat, "function_handle") || contains(opts.stat, "cifti", IgnoreCase=true)
+                    if isa(opts.stat, "function_handle")
+                        try
+                            stat_samples_ = opts.stat(samples, 1);
+                        catch
+                            try
+                                stat_samples_ = opts.stat(samples, [], 1);
+                            catch
+                                stat_samples_ = opts.stat(samples);
+                            end
+                        end
+                    else
+                        stat_samples_ = samples;
+                    end
+                    if opts.real
+                        stat_samples_ = real(stat_samples_);
+                        fp = "real_" + mybasename(py_fqfp);
+                    else
+                        stat_samples_ = imag(stat_samples_);
+                        fp = "imag_" + mybasename(py_fqfp);
+                    end
+                    cii = cifti_read(fullfile(opts.out_dir, "template.dscalar.nii"));
+                    if size(stat_samples_, 1) > 1
+                        N_theta = size(stat_samples_, 1);
+                        stat_samples_ = stat_samples_(1:min(100, N_theta), :);
+                        cii.cdata = stat_samples_';  % N_go x 100 alternatives
+                        cii.diminfo{2} = cifti_diminfo_make_series(min(size(stat_samples_)), 0, 1, 'SECOND');
+                        ext = ".dtseries.nii";
+                    else
+                        cii.cdata = stat_samples_';  % N_go x 1
+                        ext = ".dscalar.nii";
+                    end
+                    cii_fqfn =  fullfile(myfileparts(py_fqfp), fp + ext);
+                    cifti_write(cii, char(cii_fqfn));
+                end
             end
         end
 
