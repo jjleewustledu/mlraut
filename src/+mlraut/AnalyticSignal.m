@@ -633,16 +633,44 @@ classdef AnalyticSignal < handle & mlraut.HCP
             psi = this.twistors_.x(varargin{:});
         end
 
+        function psi = x_avgt(this, varargin)
+            psi = this.twistors_.x_avgt(varargin{:});
+        end
+
         function psi = y(this, varargin)
             psi = this.twistors_.y(varargin{:});
+        end
+
+        function psi = y_avgt(this, varargin)
+            psi = this.twistors_.y_avgt(varargin{:});
         end
 
         function psi = z(this, varargin)
             psi = this.twistors_.z(varargin{:});
         end
 
+        function psi = z_avgt(this, varargin)
+            psi = this.twistors_.z_avgt(varargin{:});
+        end
+
         function psi = zeta(this, varargin)
             psi = this.twistors_.zeta(varargin{:});
+        end
+
+        function psi = zeta_binned(this, varargin)
+            psi = this.twistors_.zeta_binned(varargin{:});
+        end
+
+        function psi = zeta_hat(this, varargin)
+            psi = this.twistors_.zeta_hat(varargin{:});
+        end
+
+        function psi = zeta_hat_avgt(this, varargin)
+            psi = this.twistors_.zeta_hat_avgt(varargin{:});
+        end
+
+        function psi = zeta_hat_binned(this, varargin)
+            psi = this.twistors_.zeta_hat_binned(varargin{:});
         end
 
         %% plotting

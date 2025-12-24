@@ -35,14 +35,17 @@ classdef BrainSmashAdapter < handle
                 opts.globbing_var = "verified_globbed"
                 opts.new_physio {mustBeTextScalar} = "iFV"
                 opts.anatomy {mustBeTextScalar} = "ctx"
-                opts.measure {mustBeTextScalar} = "Z_sup_0_tuned"  % "phase_locked_values"
-                opts.measure_name {mustBeTextScalar} = "Zsup0tuned"  % "plvs"
+                opts.measure {mustBeTextScalar} = "zeta_hat_avgt"  % "phase_locked_values"
+                opts.measure_name {mustBeTextScalar} = "zetahatavgt"  % "plvs"
                 opts.out_dir {mustBeTextScalar} = "/scratch/jjlee/Singularity/AnalyticSignalHCP/cache"
-                opts.real logical = true  % real() | imag()
+                opts.real logical = true  % real() | imag() for saving cifti
                 opts.funch function_handle = @mlraut.BrainSmashAdapter.sample_subs_tasks
+                % opts.mempercpu char {mustBeTextScalar} = '96gb'  % scrambled need more resources
                 opts.mempercpu char {mustBeTextScalar} = '40gb'
+                % opts.walltime char {mustBeTextScalar} = '24:00:00'  % scrambled need more resources
                 opts.walltime char {mustBeTextScalar} = '6:00:00'
                 opts.starting_index_col {mustBeInteger} = 1
+                % opts.Ncol {mustBeInteger} = 86  % scrambled need more resources
                 opts.Ncol {mustBeInteger} = 61  % max(mod(1097, 61)) ~ 60 in range 32:64; Nrow ~ 18
                 opts.partition_free logical = false
             end
@@ -114,6 +117,191 @@ classdef BrainSmashAdapter < handle
             warning('on', 'MATLAB:TooManyInputs');
         end
 
+        function [j,c] = cluster_extract_globbed_phis(globbing_mat, opts)
+            arguments
+                globbing_mat {mustBeText} = ...
+                    fullfile( ...
+                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_verified_globbed.mat')
+                opts.globbing_var = "verified_globbed"
+                opts.out_dir {mustBeTextScalar} = "/scratch/jjlee/Singularity/AnalyticSignalHCP/cache"
+                opts.funch function_handle = @mlraut.BrainSmashAdapter.extract_globbed_phis
+                opts.mempercpu char {mustBeTextScalar} = '40gb'
+                opts.walltime char {mustBeTextScalar} = '6:00:00'
+                opts.starting_index_col {mustBeInteger} = 1
+                opts.Ncol {mustBeInteger} = 61  % max(mod(1097, 61)) ~ 60 in range 32:64; Nrow ~ 18
+                opts.partition_free logical = false
+            end
+
+            % additional internal params
+            Ncol = opts.Ncol;  % Ncol ~ num jobs; Nrow ~ ceil(1097/16) = 69 subs per job
+            account_name = 'joshua_shimony';
+
+            % `globbing_mat` -> `subs`
+            if isscalar(string(globbing_mat)) && endsWith(globbing_mat, ".mat") && ~isemptytext(opts.globbing_var)
+                ld = load(globbing_mat);
+                subs = ld.(opts.globbing_var);
+            else
+                subs = globbing_mat;
+            end
+            subs = convertCharsToStrings(subs);
+            subs = asrow(subs);
+            subs_nontrivial = subs;
+
+            % pad and reshape globbed
+            Nrow = ceil(numel(subs)/Ncol);
+            if Ncol > 1
+                padding = repmat("", [1, Ncol*Nrow - numel(subs)]);
+                subs = [subs, padding];                
+                subs = reshape(subs, Nrow, Ncol);
+            end
+            fprintf("%s:subs:\n", stackstr());
+            fprintf("\t%s ... %s (len=%i)\n", subs_nontrivial(1), subs_nontrivial(end), length(subs_nontrivial));
+            fprintf("\tstring array size: %s\n", mat2str(size(subs)));
+
+            %% contact cluster slurm
+
+            warning('off', 'MATLAB:legacy:batchSyntax');
+            warning('off', 'parallel:convenience:BatchFunctionNestedCellArray');
+            warning('off', 'MATLAB:TooManyInputs');
+
+            if opts.partition_free
+                opts.walltime = '3:00:00';
+                c = mlraut.CHPC3.propcluster_free(account_name, mempercpu=opts.mempercpu, walltime=opts.walltime);
+            else
+                c = mlraut.CHPC3.propcluster(account_name, mempercpu=opts.mempercpu, walltime=opts.walltime);
+            end
+            subs = ensureCell(convertStringsToChars(subs));
+            jidx = 0;
+            for col_idx = opts.starting_index_col:opts.starting_index_col+Ncol-1
+                try
+                    jidx = jidx + 1;
+                    j(jidx) = c.batch( ...
+                        opts.funch, ...
+                        1, ...
+                        {subs(:, col_idx-opts.starting_index_col+1), ...
+                         'globbing_var', '', ...
+                         'out_dir', opts.out_dir}, ...
+                        'CurrentFolder', opts.out_dir, ...
+                        'AutoAddClientPath', false);
+                catch ME
+                    handwarning(ME)
+                end
+            end
+
+            warning('on', 'MATLAB:legacy:batchSyntax');
+            warning('on', 'parallel:convenience:BatchFunctionNestedCellArray');
+            warning('on', 'MATLAB:TooManyInputs');
+        end
+
+        function globbing_mat = extract_globbed_phis(globbing_mat, opts)
+            %% from globbing, extracts all phis (physios) into a new pair of mat and json files
+
+            arguments
+                globbing_mat {mustBeText} = ...
+                    fullfile( ...
+                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_verified_globbed.mat')
+                opts.globbing_var = "globbed"
+                opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP/cache"
+            end
+
+            import mlraut.BrainSmashAdapter.extract_ses_phis
+            import mlraut.BrainSmashAdapter.makeConcise
+
+            % `globbing_mat` -> `subs`
+            if isscalar(string(globbing_mat)) && endsWith(globbing_mat, ".mat") && ~isemptytext(opts.globbing_var)
+                ld = load(globbing_mat);
+                subs = ld.(opts.globbing_var);
+            else
+                subs = globbing_mat;
+            end
+            subs = convertCharsToStrings(subs);
+            subs = asrow(subs);
+            fprintf("%s: ", stackstr()); disp(subs);
+            
+            % sample subjects and tasks per subject (typically 2-4)
+            for sub = asrow(subs)
+                if isemptytext(sub)
+                    continue
+                end
+                mat_fqfns = mglob( ...
+                    fullfile(opts.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub)));
+                if any(contains(mat_fqfns, "-all"))
+                    mat_fqfns = mat_fqfns(~contains(mat_fqfns, "-all"));  % don't double count
+                end
+                if isemptytext(mat_fqfns)
+                    continue
+                end
+
+                for mat_fqfn = mat_fqfns
+                    tic
+                    extract_ses_phis(mat_fqfn);
+                    fprintf("time working with %s: ", mat_fqfn);
+                    toc
+                end
+            end
+        end
+
+        function extract_ses_phis(mat_fqfn)
+            %% from legacy mat file, extracts all phis (physios) into a new pair of mat and json files
+
+            import mlraut.BrainSmashAdapter.mat_to_json
+            rsns = ["vis", "sms", "dan", "van", "lim", "fpn", "dmn"];  % see also mlraut.NetworkData
+
+            try
+
+                ld = load(mat_fqfn);
+                this_subset = struct();  % to populate
+
+                for f_ = asrow(fieldnames(ld.this_subset))
+                    f = convertCharsToStrings(f_);
+
+                    if strcmp(f, "physio_signal")
+                        fcontent = ld.this_subset.(f);
+                        assert(isnumeric(fcontent))
+                        key = ld.this_subset.source_physio;
+                        key1 = strrep(key, "-", "_");
+                        key1 = strrep(key1, "3rd", "third");    
+                        this_subset.(key1) = fcontent;  % typically ld.source_physio == "iFV"
+                    end
+
+                    if strcmp(f, "physio_supplementary")
+                        fcontent = ld.this_subset.(f);
+                        assert(isa(fcontent, "containers.Map"))
+                        keys = convertCharsToStrings(fcontent.keys);
+                        keys1 = strrep(keys, "-", "_");
+                        keys1 = strrep(keys1, "3rd", "third");
+                        for ik = 1:length(keys)
+                            re_phi_ = ascol(fcontent(keys(ik)));
+                            this_subset.(keys1(ik)) = hilbert(re_phi_);
+                        end
+                    end
+
+                    if strcmp(f, "HCP_signals")
+                        fcontent = ld.this_subset.(f);
+                        assert(isstruct(fcontent))
+                        for anat = ["cbm", "ctx", "str", "thal"]
+                            for irsn = 1:length(rsns)
+                                rsn = rsns(irsn);
+                                rsn_array = fcontent.(anat).psi;  % samples of psi from Yeo ROIs
+                                this_subset.HCP_signals.(anat).(rsn) = ascol(rsn_array(:, irsn));
+                            end
+                        end
+                    end
+                end
+            catch ME
+                fprintf("while working with %s: ", mat_fqfn);
+                handwarning(ME)
+                this_subset = struct('filename', mat_fqfn, 'ME', ME);
+            end
+
+            % write new mat
+            mat_fqfn1 = fullfile(fileparts(mat_fqfn), "phis_" + mybasename(mat_fqfn, withext=true));
+            save(mat_fqfn1, "this_subset", "-v7.3");
+
+            % write new json
+            mat_to_json(mat_fqfn1, data=this_subset);
+        end
+
         function globbing_mat = sample_subs_tasks(globbing_mat, opts)
             %% collects opts.measure for all tasks for all sub
             arguments
@@ -121,13 +309,13 @@ classdef BrainSmashAdapter < handle
                 opts.globbing_var = "verified_globbed"
                 opts.new_physio {mustBeTextScalar} = "iFV"
                 opts.anatomy {mustBeTextScalar} = "ctx"
-                opts.measure {mustBeTextScalar} = "Z_sup_2_binned"  % "Z_sup_2_tuned"
-                opts.measure_name {mustBeTextScalar} = "Zsup2binned"  % "Zsup2tuned"
+                opts.measure {mustBeTextScalar} = "zeta_hat_avgt"  % "Z_sup_2_tuned"
+                opts.measure_name {mustBeTextScalar} = "zetahatavgt"  % "Zsup2tuned"
                 opts.col_idx {mustBeScalarOrEmpty} = nan
                 opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP/cache"
                 opts.sub_folders {mustBeTextScalar} = fullfile("BrainSmashAdapter", "sample_subs_tasks")
                 opts.stat = []  % e.g., @identity, @mean; [] skips writing cifti
-                opts.real logical = true  % real() | imag()
+                opts.real logical = true  % real() | imag() for saving cifti
             end
 
             do_binned = contains(opts.measure, "_binned");
@@ -161,7 +349,6 @@ classdef BrainSmashAdapter < handle
             warning("on", "MATLAB:class:LoadDefinitionUpdated");
             
             % sample subjects and tasks per subject (typically 2-4)
-            samples = [];
             for sub = asrow(subs)
                 if isemptytext(sub)
                     continue
@@ -176,7 +363,7 @@ classdef BrainSmashAdapter < handle
                 end
 
                 if do_binned
-                    img_ = nan([length(mat_fqfn), as.num_bins_angles, as.num_nodes]);  % N_task x N_go
+                    img_ = nan([length(mat_fqfn), as.num_bins_angles, as.num_nodes]);  % N_task x N_bins x N_go
                 else
                     img_ = nan([length(mat_fqfn), as.num_nodes]);  % N_task x N_go
                 end
@@ -194,19 +381,27 @@ classdef BrainSmashAdapter < handle
                             phi = ld.this_subset.physio_signal;
                         elseif strcmpi(opts.new_physio, 'vis')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'sms')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'dan')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'van')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'lim')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'fpn')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'dmn')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
+                            phi = as.neg_dbold_dt(phi);
                         else
+                            % physio, csf, white-matter
                             re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
                             assert(~isempty(re_phi))
                             assert(all(isfinite(re_phi)))
@@ -230,8 +425,8 @@ classdef BrainSmashAdapter < handle
 
                 % average tasks
                 if do_binned
-                    samples = mean(img_, 1, "omitnan");  % 1 x N_go
-                    samples = squeeze(samples);  % needed for samples ~ 1 x N_theta x N_go
+                    samples = mean(img_, 1, "omitnan");  % 1 x N_theta x N_go
+                    samples = squeeze(samples);  % N_theta x N_go
                 else
                     samples = mean(img_, 1, "omitnan");  % 1 x N_go
                 end
@@ -310,142 +505,15 @@ classdef BrainSmashAdapter < handle
             end
         end
 
-        function globbing_mat = sample_subs_tasks_physio(globbing_mat, opts)
-            %% collects physio time-seres for all tasks for all sub
-
-            arguments
-                globbing_mat {mustBeText} = ...
-                    fullfile( ...
-                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
-                opts.globbing_var = "globbed"
-                opts.new_physio {mustBeTextScalar} = "RV-std"
-                opts.anatomy {mustBeTextScalar} = "ctx"
-                opts.measure {mustBeTextScalar} = ""
-                opts.measure_name {mustBeTextScalar} = ""
-                opts.col_idx {mustBeScalarOrEmpty} = nan
-                opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP"
-                opts.stat = []
-                opts.real logical = true  % real() | imag()
-                opts.do_save logical = true
-            end
-
-            % `globbing_mat` -> `subs`
-            if isscalar(string(globbing_mat)) && endsWith(globbing_mat, ".mat") && ~isemptytext(opts.globbing_var)
-                ld = load(globbing_mat);
-                subs = ld.(opts.globbing_var);
-            else
-                subs = globbing_mat;
-            end
-            subs = convertCharsToStrings(subs);
-            subs = asrow(subs);
-
-            % construct `as` which supplies utilities from AnalyticSignalHCP
-            warning("off", "MATLAB:class:LoadDefinitionUpdated");
-            mat_fqfn = [];
-            idx = 0;
-            while isempty(mat_fqfn) && idx < length(subs)
-                idx = idx + 1;
-                patt = fullfile( ...
-                    opts.out_dir, ...
-                    subs(idx), ...
-                    sprintf("sub-%s_ses-*_proc-*ASHCPPar*.mat", subs(idx)));
-                mat_fqfn = mglob(patt);
-            end
-            as = mlraut.AnalyticSignalHCPPar.load(mat_fqfn(1), class="mlraut.AnalyticSignalHCPPar");
-            as.out_dir = opts.out_dir;
-            warning("on", "MATLAB:class:LoadDefinitionUpdated");
-            
-            % sample subjects and tasks per subject (typically 2-4)
-            samples = [];
-            for sub = asrow(subs)
-                if isemptytext(sub)
-                    continue
-                end
-                mat_fqfns = mglob( ...
-                    fullfile(opts.out_dir, sub, sprintf("sub-%s_ses-*ASHCPPar*.mat", sub)));
-                if any(contains(mat_fqfns, "-all"))
-                    mat_fqfns = mat_fqfns(~contains(mat_fqfns, "-all"));  % don't double count
-                end
-                if isemptytext(mat_fqfns)
-                    continue
-                end
-
-                img_ = [];
-                nerror = 0;
-                for mat_fqfn = mat_fqfns
-                    tic
-                    try
-                        ld = load(mat_fqfn);
-                        if isemptytext(opts.new_physio)
-                            phi = ld.this_subset.physio_signal;
-                        elseif strcmpi(opts.new_physio, ld.this_subset.source_physio)
-                            phi = ld.this_subset.physio_signal;
-                        elseif strcmpi(opts.new_physio, 'vis')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
-                        elseif strcmpi(opts.new_physio, 'sms')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
-                        elseif strcmpi(opts.new_physio, 'dan')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
-                        elseif strcmpi(opts.new_physio, 'van')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
-                        elseif strcmpi(opts.new_physio, 'lim')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
-                        elseif strcmpi(opts.new_physio, 'fpn')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
-                        elseif strcmpi(opts.new_physio, 'dmn')
-                            phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
-                        else
-                            re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
-                            assert(~isempty(re_phi))
-                            assert(all(isfinite(re_phi)))
-                            phi = re_phi;
-                        end
-
-                        img_ = [img_, real(phi)]; %#ok<AGROW>  accum N_t x N_{tasks}
-                    catch ME
-                        fprintf("while working with %s: ", mat_fqfn);
-                        nerror = nerror + 1;
-                        handwarning(ME)
-                    end
-                    fprintf("time working with %s: ", mat_fqfn);
-                    toc
-                end
-
-                samples = [samples, img_];  %#ok<AGROW> % accum N_t x (N_{tasks} + N_{subs})
-            end
-
-            % build parts of filenames
-            ntag = size(samples, 2);
-            if ~strcmp(opts.anatomy, "ctx")
-                ptags = strrep(as.tags, as.source_physio, sprintf("%s-%s", opts.anatomy, opts.new_physio));
-            else
-                ptags = strrep(as.tags, as.source_physio, opts.new_physio);
-            end
-
-            % assemble struct of measure
-            measure_data = struct( ...
-                "new_physio", opts.new_physio, ...
-                "subs", subs, "samples", samples, "ntag", ntag, "ptags", ptags, "nerror", nerror);
-
-            % save intermediates to out_fqfn
-            if opts.do_save
-                out_fqfn = fullfile( ...
-                    opts.out_dir, ...
-                    sprintf('%s_as_sub-%i_ses-%i_%s_par%i.mat', ...
-                    stackstr(use_dashes=false), ntag, ntag, ptags, opts.col_idx));
-                save(out_fqfn, "measure_data", "-v7.3");
-            end
-        end
-        
         function globbing_mat = sample_subs_tasks_scrambled(globbing_mat, opts)
             %% collects opts.measure for all tasks for all sub
             arguments
                 globbing_mat {mustBeText} = "200917"
                 opts.globbing_var = "verified_globbed_251to500"
-                opts.new_physio {mustBeTextScalar} = "RV-std"
+                opts.new_physio {mustBeTextScalar} = "iFV"
                 opts.anatomy {mustBeTextScalar} = "ctx"
-                opts.measure {mustBeTextScalar} = "phase_locked_values"
-                opts.measure_name {mustBeTextScalar} = "plvs"
+                opts.measure {mustBeTextScalar} = "zeta_hat_avgt"
+                opts.measure_name {mustBeTextScalar} = "zetahatavgt"
                 opts.col_idx {mustBeScalarOrEmpty} = nan
                 opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP/cache"
                 opts.sub_folders {mustBeTextScalar} = fullfile("BrainSmashAdapter", "sample_subs_tasks_scrambled")
@@ -515,19 +583,27 @@ classdef BrainSmashAdapter < handle
                             phi = ld.this_subset.physio_signal;
                         elseif strcmpi(opts.new_physio, 'vis')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 1);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'sms')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 2);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'dan')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 3);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'van')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 4);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'lim')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 5);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'fpn')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 6);
+                            phi = as.neg_dbold_dt(phi);
                         elseif strcmpi(opts.new_physio, 'dmn')
                             phi = ld.this_subset.HCP_signals.(opts.anatomy).psi(:, 7);
+                            phi = as.neg_dbold_dt(phi);
                         else
+                            % physio, csf, white-matter
                             re_phi = ld.this_subset.physio_supplementary(opts.new_physio);
                             assert(~isempty(re_phi))
                             assert(all(isfinite(re_phi)))
@@ -760,17 +836,73 @@ classdef BrainSmashAdapter < handle
             end
         end
 
-        function globbing_mat = mats_to_jsons(globbing_mat, opts)
-            %% collects opts.measure for all tasks for all sub
+        function mat_to_json(mat_fqfn, opts)
+            %% constructs json for single f.q. mat file
+
             arguments
-                globbing_mat {mustBeText} = ...
-                    fullfile( ...
-                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_globbing.mat')
-                opts.globbing_var = "globbed"
-                opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP"
+                mat_fqfn {mustBeFile}
+                opts.data = []
             end
 
             import mlraut.BrainSmashAdapter.makeConcise
+
+            tic
+            try
+                if ~isempty(opts.data) && isstruct(opts.data)
+                    this_subset = opts.data;
+                else
+                    assert(isfile(mat_fqfn))
+                    ld = load(mat_fqfn);
+                    this_subset = ld.this_subset;
+                end
+
+                for f_ = asrow(fieldnames(this_subset))
+                    f = convertCharsToStrings(f_);
+                    fcontent = this_subset.(f);
+                    if isnumeric(fcontent) && numel(fcontent) > 100
+                        this_subset.(f) = makeConcise(fcontent);
+                    end
+                    if strcmp(f, "HCP_signals")
+                        this_subset.(f) = makeConcise(fcontent);
+                    end
+                    if strcmp(f, "digital_filter")
+                        this_subset.(f) = class(fcontent);
+                    end
+                    if isa(fcontent, "containers.Map")
+                        vals = fcontent.values;
+                        this_subset.(f) = struct( ...
+                            'Count', fcontent.Count, ...
+                            'keys', fcontent.keys, ...
+                            'values', makeConcise(vals));
+                    end
+                end
+
+            catch ME
+                fprintf("while working with %s: ", mat_fqfn);
+                handwarning(ME)
+                this_subset = struct('filename', mat_fqfn, 'ME', ME);
+            end
+
+            % write json
+            json_fqfn = myfileprefix(mat_fqfn) + ".json";
+            writelines(jsonencode(this_subset, 'PrettyPrint', true), json_fqfn);
+
+            fprintf("time working with %s: ", mat_fqfn);
+            toc
+        end
+
+        function globbing_mat = mats_to_jsons(globbing_mat, opts)
+            %% constructs json for all mats of all tasks for all sub
+
+            arguments
+                globbing_mat {mustBeText} = ...
+                    fullfile( ...
+                    getenv('SINGULARITY_HOME'), 'AnalyticSignalHCP', 'mlraut_AnalyticSignalHCPPar_verified_globbed.mat')
+                opts.globbing_var = "globbed"
+                opts.out_dir {mustBeFolder} = "/home/usr/jjlee/mnt/CHPC_scratch/Singularity/AnalyticSignalHCP/cache"
+            end
+
+            import mlraut.BrainSmashAdapter.mat_to_json
 
             % `globbing_mat` -> `subs`
             if isscalar(string(globbing_mat)) && endsWith(globbing_mat, ".mat") && ~isemptytext(opts.globbing_var)
@@ -798,44 +930,7 @@ classdef BrainSmashAdapter < handle
                 end
 
                 for mat_fqfn = mat_fqfns
-                    tic
-                    try
-                        ld = load(mat_fqfn);
-                        this_subset = ld.this_subset;
-
-                        for f_ = asrow(fieldnames(this_subset))
-                            f = convertCharsToStrings(f_);
-                            fcontent = this_subset.(f);
-                            if isnumeric(fcontent) && numel(fcontent) > 100
-                                this_subset.(f) = makeConcise(fcontent);
-                            end
-                            if strcmp(f, "HCP_signals")                                
-                                this_subset.(f) = makeConcise(fcontent);
-                            end
-                            if strcmp(f, "digital_filter")
-                                this_subset.(f) = class(fcontent);
-                            end
-                            if isa(fcontent, "containers.Map")
-                                vals = fcontent.values;
-                                this_subset.(f) = struct( ...
-                                    'Count', fcontent.Count, ...
-                                    'keys', fcontent.keys, ...
-                                    'values', makeConcise(vals));
-                            end
-                        end
-                        
-                    catch ME
-                        fprintf("while working with %s: ", mat_fqfn);
-                        handwarning(ME)
-                        this_subset = struct('filename', mat_fqfn, 'ME', ME);
-                    end
-
-                    % write json
-                    json_fqfn = myfileprefix(mat_fqfn) + ".json";                    
-                    writelines(jsonencode(this_subset, 'PrettyPrint', true), json_fqfn);
-
-                    fprintf("time working with %s: ", mat_fqfn);
-                    toc
+                    mat_to_json(mat_fqfn);
                 end
             end
         end

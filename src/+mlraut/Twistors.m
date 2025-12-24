@@ -341,32 +341,62 @@ classdef Twistors < handle & mlsystem.IHandle
             end
         end
 
-        function psi = X(this, psi, phi)
+        function psi = X(this, psi, phi, opts)
             %% of twistor
 
+            arguments
+                this mlraut.Twistors
+                psi {mustBeNumeric}
+                phi {mustBeNumeric} = []
+                opts.transform_phi logical = false
+            end
+
             if this.use_neg_ddt
-                [psi,phi] = this.neg_ddt(psi, phi);
+                [psi,phi] = this.neg_ddt(psi, phi, opts.transform_phi);
                 psi = this.ihcp_.build_centered_and_rescaled(psi);
+                if opts.transform_phi
+                    phi = this.ihcp_.build_centered_and_rescaled(phi);
+                end
             end
             psi = (psi.*conj(phi) + phi.*conj(psi))/sqrt(2);
         end
 
-        function psi = Y(this, psi, phi)
+        function psi = Y(this, psi, phi, opts)
             %% of twistor
 
+            arguments
+                this mlraut.Twistors
+                psi {mustBeNumeric}
+                phi {mustBeNumeric} = []
+                opts.transform_phi logical = false
+            end
+
             if this.use_neg_ddt
-                [psi,phi] = this.neg_ddt(psi, phi);
+                [psi,phi] = this.neg_ddt(psi, phi, opts.transform_phi);
                 psi = this.ihcp_.build_centered_and_rescaled(psi);
+                if opts.transform_phi
+                    phi = this.ihcp_.build_centered_and_rescaled(phi);
+                end
             end
             psi = -1i*(psi.*conj(phi) - phi.*conj(psi))/sqrt(2);
         end
 
-        function psi = Z(this, psi, phi)
+        function psi = Z(this, psi, phi, opts)
             %% of twistor
 
+            arguments
+                this mlraut.Twistors
+                psi {mustBeNumeric}
+                phi {mustBeNumeric} = []
+                opts.transform_phi logical = false
+            end
+
             if this.use_neg_ddt
-                [psi,phi] = this.neg_ddt(psi, phi);
+                [psi,phi] = this.neg_ddt(psi, phi, opts.transform_phi);
                 psi = this.ihcp_.build_centered_and_rescaled(psi);
+                if opts.transform_phi
+                    phi = this.ihcp_.build_centered_and_rescaled(phi);
+                end
             end
             psi = (psi.*conj(psi) - phi.*conj(phi))/sqrt(2);
         end
@@ -412,6 +442,7 @@ classdef Twistors < handle & mlsystem.IHandle
             %  Args:
             %      psi {mustBeNumeric} ~ \pi_{0'} ~ -dbold/dt
             %      phi {mustBeNumeric} ~ \pi_{1'} ~ physio(t)
+            %      opts.transform_phi logical = false
             %      opts.type {mustBeTextScalar} = "midthickness"  % "sphere", "midthickness"
             %      opts.center_coord {mustBeNumeric} = [90, 73, 116]  % mm, for precuneus
             %      opts.go_qc logical = false  % greyordinate qc
@@ -428,6 +459,7 @@ classdef Twistors < handle & mlsystem.IHandle
                 this mlraut.Twistors
                 psi {mustBeNumeric}
                 phi {mustBeNumeric}
+                opts.transform_phi logical = false
                 opts.type {mustBeTextScalar} = "sphere"  % "sphere", "midthickness"
                 opts.center_coord {mustBeNumeric} = this.LOCUS_CERULEUS_COORD  % mm, for precuneus
                 opts.go_qc logical = false  % greyordinate qc
@@ -443,8 +475,11 @@ classdef Twistors < handle & mlsystem.IHandle
 
             % consider using -dbold/dt
             if this.use_neg_ddt
-                [psi,phi] = this.neg_ddt(psi, phi);
+                [psi,phi] = this.neg_ddt(psi, phi, opts.transform_phi);
                 psi = this.ihcp_.build_centered_and_rescaled(psi);
+                if opts.transform_phi
+                    phi = this.ihcp_.build_centered_and_rescaled(phi);
+                end
             end
 
             % init
@@ -532,18 +567,28 @@ classdef Twistors < handle & mlsystem.IHandle
             Z_sup_alpha_ = {omega_sup_0_, omega_sup_1_, pi_sub_0p_, pi_sub_1p_};
         end
 
-        function psi = T(this, psi, phi)
+        function psi = T(this, psi, phi, opts)
             %% of twistor
 
+            arguments
+                this mlraut.Twistors
+                psi {mustBeNumeric}
+                phi {mustBeNumeric} = []
+                opts.transform_phi logical = false
+            end
+
             if this.use_neg_ddt
-                [psi,phi] = this.neg_ddt(psi, phi);
+                [psi,phi] = this.neg_ddt(psi, phi, opts.transform_phi);
                 psi = this.ihcp_.build_centered_and_rescaled(psi);
+                if opts.transform_phi
+                    phi = this.ihcp_.build_centered_and_rescaled(phi);
+                end
             end
             psi = (psi.*conj(psi) + phi.*conj(phi))/sqrt(2);
         end
 
-        function x_ = x(this, psi, phi)
-            x_ = this.X(psi, phi) ./ this.T(psi, phi);
+        function x_ = x(this, psi, phi, varargin)
+            x_ = this.X(psi, phi, varargin{:}) ./ this.T(psi, phi, varargin{:});
         end
 
         function y_ = y(this, psi, phi)
@@ -554,43 +599,96 @@ classdef Twistors < handle & mlsystem.IHandle
             z_ = this.Z(psi, phi) ./ this.T(psi, phi);
         end
 
-        function z = zeta(this, xi, eta)
+        function z = zeta(this, xi, eta, opts)
             %% of twistor
 
             arguments
                 this mlraut.Twistors
                 xi {mustBeNumeric}
                 eta {mustBeNumeric}
+                opts.transform_phi logical = false
             end
             assert(~isempty(eta))
             assert(size(xi, 1) == size(eta, 1))
 
             if this.use_neg_ddt
-                [xi,eta] = this.neg_ddt(xi, eta);
+                [xi,eta] = this.neg_ddt(xi, eta, opts.transform_phi);
                 xi = this.ihcp_.build_centered_and_rescaled(xi);
+                if opts.transform_phi
+                    eta = this.ihcp_.build_centered_and_rescaled(eta);
+                end
             end
 
             z = xi ./ eta;
         end
 
-        function theta = angle(this, psi, phi)
-            if this.use_neg_ddt
-                [psi,phi] = this.neg_ddt(psi, phi);
-                psi = this.ihcp_.build_centered_and_rescaled(psi);
-            end
-            theta = angle(psi.*phi);            
+        function z1_ = zeta_binned(this, psi, phi, varargin)
+            z1_ = this.zeta(psi, phi, varargin{:});
+            z1_ = this.bin_by_physio_angle(z1_, phi);  % N_bins_angles x N_go
         end
 
-        function psi = neg_dbold_dt(this, psi, phi)
+        function z1 = zeta_hat(this, xi, eta, opts)
             %% of twistor
+
+            arguments
+                this mlraut.Twistors
+                xi {mustBeNumeric}
+                eta {mustBeNumeric}
+                opts.transform_phi logical = false
+            end
+            assert(~isempty(eta))
+            assert(size(xi, 1) == size(eta, 1))
+
+            if this.use_neg_ddt
+                [xi,eta] = this.neg_ddt(xi, eta, transform_phi=opts.transform_phi);
+                xi = this.ihcp_.build_centered_and_rescaled(xi);
+                if opts.transform_phi
+                    eta = this.ihcp_.build_centered_and_rescaled(eta);
+                end
+            end
+
+            eta1 = eta ./ abs(eta);
+            z1 = xi ./ eta1;
+        end
+
+        function z1_ = zeta_hat_avgt(this, psi, phi, varargin)
+            z1_ = this.zeta_hat(psi, phi, varargin{:});
+            z1_ = mean(z1_, 1);  % N_bins_angles x N_go
+        end
+
+        function z1_ = zeta_hat_binned(this, psi, phi, varargin)
+            z1_ = this.zeta_hat(psi, phi, varargin{:});
+            z1_ = this.bin_by_physio_angle(z1_, phi);  % N_bins_angles x N_go
+        end
+
+        function theta = angle(this, psi, phi, opts)
 
             arguments
                 this mlraut.Twistors
                 psi {mustBeNumeric}
                 phi {mustBeNumeric} = []
+                opts.transform_phi logical = false
             end
 
-            psi = this.neg_ddt(psi, phi);
+            if this.use_neg_ddt
+                [psi,phi] = this.neg_ddt(psi, phi, opts.transform_phi);
+                psi = this.ihcp_.build_centered_and_rescaled(psi);
+                if opts.transform_phi
+                    phi = this.ihcp_.build_centered_and_rescaled(phi);
+                end
+            end
+            theta = angle(psi.*phi);            
+        end
+
+        function psi = neg_dbold_dt(this, psi)
+            %% of twistor
+
+            arguments
+                this mlraut.Twistors
+                psi {mustBeNumeric}
+            end
+
+            psi = this.neg_ddt(psi, []);
             psi = this.ihcp_.build_centered_and_rescaled(psi);
         end
 
@@ -660,12 +758,16 @@ classdef Twistors < handle & mlsystem.IHandle
                 psi {mustBeNumeric}
                 phi {mustBeNumeric} = []
                 opts.scale {mustBeScalarOrEmpty} = 1
+                opts.transform_phi logical = false
             end
 
-            psi = -opts.scale*diff(psi, 1);  % 1st deriv. of time
+            psi = -opts.scale*diff(psi, 1);  % negative 1st deriv. of time
             % psi(psi < 0) = 0;  % see Fultz et al. 2019
 
             if ~isempty(phi)
+                if opts.transform_phi
+                    phi = -opts.scale*diff(phi, 1);
+                end
                 Nt = size(phi, 1);
                 rep = repmat({':'}, 1, ndims(phi) - 1);
                 phi = phi(1:Nt-1, rep{:});
