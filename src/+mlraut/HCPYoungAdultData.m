@@ -206,7 +206,11 @@ classdef HCPYoungAdultData < handle & mlraut.CohortData
             this = this@mlraut.CohortData(ihcp);
 
             if isemptytext(out_dir)
-                out_dir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP");
+                if isfolder(ihcp.out_dir)
+                    out_dir = ihcp.out_dir;
+                else
+                    out_dir = fullfile(getenv("SINGULARITY_HOME"), "AnalyticSignalHCP");
+                end
             end
             this.out_dir_ = out_dir;
         end

@@ -194,6 +194,9 @@ classdef GBMCiftifyData2 < handle & mlraut.CohortData
 
             this = this@mlraut.CohortData(ihcp);
 
+            if isemptytext(out_dir) && isfolder(ihcp.out_dir)
+                out_dir = ihcp.out_dir;
+            end
             this.out_dir_ = out_dir;
 
             if ~isfile(this.json_fqfn)
